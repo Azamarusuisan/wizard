@@ -1067,6 +1067,7 @@ pub fn init(_threads: Option<u32>) {
 pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
     let spot: NativeSpot = serde_json::from_str(spot_json)
         .map_err(|err| JsValue::from_str(&format!("bad spot json: {err}")))?;
+    validate_spot(&spot).map_err(JsValue::from_str)?;
     let pot_odds = spot.bet / (spot.pot + 2.0 * spot.bet);
     let mdf = spot.pot / (spot.pot + spot.bet);
     let alpha = spot.bet / (spot.pot + spot.bet);
@@ -1112,6 +1113,21 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
     guard.next += 1;
     guard.solves.insert(handle, solve);
     Ok(handle)
+}
+
+fn validate_spot(spot: &NativeSpot) -> Result<(), &'static str> {
+    if !(spot.pot.is_finite() && spot.pot > 0.0) {
+        return Err("pot must be positive");
+    }
+    if !(spot.bet.is_finite() && spot.bet >= 0.0) {
+        return Err("bet must be non-negative");
+    }
+    if let Some(stack) = spot.stack {
+        if !(stack.is_finite() && stack > 0.0) {
+            return Err("stack must be positive");
+        }
+    }
+    Ok(())
 }
 
 #[wasm_bindgen]
@@ -1311,5 +1327,27 @@ mod tests {
         assert_eq!(native.metrics[native.combos.len() * 3], 2.5);
         assert!(native.progress.last().unwrap().exploitability_pct <= 0.3);
         super::cancel(handle).expect("cancel");
+    }
+
+    #[test]
+    fn native_solve_rejects_invalid_spots() {
+        assert!(super::validate_spot(&super::NativeSpot {
+            pot: 0.0,
+            bet: 66.0,
+            stack: None,
+        })
+        .is_err());
+        assert!(super::validate_spot(&super::NativeSpot {
+            pot: 100.0,
+            bet: -1.0,
+            stack: None,
+        })
+        .is_err());
+        assert!(super::validate_spot(&super::NativeSpot {
+            pot: 100.0,
+            bet: 66.0,
+            stack: Some(0.0),
+        })
+        .is_err());
     }
 }

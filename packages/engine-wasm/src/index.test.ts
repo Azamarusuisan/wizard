@@ -43,3 +43,9 @@ test("TS river solve fallback emits pure best-response rows", () => {
   assert.equal(result.exploitability.at(-1)?.value, 0);
   assert.equal(result.metrics.spr, 2.5);
 });
+
+test("TS river solve fallback rejects invalid spots", () => {
+  assert.throws(() => solveRiverSpot(0, 66), /pot/);
+  assert.throws(() => solveRiverSpot(100, -1), /bet/);
+  assert.throws(() => solveRiverSpot(100, 66, 0), /stack/);
+});

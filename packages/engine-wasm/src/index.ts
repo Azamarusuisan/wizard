@@ -201,6 +201,9 @@ export type SolverRow = { combo: string; fold: number; call: number; raise: numb
 export type SolveResult = { rows: SolverRow[]; exploitability: { iteration: number; value: number }[]; metrics: { spr: number; mdf: number; alpha: number; potOdds: number } };
 
 export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2): SolveResult {
+  if (!Number.isFinite(pot) || pot <= 0) throw new Error("pot must be positive");
+  if (!Number.isFinite(bet) || bet < 0) throw new Error("bet must be non-negative");
+  if (!Number.isFinite(stack) || stack <= 0) throw new Error("stack must be positive");
   const potOdds = bet / (pot + 2 * bet);
   const mdf = pot / (pot + bet);
   const alpha = bet / (pot + bet);
