@@ -87,6 +87,9 @@ test("COOP COEP headers are set", async ({ request }) => {
 
 test("top bar toggles theme and language", async ({ page }) => {
   await page.goto("/");
+  await page.getByLabel("Toggle navigation").click();
+  await expect(page.locator(".app")).toHaveClass(/collapsed/);
+  await expect(page.locator(".nav-label", { hasText: "Dashboard" })).toBeHidden();
   await page.getByLabel("Toggle palette").click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await page.getByLabel("Toggle language").click();

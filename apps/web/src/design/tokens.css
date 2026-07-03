@@ -38,10 +38,14 @@ body {
 button, input, select, textarea { font: inherit; }
 button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .app { display: grid; grid-template-columns: 232px 1fr; min-height: 100vh; }
+.app.collapsed { grid-template-columns: 72px 1fr; }
 .nav { border-right: 1px solid var(--line); background: #080c15; padding: 16px 12px; position: sticky; top: 0; height: 100vh; }
-.brand { font-weight: 750; font-size: 18px; margin: 8px 8px 20px; }
+.brand { font-weight: 750; font-size: 18px; margin: 8px 8px 20px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.brand .btn { width: auto; padding: 5px 8px; }
 .nav button { width: 100%; display: flex; gap: 10px; align-items: center; color: var(--muted); background: transparent; border: 0; border-radius: 7px; padding: 10px; cursor: pointer; }
 .nav button.active, .nav button:hover { color: var(--text); background: var(--layer); }
+.app.collapsed .brand span, .app.collapsed .nav-label { display: none; }
+.app.collapsed .nav button { justify-content: center; }
 .main { min-width: 0; }
 .top { height: 58px; display: flex; align-items: center; justify-content: space-between; padding: 0 22px; border-bottom: 1px solid var(--line); background: rgba(11,15,26,.82); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 2; }
 .content { max-width: 1440px; margin: 0 auto; padding: 22px; }

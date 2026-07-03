@@ -20,6 +20,7 @@ const routes = [
 
 function App() {
   const path = window.location.pathname;
+  const [collapsed, setCollapsed] = useState(false);
   const lang = useAppStore((s) => s.lang);
   const setLang = useAppStore((s) => s.setLang);
   const theme = useAppStore((s) => s.theme);
@@ -34,12 +35,12 @@ function App() {
     document.documentElement.dataset.deck = deckColors;
   }, [deckColors]);
   return (
-    <div className="app">
+    <div className={`app${collapsed ? " collapsed" : ""}`}>
       <nav className="nav" aria-label="Primary">
-        <div className="brand">GTO Lab</div>
+        <div className="brand"><span>GTO Lab</span><button className="btn" aria-label="Toggle navigation" onClick={() => setCollapsed((value) => !value)}>{collapsed ? ">" : "<"}</button></div>
         {routes.map(([href, key, Icon]) => (
           <button key={href} className={href === path ? "active" : ""} onClick={() => { history.pushState(null, "", href); window.dispatchEvent(new PopStateEvent("popstate")); }}>
-            <Icon size={17} /> {key === "UI" ? "UI Gallery" : dict[lang][key as keyof typeof dict.ja]}
+            <Icon size={17} /> <span className="nav-label">{key === "UI" ? "UI Gallery" : dict[lang][key as keyof typeof dict.ja]}</span>
           </button>
         ))}
       </nav>
