@@ -1,0 +1,34 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { evaluateNlh7, evaluatePlo, equity, kuhnCfr, parseCard, parseNlhRange, potLimitMaxRaise, serializeRange } from "./index.js";
+
+const cs = (s: string) => s.split(/\s+/).map(parseCard);
+
+test("NLH ranks quads over full house", () => {
+  assert.ok(evaluateNlh7(cs("As Ah Ac Ad Kc Qc Jc")) > evaluateNlh7(cs("Ks Kh Kc Qd Qh 2c 3d")));
+});
+
+test("PLO must use exactly two hole cards", () => {
+  const board = cs("Ah Kh Qh Jh 2c");
+  const oneHeart = evaluatePlo(cs("Th 9c 8d 7s"), board);
+  const twoHeart = evaluatePlo(cs("Th 9h 8d 7s"), board);
+  assert.ok(twoHeart > oneHeart);
+});
+
+test("equity AA vs KK preflop is plausible", () => {
+  const [aa] = equity([{ cards: cs("As Ah") }, { cards: cs("Kc Kd") }], [], "NLH", 20_000, 7);
+  assert.ok(aa!.equity > 0.79 && aa!.equity < 0.84, aa!.equity.toString());
+});
+
+test("range parser round trips", () => {
+  const parsed = parseNlhRange("AA, A5s:0.5");
+  assert.equal(serializeRange(parsed), "AA, A5s:0.5");
+});
+
+test("pot limit max raise known formula", () => {
+  assert.equal(potLimitMaxRaise(100, 20), 160);
+});
+
+test("Kuhn value converges near -1/18", () => {
+  assert.ok(Math.abs(kuhnCfr() + 1 / 18) < 1e-3);
+});

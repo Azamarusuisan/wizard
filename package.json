@@ -1,0 +1,16 @@
+{
+  "name": "gto-lab",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --filter @gto-lab/web dev",
+    "build": "pnpm --filter @gto-lab/engine-wasm build && pnpm --filter @gto-lab/web build",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "typescript": "^5.9.2"
+  }
+}
