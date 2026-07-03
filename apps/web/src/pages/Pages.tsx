@@ -128,7 +128,7 @@ export function SolverStudio() {
           <Metric label="SPR" value={shown.metrics.spr.toFixed(2)} />
           <Metric label="Bluff breakeven alpha" value={`${(shown.metrics.alpha * 100).toFixed(1)}%`} />
           <Metric label="Pot odds" value={`${(shown.metrics.potOdds * 100).toFixed(1)}%`} />
-          {shown.metrics.ploFastExploitability !== undefined ? <Metric label="PLO4 Fast BR" value={`${shown.metrics.ploFastExploitability.toFixed(2)}% pot`} /> : null}
+          {shown.metrics.ploFastExploitability !== undefined ? <Metric label="PLO Fast BR" value={`${shown.metrics.ploFastExploitability.toFixed(2)}% pot`} /> : null}
           <div className="card" style={{ height: 220 }}><Curve data={progress.length ? progress : shown.exploitability} /></div>
         </> : <div className="card"><p className="muted">No valid spot.</p></div>}
       </section>
@@ -142,7 +142,6 @@ function validateSolverInputs(game: Game, pot: number, bet: number, stack: numbe
   if (!Number.isFinite(stack) || stack <= 0) throw new Error("stack must be positive");
   if (!Number.isFinite(rakePct) || rakePct < 0 || rakePct > 100) throw new Error("rake percent must be 0-100");
   if (!Number.isFinite(rakeCap) || rakeCap < 0) throw new Error("rake cap must be non-negative");
-  if (game === "PLO5") throw new Error("PLO5 solver is not implemented yet");
   const cards = board.trim() ? board.trim().split(/\s+/).map(parseCard) : [];
   if (cards.length > 5) throw new Error("board cannot have more than five cards");
   if (new Set(cards).size !== cards.length) throw new Error("duplicate board cards");

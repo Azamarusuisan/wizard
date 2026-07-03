@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { evaluateNlh7, evaluatePlo, equity, kuhnCfr, parseCard, parseNlhRange, parsePloRange, plo4FastExploitabilityPctPot, potLimitMaxRaise, serializeRange, solveRiverSpot } from "./index.js";
+import { evaluateNlh7, evaluatePlo, equity, kuhnCfr, parseCard, parseNlhRange, parsePloRange, plo4FastExploitabilityPctPot, plo5FastExploitabilityPctPot, potLimitMaxRaise, serializeRange, solveRiverSpot } from "./index.js";
 
 const cs = (s: string) => s.split(/\s+/).map(parseCard);
 
@@ -106,9 +106,11 @@ test("TS river solve fallback subtracts capped rake from showdown EV", () => {
   assert.ok(raked.rows[0]!.raiseEv < noRake.rows[0]!.raiseEv);
 });
 
-test("TS solve fallback reports PLO4 Fast BR metric and rejects PLO5 solve", () => {
-  const result = solveRiverSpot(100, 66, 250, "", 0, 0, "PLO4");
-  assert.equal(result.rows[0]!.combo, "PLO4 B1");
-  assert.equal(result.metrics.ploFastExploitability, plo4FastExploitabilityPctPot());
-  assert.throws(() => solveRiverSpot(100, 66, 250, "", 0, 0, "PLO5"), /PLO5/);
+test("TS solve fallback reports PLO Fast BR metrics", () => {
+  const plo4 = solveRiverSpot(100, 66, 250, "", 0, 0, "PLO4");
+  assert.equal(plo4.rows[0]!.combo, "PLO4 B1");
+  assert.equal(plo4.metrics.ploFastExploitability, plo4FastExploitabilityPctPot());
+  const plo5 = solveRiverSpot(100, 66, 250, "", 0, 0, "PLO5");
+  assert.equal(plo5.rows[0]!.combo, "PLO5 B1");
+  assert.equal(plo5.metrics.ploFastExploitability, plo5FastExploitabilityPctPot());
 });

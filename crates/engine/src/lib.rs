@@ -1100,7 +1100,24 @@ pub mod br {
     ];
 
     pub fn plo4_fast_exploitability_pct_pot() -> f64 {
-        let rows: Vec<FlopBucket> = PLO4_FAST_SAMPLES
+        plo_fast_exploitability_pct_pot(&PLO4_FAST_SAMPLES)
+    }
+
+    pub const PLO5_FAST_SAMPLES: [(f64, f64, [f64; 3]); 6] = [
+        (0.64, 0.10, [0.06, 0.48, 0.46]),
+        (0.58, 0.16, [0.08, 0.58, 0.34]),
+        (0.51, 0.22, [0.15, 0.67, 0.18]),
+        (0.44, 0.21, [0.30, 0.60, 0.10]),
+        (0.37, 0.18, [0.52, 0.44, 0.04]),
+        (0.29, 0.13, [0.78, 0.21, 0.01]),
+    ];
+
+    pub fn plo5_fast_exploitability_pct_pot() -> f64 {
+        plo_fast_exploitability_pct_pot(&PLO5_FAST_SAMPLES)
+    }
+
+    fn plo_fast_exploitability_pct_pot(samples: &[(f64, f64, [f64; 3])]) -> f64 {
+        let rows: Vec<FlopBucket> = samples
             .iter()
             .map(|(equity, weight, strategy)| FlopBucket {
                 representative: RiverCombo {
@@ -1320,8 +1337,8 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
     let alpha = spot.bet / (spot.pot + spot.bet);
     let spr = spot.stack.unwrap_or(spot.pot * 4.2) / spot.pot;
     let (rake_pct, rake_cap) = spot_rake(&spot);
-    if spot.game.as_deref().unwrap_or("NLH") == "PLO4" {
-        return solve_plo4_fast(spot, spr, mdf, alpha, pot_odds, rake_pct, rake_cap);
+    if matches!(spot.game.as_deref().unwrap_or("NLH"), "PLO4" | "PLO5") {
+        return solve_plo_fast(spot, spr, mdf, alpha, pot_odds, rake_pct, rake_cap);
     }
     let entries = default_river_entries(&board);
     let combos = entries
@@ -1381,7 +1398,7 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
     Ok(handle)
 }
 
-fn solve_plo4_fast(
+fn solve_plo_fast(
     spot: NativeSpot,
     spr: f64,
     mdf: f64,
@@ -1390,10 +1407,21 @@ fn solve_plo4_fast(
     rake_pct: f64,
     rake_cap: f64,
 ) -> Result<u32, JsValue> {
-    let combos = (1..=br::PLO4_FAST_SAMPLES.len())
-        .map(|i| format!("PLO4 B{i}"))
+    let game = spot.game.as_deref().unwrap_or("PLO4");
+    let samples = if game == "PLO5" {
+        &br::PLO5_FAST_SAMPLES
+    } else {
+        &br::PLO4_FAST_SAMPLES
+    };
+    let metric = if game == "PLO5" {
+        br::plo5_fast_exploitability_pct_pot()
+    } else {
+        br::plo4_fast_exploitability_pct_pot()
+    };
+    let combos = (1..=samples.len())
+        .map(|i| format!("{game} B{i}"))
         .collect::<Vec<_>>();
-    let rows = br::PLO4_FAST_SAMPLES
+    let rows = samples
         .iter()
         .map(|(equity, _, strategy)| br::RiverCombo {
             equity: *equity,
@@ -1414,13 +1442,7 @@ fn solve_plo4_fast(
         action_evs.extend([fold_ev / 100.0, call_ev / 100.0, raise_ev / 100.0]);
         metrics.extend([ev, row.equity, eqr]);
     }
-    metrics.extend([
-        spr,
-        mdf,
-        alpha,
-        pot_odds,
-        br::plo4_fast_exploitability_pct_pot(),
-    ]);
+    metrics.extend([spr, mdf, alpha, pot_odds, metric]);
     let progress =
         br::river_strategy_progress_with_rake(&rows, spot.pot, spot.bet, 36, rake_pct, rake_cap)
             .into_iter()
@@ -1461,8 +1483,7 @@ fn validate_spot(spot: &NativeSpot) -> Result<(), String> {
         }
     }
     match spot.game.as_deref().unwrap_or("NLH") {
-        "NLH" | "PLO4" => {}
-        "PLO5" => return Err("PLO5 solver is not implemented yet".to_string()),
+        "NLH" | "PLO4" | "PLO5" => {}
         _ => return Err("game must be NLH, PLO4, or PLO5".to_string()),
     }
     let (rake_pct, rake_cap) = spot_rake(spot);
@@ -1821,6 +1842,9 @@ mod tests {
         let plo4_fast = br::plo4_fast_exploitability_pct_pot();
         assert!(plo4_fast.is_finite());
         assert!(plo4_fast <= 12.0, "{plo4_fast}");
+        let plo5_fast = br::plo5_fast_exploitability_pct_pot();
+        assert!(plo5_fast.is_finite());
+        assert!(plo5_fast <= 12.0, "{plo5_fast}");
     }
 
     #[test]
@@ -1909,19 +1933,27 @@ mod tests {
     }
 
     #[test]
-    fn native_solve_reports_plo4_fast_br_metric() {
+    fn native_solve_reports_plo_fast_br_metrics() {
         super::init(None);
-        let handle =
-            super::solve(r#"{"game":"PLO4","pot":100.0,"bet":66.0,"stack":250.0}"#).unwrap();
-        let payload = super::serialize(handle).unwrap();
-        let native: super::NativeSolve = serde_json::from_slice(&payload).unwrap();
-        assert_eq!(native.combos[0], "PLO4 B1");
-        assert_eq!(native.combos.len(), br::PLO4_FAST_SAMPLES.len());
+        let plo4 = super::solve(r#"{"game":"PLO4","pot":100.0,"bet":66.0,"stack":250.0}"#).unwrap();
+        let plo4_payload = super::serialize(plo4).unwrap();
+        let plo4_native: super::NativeSolve = serde_json::from_slice(&plo4_payload).unwrap();
+        assert_eq!(plo4_native.combos[0], "PLO4 B1");
+        assert_eq!(plo4_native.combos.len(), br::PLO4_FAST_SAMPLES.len());
         assert_eq!(
-            native.metrics[native.combos.len() * 3 + 4],
+            plo4_native.metrics[plo4_native.combos.len() * 3 + 4],
             br::plo4_fast_exploitability_pct_pot()
         );
-        super::cancel(handle).unwrap();
+        let plo5 = super::solve(r#"{"game":"PLO5","pot":100.0,"bet":66.0,"stack":250.0}"#).unwrap();
+        let plo5_payload = super::serialize(plo5).unwrap();
+        let plo5_native: super::NativeSolve = serde_json::from_slice(&plo5_payload).unwrap();
+        assert_eq!(plo5_native.combos[0], "PLO5 B1");
+        assert_eq!(
+            plo5_native.metrics[plo5_native.combos.len() * 3 + 4],
+            br::plo5_fast_exploitability_pct_pot()
+        );
+        super::cancel(plo4).unwrap();
+        super::cancel(plo5).unwrap();
     }
 
     #[test]
@@ -1973,16 +2005,6 @@ mod tests {
             stack: None,
             board: None,
             rake_pct: Some(-1.0),
-            rake_cap: None,
-        })
-        .is_err());
-        assert!(super::validate_spot(&super::NativeSpot {
-            game: Some("PLO5".to_string()),
-            pot: 100.0,
-            bet: 66.0,
-            stack: None,
-            board: None,
-            rake_pct: None,
             rake_cap: None,
         })
         .is_err());

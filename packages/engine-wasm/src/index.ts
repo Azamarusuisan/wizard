@@ -268,12 +268,11 @@ export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2, boar
   if (!Number.isFinite(stack) || stack <= 0) throw new Error("stack must be positive");
   if (!Number.isFinite(rakePct) || rakePct < 0 || rakePct > 100) throw new Error("rake percent must be 0-100");
   if (!Number.isFinite(rakeCap) || rakeCap < 0) throw new Error("rake cap must be non-negative");
-  if (game === "PLO5") throw new Error("PLO5 solver is not implemented yet");
   const board = parseBoardText(boardText);
   const potOdds = bet / (pot + 2 * bet);
   const mdf = pot / (pot + bet);
   const alpha = bet / (pot + bet);
-  if (game === "PLO4") return solvePlo4FastSpot(pot, bet, stack, rakePct, rakeCap, potOdds, mdf, alpha);
+  if (game === "PLO4" || game === "PLO5") return solvePloFastSpot(game, pot, bet, stack, rakePct, rakeCap, potOdds, mdf, alpha);
   const rows = defaultRiverCombos(board).map(({ combo, fallback, holes }) => {
     const eq = comboEquity(holes, fallback, board);
     const { callEv, raiseEv } = actionEvs(eq, pot, bet, rakePct, rakeCap);
@@ -291,12 +290,22 @@ export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2, boar
 }
 
 export function plo4FastExploitabilityPctPot(): number {
-  const total = PLO4_FAST_SAMPLES.reduce((sum, row) => sum + row.weight, 0);
-  return PLO4_FAST_SAMPLES.reduce((sum, row) => {
+  return ploFastExploitabilityPctPot(PLO4_FAST_SAMPLES);
+}
+
+export function plo5FastExploitabilityPctPot(): number {
+  return ploFastExploitabilityPctPot(PLO5_FAST_SAMPLES);
+}
+
+function ploFastExploitabilityPctPot(samples: readonly PloFastSample[]): number {
+  const total = samples.reduce((sum, row) => sum + row.weight, 0);
+  return samples.reduce((sum, row) => {
     const mixed = [{ combo: row.combo, equity: row.equity, fold: row.fold, call: row.call, raise: row.raise, foldEv: 0, callEv: 0, raiseEv: 0, ev: 0, eqr: 0 }];
     return sum + row.weight * riverExploitability(mixed, 100, 66, 0, 0);
   }, 0) / total;
 }
+
+type PloFastSample = { combo: string; equity: number; weight: number; fold: number; call: number; raise: number };
 
 const PLO4_FAST_SAMPLES = [
   { combo: "PLO4 B1", equity: 0.61, weight: 0.12, fold: 0.08, call: 0.54, raise: 0.38 },
@@ -307,8 +316,18 @@ const PLO4_FAST_SAMPLES = [
   { combo: "PLO4 B6", equity: 0.28, weight: 0.12, fold: 0.76, call: 0.23, raise: 0.01 }
 ] as const;
 
-function solvePlo4FastSpot(pot: number, bet: number, stack: number, rakePct: number, rakeCap: number, potOdds: number, mdf: number, alpha: number): SolveResult {
-  const rows = PLO4_FAST_SAMPLES.map((sample) => {
+const PLO5_FAST_SAMPLES = [
+  { combo: "PLO5 B1", equity: 0.64, weight: 0.10, fold: 0.06, call: 0.48, raise: 0.46 },
+  { combo: "PLO5 B2", equity: 0.58, weight: 0.16, fold: 0.08, call: 0.58, raise: 0.34 },
+  { combo: "PLO5 B3", equity: 0.51, weight: 0.22, fold: 0.15, call: 0.67, raise: 0.18 },
+  { combo: "PLO5 B4", equity: 0.44, weight: 0.21, fold: 0.30, call: 0.60, raise: 0.10 },
+  { combo: "PLO5 B5", equity: 0.37, weight: 0.18, fold: 0.52, call: 0.44, raise: 0.04 },
+  { combo: "PLO5 B6", equity: 0.29, weight: 0.13, fold: 0.78, call: 0.21, raise: 0.01 }
+] as const;
+
+function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack: number, rakePct: number, rakeCap: number, potOdds: number, mdf: number, alpha: number): SolveResult {
+  const samples = game === "PLO4" ? PLO4_FAST_SAMPLES : PLO5_FAST_SAMPLES;
+  const rows = samples.map((sample) => {
     const { callEv, raiseEv } = actionEvs(sample.equity, pot, bet, rakePct, rakeCap);
     const ev = (sample.call * callEv + sample.raise * raiseEv) / 100;
     return {
@@ -327,7 +346,7 @@ function solvePlo4FastSpot(pot: number, bet: number, stack: number, rakePct: num
   return {
     rows,
     exploitability: riverStrategyProgress(rows, pot, bet, 36, rakePct, rakeCap).map((value, i) => ({ iteration: (i + 1) * 50, value })),
-    metrics: { spr: stack / pot, mdf, alpha, potOdds, ploFastExploitability: plo4FastExploitabilityPctPot() }
+    metrics: { spr: stack / pot, mdf, alpha, potOdds, ploFastExploitability: game === "PLO4" ? plo4FastExploitabilityPctPot() : plo5FastExploitabilityPctPot() }
   };
 }
 

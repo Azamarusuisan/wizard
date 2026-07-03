@@ -8,10 +8,11 @@ test("solver runs and displays strategy metrics", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Start solve" })).toBeDisabled();
   await page.getByLabel("Board").fill("Ah Kd 7c");
   await page.getByLabel("Game").selectOption("PLO5");
-  await expect(page.getByRole("alert")).toContainText("PLO5");
+  await expect(page.getByRole("table", { name: "strategy table" })).toContainText("PLO5 B1");
+  await expect(page.getByText("PLO Fast BR")).toBeVisible();
   await page.getByLabel("Game").selectOption("PLO4");
   await expect(page.getByRole("table", { name: "strategy table" })).toContainText("PLO4 B1");
-  await expect(page.getByText("PLO4 Fast BR")).toBeVisible();
+  await expect(page.getByText("PLO Fast BR")).toBeVisible();
   await page.getByLabel("Game").selectOption("NLH");
   await page.getByLabel("Rake %").fill("5");
   await page.getByLabel("Rake cap").fill("10");
