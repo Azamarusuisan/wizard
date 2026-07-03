@@ -27,6 +27,14 @@ test("equity AA vs KK preflop is plausible", () => {
   assert.ok(aa!.equity > 0.79 && aa!.equity < 0.84, aa!.equity.toString());
 });
 
+test("PLO equity validates game-specific hole counts", () => {
+  const board = cs("2c 3d 4h 5s 9c");
+  const rows = equity([{ cards: cs("As Ah Kc Qd Js") }, { cards: cs("Ts 9h 8d 7c 6s") }], board, "PLO5", 0, 3);
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0]!.samples, 1);
+  assert.throws(() => equity([{ cards: cs("As Ah Kc Qd Js") }, { cards: cs("Ts 9h 8d 7c 6s") }], board, "PLO4"), /PLO4/);
+});
+
 test("range parser round trips", () => {
   const parsed = parseNlhRange("AA, A5s:0.5");
   assert.equal(serializeRange(parsed), "AA, A5s:0.5");

@@ -132,6 +132,11 @@ function mulberry32(seed: number): () => number {
 }
 
 export function equity(players: PlayerInput[], board: Card[], game: Game = "NLH", samples = 0, seed = 1): EquityResult[] {
+  for (const player of players) {
+    if (game === "NLH" && player.cards.length !== 2) throw new Error("NLH players need 2 cards");
+    if (game === "PLO4" && player.cards.length !== 4) throw new Error("PLO4 players need 4 cards");
+    if (game === "PLO5" && player.cards.length !== 5) throw new Error("PLO5 players need 5 cards");
+  }
   const dead = [...board, ...players.flatMap((p) => p.cards)];
   if (new Set(dead).size !== dead.length) throw new Error("duplicate cards");
   const missing = 5 - board.length;

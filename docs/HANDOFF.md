@@ -25,6 +25,7 @@
 - Strategy table now displays fold/call/raise action EV columns alongside aggregate EV/EQR.
 - Trainer now scores the selected action from solve-row action EVs and displays EV loss, grade, and GTO raise frequency. Keyboard shortcuts are wired: `F`/`X` fold, `C` call, `B`/`R` bet/raise, with Playwright coverage.
 - Solver worker/client/UI now expose a cancel path wired to `EngineAPI.cancel`.
+- Solver Studio guards against duplicate solve clicks while a run is active; Playwright waits for the cancel button lifecycle before asserting same-spot cache hits.
 - Solver spot payload now carries optional effective stack, and native/TS fallback/UI compute SPR as `stack / pot` instead of using a fixed display value.
 - Solver spot payload/cache key now carries optional board text from the Solver Studio input. Native and TS fallback river rows parse/validate board cards and recompute representative combo equities from exact NLH enumeration when board text is present. This is still representative-row solving, not full range/tree board-aware CFR.
 - Solver Studio displays an `abstracted` badge and explicitly says exploitability is measured on the representative-row abstraction. Playwright covers the disclosure.
@@ -35,6 +36,7 @@
 - Language, theme, deck-color, and precision settings are persisted to localStorage through the Zustand store. Settings theme/deck selects update `html[data-theme]` and `html[data-deck]`; precision select preserves `fast`/`balanced`/`precise`; unit and Playwright tests cover this.
 - NLH range parser now expands standard plus/span syntax such as `AJo+`, `TT-77:0.25`, and `76s-54s`; package tests cover the spec examples.
 - PLO range parser now validates rank patterns, `ds`/`ss`/`r` suitedness, and `@0..100` percentages; package tests cover the spec examples.
+- TypeScript equity now validates game-specific hole counts for NLH/PLO4/PLO5 and tests exact-board PLO5 equity.
 - CI workflow exists for Node and Rust.
 - Production code grep for `TODO|FIXME|未実装|placeholder` is clean.
 - `packages/engine-wasm` now exposes an `EngineAPI` facade (`init`, `solve`, `pollProgress`, `getStrategy`, `getHandMetrics`, `cancel`, `serialize`, `result`). It prefers the generated wasm-pack backend when `pkg/gto_lab_engine.js` exists and falls back to `LocalEngine` only when the package is unavailable. The unit test proves the wasm backend is selected after `wasm-pack build`.
@@ -43,7 +45,7 @@
 - README, architecture, and formats docs now reflect the current Plan A Rust/WASM path, IndexedDB solve cache shape, and remaining representative-solver limitation.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `representative_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~1.07 us/eval, representative river rows ~12.8 ns. The evaluator still needs a faster table/perfect-hash path to reach the original 50M eval/s target.
-- Last verified: `bash scripts/verify.sh` exited 0 after adding PLO board-only unplayable coverage.
+- Last verified: `bash scripts/verify.sh` exited 0 after adding PLO5 equity count validation and solver duplicate-run guard.
 
 ## Important Caveat
 

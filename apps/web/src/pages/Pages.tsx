@@ -81,8 +81,8 @@ export function SolverStudio() {
         <label className="field">Stack<input type="number" min="1" value={stack} onChange={(e) => setStack(Number(e.target.value))} /></label>
         <label className="field">Board<input value={board} onChange={(e) => setBoard(e.target.value)} /></label>
         {preview.error ? <p className="error" role="alert">{preview.error}</p> : null}
-        <button className="btn primary" disabled={!!preview.error} onClick={() => {
-          if (preview.error) return;
+        <button className="btn primary" disabled={!!preview.error || running} onClick={() => {
+          if (preview.error || running || cancelRef.current) return;
           const controller = new AbortController();
           cancelRef.current = controller;
           setRunning(true);

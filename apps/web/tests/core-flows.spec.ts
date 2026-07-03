@@ -8,6 +8,7 @@ test("solver runs and displays strategy metrics", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Start solve" })).toBeDisabled();
   await page.getByLabel("Board").fill("Ah Kd 7c");
   await page.getByRole("button", { name: "Start solve" }).click();
+  await expect(page.getByRole("button", { name: "Cancel" })).toBeEnabled();
   await expect(page.getByRole("table", { name: "strategy table" })).toContainText("AA");
   await expect(page.getByRole("table", { name: "strategy table" })).toContainText("R EV");
   await expect(page.getByText("MDF")).toBeVisible();
@@ -15,6 +16,7 @@ test("solver runs and displays strategy metrics", async ({ page }) => {
   await expect(page.getByText("abstracted")).toBeVisible();
   await expect(page.getByText(/representative-row abstraction/)).toBeVisible();
   await expect(page).toHaveURL(/spot=/);
+  await expect(page.getByRole("button", { name: "Cancel" })).toBeDisabled();
   await page.getByRole("button", { name: "Start solve" }).click();
   await expect(page.getByText("cached")).toBeVisible();
 });
