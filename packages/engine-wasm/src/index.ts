@@ -232,7 +232,44 @@ export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2): Sol
 }
 
 export function kuhnCfr(iterations = 80_000): number {
-  return -1 / 18 + 1 / Math.sqrt(iterations) * 0.01;
+  const nodes = new Map<string, { regret: [number, number]; sum: [number, number] }>();
+  const deals = [[0, 1], [0, 2], [1, 0], [1, 2], [2, 0], [2, 1]] as const;
+  let total = 0;
+  for (let i = 0; i < iterations; i++) {
+    for (const cards of deals) total += kuhnVisit(cards, "", 1, 1, nodes);
+  }
+  return total / (iterations * deals.length);
+}
+
+function kuhnVisit(cards: readonly [number, number], history: string, reach0: number, reach1: number, nodes: Map<string, { regret: [number, number]; sum: [number, number] }>): number {
+  const player = history.length % 2;
+  if (history.endsWith("pp")) return cards[player]! > cards[1 - player]! ? 1 : -1;
+  if (history.endsWith("bp")) return 1;
+  if (history.endsWith("bb")) return cards[player]! > cards[1 - player]! ? 2 : -2;
+
+  const key = `${cards[player]}${history}`;
+  const node = nodes.get(key) ?? { regret: [0, 0], sum: [0, 0] };
+  nodes.set(key, node);
+  const positive = [Math.max(0, node.regret[0]), Math.max(0, node.regret[1])] as const;
+  const norm = positive[0] + positive[1];
+  const strategy: [number, number] = norm > 0 ? [positive[0] / norm, positive[1] / norm] : [0.5, 0.5];
+  const reach = player === 0 ? reach0 : reach1;
+  node.sum[0] += reach * strategy[0];
+  node.sum[1] += reach * strategy[1];
+
+  const actions = ["p", "b"] as const;
+  const util: [number, number] = [0, 0];
+  let nodeUtil = 0;
+  for (let i = 0; i < actions.length; i++) {
+    util[i] = player === 0
+      ? -kuhnVisit(cards, history + actions[i], reach0 * strategy[i], reach1, nodes)
+      : -kuhnVisit(cards, history + actions[i], reach0, reach1 * strategy[i], nodes);
+    nodeUtil += strategy[i] * util[i];
+  }
+  const oppReach = player === 0 ? reach1 : reach0;
+  node.regret[0] += oppReach * (util[0] - nodeUtil);
+  node.regret[1] += oppReach * (util[1] - nodeUtil);
+  return nodeUtil;
 }
 
 export * from "./api.js";
