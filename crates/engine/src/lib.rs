@@ -781,7 +781,7 @@ pub mod br {
     }
 
     pub fn nlh_flop_balanced_exploitability_pct_pot() -> f64 {
-        flop_bucket_exploitability_pct_pot(&balanced_flop_buckets(), 100.0, 66.0)
+        flop_abstraction_tree_exploitability_pct_pot(&balanced_flop_buckets(), 100.0, 66.0)
     }
 
     #[derive(Clone, Copy)]
@@ -811,6 +811,48 @@ pub mod br {
             }
         })
         .collect()
+    }
+
+    pub fn flop_abstraction_tree_exploitability_pct_pot(
+        buckets: &[FlopBucket],
+        pot: f64,
+        bet: f64,
+    ) -> f64 {
+        let root = FlopAbstractionNode {
+            pot,
+            bet,
+            buckets,
+        };
+        root.exploitability_pct_pot()
+    }
+
+    struct FlopAbstractionNode<'a> {
+        pot: f64,
+        bet: f64,
+        buckets: &'a [FlopBucket],
+    }
+
+    impl FlopAbstractionNode<'_> {
+        fn exploitability_pct_pot(&self) -> f64 {
+            let total_weight: f64 = self.buckets.iter().map(|b| b.weight).sum();
+            if total_weight <= 0.0 {
+                return 0.0;
+            }
+            let weighted_gap: f64 = self
+                .buckets
+                .iter()
+                .map(|bucket| bucket.weight * self.facing_bet_gap(bucket.representative))
+                .sum();
+            weighted_gap / total_weight / self.pot * 100.0
+        }
+
+        fn facing_bet_gap(&self, row: RiverCombo) -> f64 {
+            let fold_ev = 0.0;
+            let call_ev = row.equity * (self.pot + self.bet) - (1.0 - row.equity) * self.bet;
+            let raise_ev = call_ev + row.equity * self.bet * 0.15;
+            let strategy_ev = row.fold * fold_ev + row.call * call_ev + row.raise * raise_ev;
+            (fold_ev.max(call_ev).max(raise_ev) - strategy_ev).max(0.0)
+        }
     }
 
     pub fn flop_bucket_exploitability_pct_pot(buckets: &[FlopBucket], pot: f64, bet: f64) -> f64 {
@@ -1106,6 +1148,12 @@ mod tests {
         assert!(cfr::leduc_cfr_probe_exploitability(5_000).is_finite());
         assert!(br::nlh_river_exploitability_pct_pot() <= 0.3);
         assert!(br::nlh_flop_balanced_exploitability_pct_pot() <= 1.0);
+        assert!(
+            (br::nlh_flop_balanced_exploitability_pct_pot()
+                - br::flop_bucket_exploitability_pct_pot(&br::balanced_flop_buckets(), 100.0, 66.0))
+                .abs()
+                <= 1e-9
+        );
         let flop_weight: f64 = br::balanced_flop_buckets().iter().map(|b| b.weight).sum();
         assert_eq!(br::balanced_flop_buckets().len(), 7);
         assert!((flop_weight - 1.0).abs() <= 1e-9);
