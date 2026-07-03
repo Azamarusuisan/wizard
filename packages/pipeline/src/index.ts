@@ -8,4 +8,5 @@ export * from "./generate";
 export * from "./delivery";
 export * from "./qa";
 export * from "./screenshots";
+export * from "./static-server";
 export * from "./db";

@@ -15,6 +15,7 @@ const requiredPaths = [
   "packages/pipeline/src/delivery.ts",
   "packages/pipeline/src/qa.ts",
   "packages/pipeline/src/screenshots.ts",
+  "packages/pipeline/src/static-server.ts",
   "packages/pipeline/src/db.ts",
   "packages/pipeline/src/selfcheck.ts",
   "packages/shared/src/index.ts",
@@ -36,6 +37,7 @@ const requiredPaths = [
   "apps/web/next.config.mjs",
   "scripts/screenshot-template.mjs",
   "scripts/run-phase-3-dummies.ts",
+  "scripts/serve-phase-3-dummies.ts",
   "scripts/check-phase-3-findings.mjs",
   "scripts/check-phase-3-findings.test.mjs"
 ];

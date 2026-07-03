@@ -21,6 +21,7 @@ const base = `
 
 assert.deepEqual(checkFindings(`${base}\n- [ ] ボタン位置を上げる\n`), []);
 assert.deepEqual(checkFindings(`${base}\n- [x] 問題なし\n`), []);
+assert.deepEqual(checkFindings(`${base}\n- [x] ボタン位置を上げた\n`), []);
 assert(checkFindings(`${base}\n- [ ] 未記入\n`).includes("Codex修正対象"));
 assert(checkFindings(base.replace("ボタンが少し低い", "未記入") + "\n- [ ] ボタン位置を上げる\n").includes("photos-three"));
 

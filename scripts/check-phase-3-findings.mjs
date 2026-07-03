@@ -31,8 +31,8 @@ const items = [...fixList.matchAll(/- \[([ x])\]\s*(.+\S)/g)].map((match) => ({
   text: match[2].trim()
 }));
 const hasActionableItem = items.some((item) => !item.checked && !item.text.includes("未記入"));
-const hasNoIssueDecision = items.some((item) => item.checked && item.text.includes("問題なし"));
-if (!hasActionableItem && !hasNoIssueDecision) missing.push("Codex修正対象");
+const hasCompletedItem = items.some((item) => item.checked && !item.text.includes("未記入"));
+if (!hasActionableItem && !hasCompletedItem) missing.push("Codex修正対象");
 
 return missing;
 }

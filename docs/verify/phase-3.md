@@ -4,6 +4,7 @@
 npm install
 npm run check
 npm run phase3:dummy
+npm run phase3:serve
 npm run phase3:gate
 npm run build --workspace @craftsite/site-template
 npm run build --workspace @craftsite/web
@@ -29,7 +30,9 @@ npm run build --workspace @craftsite/web
 オーナー確認:
 
 - `npm run phase3:dummy` の `photos-rich`, `photos-three`, `photos-zero` を開く
+- 確認時は別ターミナルで `npm run phase3:serve` を起動する
 - まとめて見る場合は `tmp/phase-3-dummy/review.html` をブラウザで開く
+- `review.html` のリンク先は `http://127.0.0.1:3001` から `3003` なので、CSSと画像が効いた状態で確認できる
 - スマホで電話・LINEボタンがすぐ見えるか確認する
 - 施工写真が多い場合に事例主役型、少ない場合に王道/一枚縦長型として自然か確認する
 - 写真ゼロで「施工事例は準備中です」が失礼に見えないか確認する

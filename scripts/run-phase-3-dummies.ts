@@ -1,8 +1,7 @@
 import { cp, mkdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
-import { pathToFileURL } from "node:url";
+import { basename, join } from "node:path";
 import sharp from "sharp";
-import { generateSite } from "@craftsite/pipeline";
+import { captureScreenshots, generateSite } from "@craftsite/pipeline";
 
 const outDir = join(process.cwd(), "tmp", "phase-3-dummy");
 const photoDir = join(outDir, "photos");
@@ -68,18 +67,28 @@ async function main() {
     results.push({
       name: item.name,
       previewUrl: result.previewUrl,
-      localUrl: pathToFileURL(join(savedDist, "index.html")).href,
+      localUrl: `http://127.0.0.1:${3001 + results.length}`,
       template: result.config.template,
       theme: result.config.theme,
       cases: result.config.cases.length,
       distDir: savedDist
     });
+    await saveReviewShots(item.name, savedDist);
   }
 
   await writeFile(join(outDir, "report.json"), JSON.stringify(results, null, 2));
   await writeFile(join(outDir, "review.html"), renderReview(results));
   console.log(JSON.stringify(results, null, 2));
-  console.log(`review: ${pathToFileURL(join(outDir, "review.html")).href}`);
+  console.log(`review: ${join(outDir, "review.html")}`);
+}
+
+async function saveReviewShots(name: string, distDir: string) {
+  const shots = await captureScreenshots(distDir);
+  const reviewDir = join(outDir, "review-shots");
+  await mkdir(reviewDir, { recursive: true });
+  for (const shot of shots) {
+    await cp(shot, join(reviewDir, `${name}-${basename(shot)}`));
+  }
 }
 
 async function makePhoto(index: number) {

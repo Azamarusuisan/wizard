@@ -8,6 +8,7 @@
   "scripts": {
     "check": "node scripts/check-phase-1.mjs && npm run selfcheck --workspace @craftsite/pipeline",
     "phase3:dummy": "tsx scripts/run-phase-3-dummies.ts",
+    "phase3:serve": "tsx scripts/serve-phase-3-dummies.ts",
     "phase3:gate": "node scripts/check-phase-3-findings.mjs",
     "phase3:gate:test": "node scripts/check-phase-3-findings.test.mjs"
   },
