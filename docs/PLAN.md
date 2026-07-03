@@ -79,7 +79,7 @@ Remaining:
 
 Evidence:
 - Trainer scores actions from action EVs and displays EV loss, grade, and GTO frequency.
-- Range Editor saves/loads ranges in IndexedDB and is covered by Playwright.
+- Range Editor saves/loads ranges in IndexedDB, imports/exports range JSON, and is covered by Playwright.
 - NLH and PLO text parsers have round-trip or smoke tests.
 
 Verify:

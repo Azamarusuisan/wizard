@@ -37,6 +37,12 @@ All persisted documents include:
 { "version": 1, "kind": "range|spot|solve-result", "payload": {} }
 ```
 
+Range JSON import/export:
+
+```json
+{ "version": 1, "kind": "range", "payload": { "text": "AA, KQs:0.5" } }
+```
+
 Spot cache key is `sha256(canonical-json)`.
 
 Solve cache records:

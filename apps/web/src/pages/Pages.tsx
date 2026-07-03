@@ -262,24 +262,54 @@ function gradeForLoss(loss: number): string {
 
 export function RangeEditor() {
   const [text, setText] = useState("AA, KQs, A5s:0.5");
+  const [jsonText, setJsonText] = useState(rangeJson("AA, KQs, A5s:0.5"));
   const [status, setStatus] = useState("ready");
   useEffect(() => {
     void loadRange("default").then((saved) => {
-      if (saved) setText(saved);
+      if (saved) {
+        setText(saved);
+        setJsonText(rangeJson(saved));
+      }
     });
   }, []);
   const parsed = useMemo(() => {
     try { return serializeRange(parseNlhRange(text)); } catch { return "Invalid range"; }
   }, [text]);
   const plo = useMemo(() => parsePloRange("AA**:ds@100, AA**:ss@60").map((r) => `${r.label} ${r.weight}`).join(" / "), []);
+  const updateText = (next: string) => {
+    setText(next);
+    setJsonText(rangeJson(next));
+  };
+  const importJson = () => {
+    try {
+      const next = parseRangeJson(jsonText);
+      setText(next);
+      setJsonText(rangeJson(next));
+      setStatus("imported");
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : "invalid JSON");
+    }
+  };
   return (
     <div className="grid">
       <h1 className="title">Range Editor</h1>
-      <textarea className="card" value={text} onChange={(e) => setText(e.target.value)} rows={5} />
+      <textarea aria-label="Range text" className="card" value={text} onChange={(e) => updateText(e.target.value)} rows={5} />
+      <textarea aria-label="Range JSON" className="card" value={jsonText} onChange={(e) => setJsonText(e.target.value)} rows={5} />
       <button className="btn primary" onClick={() => void saveRange("default", text).then(() => setStatus("saved"))}>Save</button>
+      <button className="btn" onClick={importJson}>Import JSON</button>
       <div className="card"><b>Round trip</b><p className="num">{parsed}</p><p className="muted">PLO sample: {plo}</p><p>{status}</p></div>
     </div>
   );
+}
+
+function rangeJson(text: string): string {
+  return JSON.stringify({ version: 1, kind: "range", payload: { text } }, null, 2);
+}
+
+function parseRangeJson(raw: string): string {
+  const doc = JSON.parse(raw) as { version?: unknown; kind?: unknown; payload?: { text?: unknown } };
+  if (doc.version !== 1 || doc.kind !== "range" || typeof doc.payload?.text !== "string") throw new Error("invalid range JSON");
+  return doc.payload.text;
 }
 
 export function Settings() {
