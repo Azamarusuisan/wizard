@@ -94,6 +94,8 @@ export function SolverStudio() {
         }}>Start solve</button>
         <button className="btn" disabled={!running} onClick={() => cancelRef.current?.abort()}>Cancel</button>
         {cached ? <span className="badge">cached</span> : null}
+        <span className="badge">abstracted</span>
+        <p className="muted">Exploitability is measured on the current representative-row abstraction, not a full postflop tree.</p>
       </section>
       <section className="card">
         <h2 className="title">Strategy</h2>
