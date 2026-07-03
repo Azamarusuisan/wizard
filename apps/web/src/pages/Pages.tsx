@@ -53,6 +53,7 @@ export function RangeExplorer() {
 
 export function SolverStudio() {
   const shared = decodeSpot(new URLSearchParams(window.location.search).get("spot"));
+  const [game, setGame] = useState<Game>(shared?.game ?? "NLH");
   const [pot, setPot] = useState(shared?.pot ?? 100);
   const [bet, setBet] = useState(shared?.bet ?? 66);
   const [stack, setStack] = useState(shared?.stack ?? 420);
@@ -62,22 +63,24 @@ export function SolverStudio() {
   const [progress, setProgress] = useState<{ iteration: number; value: number }[]>([]);
   const [cached, setCached] = useState(false);
   const [running, setRunning] = useState(false);
+  const [resultKey, setResultKey] = useState("");
   const cancelRef = useRef<AbortController | null>(null);
   const result = useAppStore((s) => s.result);
   const setResult = useAppStore((s) => s.setResult);
+  const currentKey = JSON.stringify({ game, pot, bet, stack, board, rakePct, rakeCap });
   const preview = useMemo(() => {
     try {
-      return { result: solveRiverSpot(pot, bet, stack, board, rakePct, rakeCap), error: "" };
+      return { result: solveRiverSpot(pot, bet, stack, board, rakePct, rakeCap, game), error: "" };
     } catch (err) {
       return { result: null, error: err instanceof Error ? err.message : "invalid spot" };
     }
-  }, [pot, bet, stack, board, rakePct, rakeCap]);
-  const shown = preview.error ? null : result ?? preview.result;
+  }, [game, pot, bet, stack, board, rakePct, rakeCap]);
+  const shown = preview.error ? null : result && resultKey === currentKey ? result : preview.result;
   return (
     <div className="split">
       <section className="card grid">
         <h1 className="title">Solver Studio</h1>
-        <label className="field">Game<select><option>NLH</option><option>PLO4</option><option>PLO5</option></select></label>
+        <label className="field">Game<select value={game} onChange={(e) => setGame(e.target.value as Game)}><option>NLH</option><option>PLO4</option><option>PLO5</option></select></label>
         <label className="field">Pot<input type="number" min="1" value={pot} onChange={(e) => setPot(Number(e.target.value))} /></label>
         <label className="field">Bet<input type="number" min="0" value={bet} onChange={(e) => setBet(Number(e.target.value))} /></label>
         <label className="field">Stack<input type="number" min="1" value={stack} onChange={(e) => setStack(Number(e.target.value))} /></label>
@@ -92,10 +95,12 @@ export function SolverStudio() {
           setRunning(true);
           setProgress([]);
           setCached(false);
-          const payload = { pot, bet, stack, board, rakePct, rakeCap };
+          const payload = { game, pot, bet, stack, board, rakePct, rakeCap };
+          const payloadKey = JSON.stringify(payload);
           history.replaceState(null, "", `/solver?spot=${encodeSpot(payload)}`);
           void runSolve(payload, (p) => setProgress((xs) => [...xs, p]), controller.signal).then((run) => {
             setCached(run.cached);
+            setResultKey(payloadKey);
             setResult(run.result);
           }).catch((err: unknown) => {
             if (!(err instanceof DOMException && err.name === "AbortError")) throw err;
@@ -121,6 +126,7 @@ export function SolverStudio() {
           <Metric label="SPR" value={shown.metrics.spr.toFixed(2)} />
           <Metric label="Bluff breakeven alpha" value={`${(shown.metrics.alpha * 100).toFixed(1)}%`} />
           <Metric label="Pot odds" value={`${(shown.metrics.potOdds * 100).toFixed(1)}%`} />
+          {shown.metrics.ploFastExploitability !== undefined ? <Metric label="PLO4 Fast BR" value={`${shown.metrics.ploFastExploitability.toFixed(2)}% pot`} /> : null}
           <div className="card" style={{ height: 220 }}><Curve data={progress.length ? progress : shown.exploitability} /></div>
         </> : <div className="card"><p className="muted">No valid spot.</p></div>}
       </section>

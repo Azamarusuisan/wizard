@@ -38,7 +38,7 @@ See `docs/ARCHITECTURE.md`.
 
 ## Accuracy and Limits
 
-- Implemented: NLH/PLO hand evaluation, exact-two PLO evaluation, exact and Monte Carlo equity with 2-6 players and dead cards, range parsers, pot-limit sizing, Kuhn/Leduc gates, default NLH river combo rows, IndexedDB solve cache, and Playwright flows.
+- Implemented: NLH/PLO hand evaluation, exact-two PLO evaluation, exact and Monte Carlo equity with 2-6 players and dead cards, range parsers, pot-limit sizing, Kuhn/Leduc gates, default NLH river combo rows, PLO4 Fast BR reporting, IndexedDB solve cache, and Playwright flows.
 - Current limitation: the production solve path is still default-combo river solving, not the required full postflop CFR tree. NLH flop Balanced and PLO4 Fast gates currently use compact abstractions/proxies.
 - PLO5 is computationally expensive; precise runs must expose runtime and approximation status honestly.
 

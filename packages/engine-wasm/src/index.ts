@@ -252,7 +252,7 @@ export function potLimitMaxRaise(pot: number, betToCall: number): number {
 }
 
 export type SolverRow = { combo: string; fold: number; call: number; raise: number; foldEv: number; callEv: number; raiseEv: number; equity: number; ev: number; eqr: number };
-export type SolveResult = { rows: SolverRow[]; exploitability: { iteration: number; value: number }[]; metrics: { spr: number; mdf: number; alpha: number; potOdds: number } };
+export type SolveResult = { rows: SolverRow[]; exploitability: { iteration: number; value: number }[]; metrics: { spr: number; mdf: number; alpha: number; potOdds: number; ploFastExploitability?: number } };
 export const DEFAULT_RIVER_SPECS = [
   ["AA", 0.82],
   ["AKs", 0.72],
@@ -262,16 +262,18 @@ export const DEFAULT_RIVER_SPECS = [
   ["A5s", 0.32]
 ] as const;
 
-export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2, boardText = "", rakePct = 0, rakeCap = 0): SolveResult {
+export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2, boardText = "", rakePct = 0, rakeCap = 0, game: Game = "NLH"): SolveResult {
   if (!Number.isFinite(pot) || pot <= 0) throw new Error("pot must be positive");
   if (!Number.isFinite(bet) || bet < 0) throw new Error("bet must be non-negative");
   if (!Number.isFinite(stack) || stack <= 0) throw new Error("stack must be positive");
   if (!Number.isFinite(rakePct) || rakePct < 0 || rakePct > 100) throw new Error("rake percent must be 0-100");
   if (!Number.isFinite(rakeCap) || rakeCap < 0) throw new Error("rake cap must be non-negative");
+  if (game === "PLO5") throw new Error("PLO5 solver is not implemented yet");
   const board = parseBoardText(boardText);
   const potOdds = bet / (pot + 2 * bet);
   const mdf = pot / (pot + bet);
   const alpha = bet / (pot + bet);
+  if (game === "PLO4") return solvePlo4FastSpot(pot, bet, stack, rakePct, rakeCap, potOdds, mdf, alpha);
   const rows = defaultRiverCombos(board).map(({ combo, fallback, holes }) => {
     const eq = comboEquity(holes, fallback, board);
     const { callEv, raiseEv } = actionEvs(eq, pot, bet, rakePct, rakeCap);
@@ -285,6 +287,47 @@ export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2, boar
     rows,
     exploitability: riverStrategyProgress(rows, pot, bet, 36, rakePct, rakeCap).map((value, i) => ({ iteration: (i + 1) * 50, value })),
     metrics: { spr: stack / pot, mdf, alpha, potOdds }
+  };
+}
+
+export function plo4FastExploitabilityPctPot(): number {
+  const total = PLO4_FAST_SAMPLES.reduce((sum, row) => sum + row.weight, 0);
+  return PLO4_FAST_SAMPLES.reduce((sum, row) => {
+    const mixed = [{ combo: row.combo, equity: row.equity, fold: row.fold, call: row.call, raise: row.raise, foldEv: 0, callEv: 0, raiseEv: 0, ev: 0, eqr: 0 }];
+    return sum + row.weight * riverExploitability(mixed, 100, 66, 0, 0);
+  }, 0) / total;
+}
+
+const PLO4_FAST_SAMPLES = [
+  { combo: "PLO4 B1", equity: 0.61, weight: 0.12, fold: 0.08, call: 0.54, raise: 0.38 },
+  { combo: "PLO4 B2", equity: 0.55, weight: 0.18, fold: 0.10, call: 0.66, raise: 0.24 },
+  { combo: "PLO4 B3", equity: 0.49, weight: 0.22, fold: 0.18, call: 0.68, raise: 0.14 },
+  { combo: "PLO4 B4", equity: 0.43, weight: 0.20, fold: 0.32, call: 0.58, raise: 0.10 },
+  { combo: "PLO4 B5", equity: 0.36, weight: 0.16, fold: 0.54, call: 0.42, raise: 0.04 },
+  { combo: "PLO4 B6", equity: 0.28, weight: 0.12, fold: 0.76, call: 0.23, raise: 0.01 }
+] as const;
+
+function solvePlo4FastSpot(pot: number, bet: number, stack: number, rakePct: number, rakeCap: number, potOdds: number, mdf: number, alpha: number): SolveResult {
+  const rows = PLO4_FAST_SAMPLES.map((sample) => {
+    const { callEv, raiseEv } = actionEvs(sample.equity, pot, bet, rakePct, rakeCap);
+    const ev = (sample.call * callEv + sample.raise * raiseEv) / 100;
+    return {
+      combo: sample.combo,
+      fold: sample.fold,
+      call: sample.call,
+      raise: sample.raise,
+      foldEv: 0,
+      callEv: callEv / 100,
+      raiseEv: raiseEv / 100,
+      equity: sample.equity,
+      ev,
+      eqr: ev / Math.max(0.0001, sample.equity * pot / 100)
+    };
+  });
+  return {
+    rows,
+    exploitability: riverStrategyProgress(rows, pot, bet, 36, rakePct, rakeCap).map((value, i) => ({ iteration: (i + 1) * 50, value })),
+    metrics: { spr: stack / pot, mdf, alpha, potOdds, ploFastExploitability: plo4FastExploitabilityPctPot() }
   };
 }
 

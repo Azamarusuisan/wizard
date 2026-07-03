@@ -1,4 +1,4 @@
-export type SolverSpot = { pot: number; bet: number; stack: number; board: string; rakePct: number; rakeCap: number };
+export type SolverSpot = { game: "NLH" | "PLO4" | "PLO5"; pot: number; bet: number; stack: number; board: string; rakePct: number; rakeCap: number };
 
 export function encodeSpot(spot: SolverSpot): string {
   const json = JSON.stringify(spot);
@@ -17,8 +17,9 @@ export function decodeSpot(value: string | null): SolverSpot | null {
     if (!validNumber(raw.pot) || !validNumber(raw.bet) || !validNumber(raw.stack) || typeof raw.board !== "string") return null;
     const rakePct = raw.rakePct ?? 0;
     const rakeCap = raw.rakeCap ?? 0;
-    if (!validNumber(rakePct) || !validNumber(rakeCap)) return null;
-    return { pot: raw.pot, bet: raw.bet, stack: raw.stack, board: raw.board, rakePct, rakeCap };
+    const game = raw.game ?? "NLH";
+    if (!validNumber(rakePct) || !validNumber(rakeCap) || !validGame(game)) return null;
+    return { game, pot: raw.pot, bet: raw.bet, stack: raw.stack, board: raw.board, rakePct, rakeCap };
   } catch {
     return null;
   }
@@ -26,4 +27,8 @@ export function decodeSpot(value: string | null): SolverSpot | null {
 
 function validNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
+}
+
+function validGame(value: unknown): value is "NLH" | "PLO4" | "PLO5" {
+  return value === "NLH" || value === "PLO4" || value === "PLO5";
 }

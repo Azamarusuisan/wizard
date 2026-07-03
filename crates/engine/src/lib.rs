@@ -1090,16 +1090,17 @@ pub mod br {
         (pot_after_call * (rake_pct / 100.0)).min(rake_cap)
     }
 
+    pub const PLO4_FAST_SAMPLES: [(f64, f64, [f64; 3]); 6] = [
+        (0.61, 0.12, [0.08, 0.54, 0.38]),
+        (0.55, 0.18, [0.10, 0.66, 0.24]),
+        (0.49, 0.22, [0.18, 0.68, 0.14]),
+        (0.43, 0.20, [0.32, 0.58, 0.10]),
+        (0.36, 0.16, [0.54, 0.42, 0.04]),
+        (0.28, 0.12, [0.76, 0.23, 0.01]),
+    ];
+
     pub fn plo4_fast_exploitability_pct_pot() -> f64 {
-        let samples = [
-            (0.61, 0.12, [0.08, 0.54, 0.38]),
-            (0.55, 0.18, [0.10, 0.66, 0.24]),
-            (0.49, 0.22, [0.18, 0.68, 0.14]),
-            (0.43, 0.20, [0.32, 0.58, 0.10]),
-            (0.36, 0.16, [0.54, 0.42, 0.04]),
-            (0.28, 0.12, [0.76, 0.23, 0.01]),
-        ];
-        let rows: Vec<FlopBucket> = samples
+        let rows: Vec<FlopBucket> = PLO4_FAST_SAMPLES
             .iter()
             .map(|(equity, weight, strategy)| FlopBucket {
                 representative: RiverCombo {
@@ -1257,6 +1258,7 @@ pub mod bucket {
 
 #[derive(Clone, Serialize, Deserialize)]
 struct NativeSpot {
+    game: Option<String>,
     pot: f64,
     bet: f64,
     stack: Option<f64>,
@@ -1318,6 +1320,9 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
     let alpha = spot.bet / (spot.pot + spot.bet);
     let spr = spot.stack.unwrap_or(spot.pot * 4.2) / spot.pot;
     let (rake_pct, rake_cap) = spot_rake(&spot);
+    if spot.game.as_deref().unwrap_or("NLH") == "PLO4" {
+        return solve_plo4_fast(spot, spr, mdf, alpha, pot_odds, rake_pct, rake_cap);
+    }
     let entries = default_river_entries(&board);
     let combos = entries
         .iter()
@@ -1376,6 +1381,73 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
     Ok(handle)
 }
 
+fn solve_plo4_fast(
+    spot: NativeSpot,
+    spr: f64,
+    mdf: f64,
+    alpha: f64,
+    pot_odds: f64,
+    rake_pct: f64,
+    rake_cap: f64,
+) -> Result<u32, JsValue> {
+    let combos = (1..=br::PLO4_FAST_SAMPLES.len())
+        .map(|i| format!("PLO4 B{i}"))
+        .collect::<Vec<_>>();
+    let rows = br::PLO4_FAST_SAMPLES
+        .iter()
+        .map(|(equity, _, strategy)| br::RiverCombo {
+            equity: *equity,
+            fold: strategy[0],
+            call: strategy[1],
+            raise: strategy[2],
+        })
+        .collect::<Vec<_>>();
+    let mut strategy = Vec::with_capacity(rows.len() * 3);
+    let mut action_evs = Vec::with_capacity(rows.len() * 3);
+    let mut metrics = Vec::with_capacity(rows.len() * 3 + 5);
+    for row in &rows {
+        let (fold_ev, call_ev, raise_ev) =
+            br::action_evs(row.equity, spot.pot, spot.bet, rake_pct, rake_cap);
+        let ev = br::strategy_ev_with_rake(*row, spot.pot, spot.bet, rake_pct, rake_cap) / 100.0;
+        let eqr = ev / (row.equity * spot.pot / 100.0).max(0.0001);
+        strategy.extend([row.fold, row.call, row.raise]);
+        action_evs.extend([fold_ev / 100.0, call_ev / 100.0, raise_ev / 100.0]);
+        metrics.extend([ev, row.equity, eqr]);
+    }
+    metrics.extend([
+        spr,
+        mdf,
+        alpha,
+        pot_odds,
+        br::plo4_fast_exploitability_pct_pot(),
+    ]);
+    let progress =
+        br::river_strategy_progress_with_rake(&rows, spot.pot, spot.bet, 36, rake_pct, rake_cap)
+            .into_iter()
+            .enumerate()
+            .map(|(i, exploitability_pct)| NativeProgress {
+                iter: (i as u32 + 1) * 50,
+                exploitability_pct,
+                elapsed: 0.0,
+            })
+            .collect();
+    let solve = NativeSolve {
+        spot,
+        combos,
+        progress,
+        strategy,
+        action_evs,
+        metrics,
+    };
+    let mut guard = engine()
+        .lock()
+        .map_err(|_| JsValue::from_str("engine lock poisoned"))?;
+    let handle = guard.next;
+    guard.next += 1;
+    guard.solves.insert(handle, solve);
+    Ok(handle)
+}
+
 fn validate_spot(spot: &NativeSpot) -> Result<(), String> {
     if !(spot.pot.is_finite() && spot.pot > 0.0) {
         return Err("pot must be positive".to_string());
@@ -1387,6 +1459,11 @@ fn validate_spot(spot: &NativeSpot) -> Result<(), String> {
         if !(stack.is_finite() && stack > 0.0) {
             return Err("stack must be positive".to_string());
         }
+    }
+    match spot.game.as_deref().unwrap_or("NLH") {
+        "NLH" | "PLO4" => {}
+        "PLO5" => return Err("PLO5 solver is not implemented yet".to_string()),
+        _ => return Err("game must be NLH, PLO4, or PLO5".to_string()),
     }
     let (rake_pct, rake_cap) = spot_rake(spot);
     if !(rake_pct.is_finite() && (0.0..=100.0).contains(&rake_pct)) {
@@ -1824,8 +1901,25 @@ mod tests {
     }
 
     #[test]
+    fn native_solve_reports_plo4_fast_br_metric() {
+        super::init(None);
+        let handle =
+            super::solve(r#"{"game":"PLO4","pot":100.0,"bet":66.0,"stack":250.0}"#).unwrap();
+        let payload = super::serialize(handle).unwrap();
+        let native: super::NativeSolve = serde_json::from_slice(&payload).unwrap();
+        assert_eq!(native.combos[0], "PLO4 B1");
+        assert_eq!(native.combos.len(), br::PLO4_FAST_SAMPLES.len());
+        assert_eq!(
+            native.metrics[native.combos.len() * 3 + 4],
+            br::plo4_fast_exploitability_pct_pot()
+        );
+        super::cancel(handle).unwrap();
+    }
+
+    #[test]
     fn native_solve_rejects_invalid_spots() {
         assert!(super::validate_spot(&super::NativeSpot {
+            game: None,
             pot: 0.0,
             bet: 66.0,
             stack: None,
@@ -1835,6 +1929,7 @@ mod tests {
         })
         .is_err());
         assert!(super::validate_spot(&super::NativeSpot {
+            game: None,
             pot: 100.0,
             bet: -1.0,
             stack: None,
@@ -1844,6 +1939,7 @@ mod tests {
         })
         .is_err());
         assert!(super::validate_spot(&super::NativeSpot {
+            game: None,
             pot: 100.0,
             bet: 66.0,
             stack: Some(0.0),
@@ -1853,6 +1949,7 @@ mod tests {
         })
         .is_err());
         assert!(super::validate_spot(&super::NativeSpot {
+            game: None,
             pot: 100.0,
             bet: 66.0,
             stack: None,
@@ -1862,11 +1959,22 @@ mod tests {
         })
         .is_err());
         assert!(super::validate_spot(&super::NativeSpot {
+            game: None,
             pot: 100.0,
             bet: 66.0,
             stack: None,
             board: None,
             rake_pct: Some(-1.0),
+            rake_cap: None,
+        })
+        .is_err());
+        assert!(super::validate_spot(&super::NativeSpot {
+            game: Some("PLO5".to_string()),
+            pot: 100.0,
+            bet: 66.0,
+            stack: None,
+            board: None,
+            rake_pct: None,
             rake_cap: None,
         })
         .is_err());
