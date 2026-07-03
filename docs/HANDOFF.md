@@ -32,7 +32,7 @@
 - Solver spot payload/cache key now carries rake percent and cap. Native WASM and TS fallback river action EVs subtract capped rake from the win pot; tests cover that rake lowers call/raise showdown EV.
 - Solver spot payload/cache key now carries game. PLO4/PLO5 in Solver Studio return Fast sampled BR metrics instead of silently using NLH rows; the real MCCFR path still needs to replace this proxy.
 - Solve metrics now include `brGapPctPot`, computed from the same rows used for the strategy table and convergence graph. UI shows it as `BR gap`.
-- Solver Studio now includes an editable bet-tree preset string and flop-size buttons that apply `% pot` or all-in values to the active bet amount. The bet-tree string is included in share URLs and solve cache payloads, but the production solve still consumes one bet size.
+- Solver Studio now includes an editable bet-tree preset string and flop-size buttons that apply `% pot` or all-in values to the active bet amount. The bet-tree string is validated, included in share URLs and solve cache payloads, but the production solve still consumes one bet size.
 - Solver Studio no longer runs board-aware NLH range equity synchronously during preview; board-card validation stays on the main thread and the actual solve runs through the worker path.
 - Solver Studio displays an `abstracted` badge and explicitly says exploitability is measured on the default-combo abstraction. Playwright covers the disclosure.
 - Solver Studio catches invalid spot inputs before rendering strategy/metrics, displays the validation error, and disables solve. Playwright covers duplicate board-card input.
@@ -60,7 +60,7 @@
 - IndexedDB solve cache keys are canonical JSON SHA-256 via WebCrypto in the web layer.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `default_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~1.07 us/eval, default river rows ~12.8 ns. The evaluator still needs a faster table/perfect-hash path to reach the original 50M eval/s target.
-- Last verified: `bash scripts/verify.sh` exited 0 after threading Solver Studio bet-tree settings through share URL/cache payloads.
+- Last verified: `bash scripts/verify.sh` exited 0 after adding Solver Studio bet-tree validation.
 
 ## Important Caveat
 

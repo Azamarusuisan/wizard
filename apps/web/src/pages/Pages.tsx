@@ -81,13 +81,13 @@ export function SolverStudio() {
   const currentKey = JSON.stringify({ game, pot, bet, stack, board, rakePct, rakeCap, betTree });
   const preview = useMemo(() => {
     try {
-      validateSolverInputs(game, pot, bet, stack, board, rakePct, rakeCap);
+      validateSolverInputs(game, pot, bet, stack, board, rakePct, rakeCap, betTree);
       if (game === "NLH" && board.trim()) return { result: null, error: "" };
       return { result: solveRiverSpot(pot, bet, stack, board, rakePct, rakeCap, game), error: "" };
     } catch (err) {
       return { result: null, error: err instanceof Error ? err.message : "invalid spot" };
     }
-  }, [game, pot, bet, stack, board, rakePct, rakeCap]);
+  }, [game, pot, bet, stack, board, rakePct, rakeCap, betTree]);
   const shown = preview.error ? null : result && resultKey === currentKey ? result : preview.result;
   return (
     <div className="split">
@@ -154,15 +154,16 @@ export function SolverStudio() {
 
 function flopBetSizes(text: string): string[] {
   const flop = text.split(";").find((part) => part.trim().toLowerCase().startsWith("flop")) ?? "";
-  return flop.replace(/^flop/i, "").split(",").map((x) => x.trim()).filter((x) => x === "all-in" || Number.isFinite(Number(x)));
+  return flop.replace(/^flop/i, "").split(",").map((x) => x.trim()).filter((x) => x === "all-in" || (x !== "" && Number.isFinite(Number(x)) && Number(x) > 0));
 }
 
-function validateSolverInputs(game: Game, pot: number, bet: number, stack: number, board: string, rakePct: number, rakeCap: number): void {
+function validateSolverInputs(game: Game, pot: number, bet: number, stack: number, board: string, rakePct: number, rakeCap: number, betTree: string): void {
   if (!Number.isFinite(pot) || pot <= 0) throw new Error("pot must be positive");
   if (!Number.isFinite(bet) || bet < 0) throw new Error("bet must be non-negative");
   if (!Number.isFinite(stack) || stack <= 0) throw new Error("stack must be positive");
   if (!Number.isFinite(rakePct) || rakePct < 0 || rakePct > 100) throw new Error("rake percent must be 0-100");
   if (!Number.isFinite(rakeCap) || rakeCap < 0) throw new Error("rake cap must be non-negative");
+  if (!flopBetSizes(betTree).length) throw new Error("bet tree needs at least one flop size");
   const cards = board.trim() ? board.trim().split(/\s+/).map(parseCard) : [];
   if (cards.length > 5) throw new Error("board cannot have more than five cards");
   if (new Set(cards).size !== cards.length) throw new Error("duplicate board cards");

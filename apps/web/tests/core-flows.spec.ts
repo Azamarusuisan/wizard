@@ -8,6 +8,10 @@ test("solver runs and displays strategy metrics", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Start solve" })).toBeDisabled();
   await page.getByLabel("Board").fill("Ah Kd 7c");
   await expect(page.getByLabel("Bet tree")).toContainText("flop 33,66,125,all-in");
+  await page.getByLabel("Bet tree").fill("turn 66");
+  await expect(page.getByRole("alert")).toContainText("bet tree");
+  await expect(page.getByRole("button", { name: "Start solve" })).toBeDisabled();
+  await page.getByLabel("Bet tree").fill("flop 33,66,125,all-in; turn 66,125,all-in; river 66,150,all-in");
   await page.getByRole("button", { name: "33% pot" }).click();
   await expect(page.getByLabel("Bet amount")).toHaveValue("33");
   await page.getByLabel("Game").selectOption("PLO5");
