@@ -8,6 +8,7 @@ const STORES = ["solves", "ranges", "training"] as const;
 type StoreName = (typeof STORES)[number];
 export type CacheStats = Record<StoreName, number>;
 export type SolveSummary = { key: string; createdAt: number; spot: unknown };
+export type TrainingResult = { key: string; createdAt: number; spot: string; hand: string; action: string; evLoss: number; grade: string };
 type SolveRecord = {
   key: string;
   meta: { version: number; createdAt: number; spot: unknown };
@@ -116,6 +117,20 @@ export async function saveRange(name: string, text: string): Promise<void> {
 
 export async function loadRange(name: string): Promise<string | null> {
   return (await getRecord<{ text: string }>("ranges", name))?.text ?? null;
+}
+
+export async function saveTrainingResult(result: Omit<TrainingResult, "key" | "createdAt">): Promise<string> {
+  const createdAt = Date.now();
+  const suffix = "randomUUID" in crypto ? crypto.randomUUID() : Math.random().toString(36).slice(2);
+  const key = `${createdAt}-${suffix}`;
+  await putRecord<TrainingResult>("training", { key, createdAt, ...result });
+  return key;
+}
+
+export async function listTrainingResults(): Promise<TrainingResult[]> {
+  const db = await openGtoDb();
+  const records = await reqResult<TrainingResult[]>(db.transaction("training").objectStore("training").getAll());
+  return records.sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export async function saveSolve(spot: unknown, result: SolveResult): Promise<string> {

@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 import { describe, expect, it } from "vitest";
-import { cacheKey, cacheStats, clearAllData, deleteSolve, getRecord, listSolveRecords, loadRange, loadSolve, pruneSolveCache, saveRange, saveSolve } from "../lib/db";
+import { cacheKey, cacheStats, clearAllData, deleteSolve, getRecord, listSolveRecords, listTrainingResults, loadRange, loadSolve, pruneSolveCache, saveRange, saveSolve, saveTrainingResult } from "../lib/db";
 import { solveRiverSpot } from "@gto-lab/engine-wasm";
 
 describe("IndexedDB cache", () => {
@@ -36,5 +36,13 @@ describe("IndexedDB cache", () => {
     expect((await cacheStats()).ranges).toBe(1);
     await clearAllData();
     expect(await cacheStats()).toEqual({ solves: 0, ranges: 0, training: 0 });
+  });
+
+  it("persists training results", async () => {
+    await clearAllData();
+    await saveTrainingResult({ spot: "BTN vs BB", hand: "AcAd", action: "raise", evLoss: 0, grade: "Perfect" });
+    const [result] = await listTrainingResults();
+    expect(result?.hand).toBe("AcAd");
+    expect((await cacheStats()).training).toBe(1);
   });
 });

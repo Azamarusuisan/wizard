@@ -61,6 +61,9 @@ test("trainer displays decision controls", async ({ page }) => {
   await page.keyboard.press("B");
   await expect(page.getByText("EV loss")).toBeVisible();
   await expect(page.getByText("Perfect")).toBeVisible();
+  await expect(page.locator('[aria-label="Attempts: 1"]')).toBeVisible();
+  await page.goto("/");
+  await expect(page.locator('[aria-label^="Average EV loss:"]')).not.toContainText("No sessions");
 });
 
 test("range editor round trips text", async ({ page }) => {

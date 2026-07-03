@@ -4,7 +4,7 @@ import { parseCard, equity, parseNlhRange, parsePloRange, serializeRange, solveR
 import { CardView } from "../components/CardView";
 import { Metric } from "../components/Metric";
 import { StrategyTable } from "../components/StrategyTable";
-import { cacheStats, clearAllData, clearStore, deleteSolve, listSolveRecords, loadRange, saveRange, type CacheStats, type SolveSummary } from "../lib/db";
+import { cacheStats, clearAllData, clearStore, deleteSolve, listSolveRecords, listTrainingResults, loadRange, saveRange, saveTrainingResult, type CacheStats, type SolveSummary, type TrainingResult } from "../lib/db";
 import { runSolve } from "../lib/solverClient";
 import { decodeSpot, encodeSpot } from "../lib/spotUrl";
 import { useAppStore } from "../state/store";
@@ -14,9 +14,14 @@ const ranks = "AKQJT98765432";
 export function Dashboard() {
   const result = useAppStore((s) => s.result) ?? solveRiverSpot(100, 66);
   const [stats, setStats] = useState<CacheStats | null>(null);
+  const [training, setTraining] = useState<TrainingResult[]>([]);
   useEffect(() => {
-    void cacheStats().then(setStats);
+    void Promise.all([cacheStats(), listTrainingResults()]).then(([nextStats, nextTraining]) => {
+      setStats(nextStats);
+      setTraining(nextTraining);
+    });
   }, []);
+  const avgLoss = training.length ? training.reduce((sum, row) => sum + row.evLoss, 0) / training.length : null;
   return (
     <div className="grid">
       <div>
@@ -25,7 +30,7 @@ export function Dashboard() {
       </div>
       <div className="grid cols-3">
         <Metric label="Recent exploitability" value={`${result.exploitability.at(-1)!.value.toFixed(2)}% pot`} />
-        <Metric label="Average EV loss" value={stats?.training ? "tracked" : "No sessions"} />
+        <Metric label="Average EV loss" value={avgLoss === null ? "No sessions" : `${avgLoss.toFixed(3)}bb`} />
         <Metric label="Saved solves" value={stats?.solves ?? 0} />
       </div>
       <div className="card" style={{ height: 280 }}><Curve data={result.exploitability} /></div>
@@ -201,35 +206,58 @@ export function Trainer() {
   const row = spot.rows[0]!;
   const bestEv = Math.max(row.foldEv, row.callEv, row.raiseEv);
   const [choice, setChoice] = useState<"fold" | "call" | "raise" | null>(null);
+  const [history, setHistory] = useState<TrainingResult[]>([]);
+  const answer = (action: "fold" | "call" | "raise") => {
+    const ev = action === "fold" ? row.foldEv : action === "call" ? row.callEv : row.raiseEv;
+    const evLoss = bestEv - ev;
+    const nextGrade = gradeForLoss(evLoss);
+    setChoice(action);
+    void saveTrainingResult({ spot: "BTN vs BB SRP Ah Kd 7c", hand: row.combo, action, evLoss, grade: nextGrade })
+      .then(() => listTrainingResults())
+      .then(setHistory);
+  };
+  useEffect(() => {
+    void listTrainingResults().then(setHistory);
+  }, []);
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLSelectElement) return;
       const key = event.key.toLowerCase();
-      if (key === "f" || key === "x") setChoice("fold");
-      if (key === "c") setChoice("call");
-      if (key === "b" || key === "r") setChoice("raise");
+      if (key === "f" || key === "x") answer("fold");
+      if (key === "c") answer("call");
+      if (key === "b" || key === "r") answer("raise");
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [bestEv, row.callEv, row.combo, row.foldEv, row.raiseEv]);
   const chosenEv = choice === "fold" ? row.foldEv : choice === "call" ? row.callEv : choice === "raise" ? row.raiseEv : null;
   const loss = chosenEv === null ? null : bestEv - chosenEv;
-  const grade = loss === null ? "Choose an action" : loss <= 0.005 ? "Perfect" : loss <= 0.05 ? "Good" : loss <= 0.2 ? "Inaccuracy" : "Blunder";
+  const grade = loss === null ? "Choose an action" : gradeForLoss(loss);
+  const avgLoss = history.length ? history.reduce((sum, result) => sum + result.evLoss, 0) / history.length : null;
   return (
     <div className="grid">
       <h1 className="title">Trainer</h1>
       <div className="card">
         <p className="muted">BTN vs BB, SRP, flop Ah Kd 7c. Hero: As Qs.</p>
         <div className="cards"><CardView card={parseCard("As")} /><CardView card={parseCard("Qs")} /><CardView card={parseCard("Ah")} /><CardView card={parseCard("Kd")} /><CardView card={parseCard("7c")} /></div>
-        <div style={{ display: "flex", gap: 8, marginTop: 16 }}><button className="btn" onClick={() => setChoice("fold")}>Fold</button><button className="btn" onClick={() => setChoice("call")}>Call</button><button className="btn primary" onClick={() => setChoice("raise")}>Bet 66%</button></div>
+        <div style={{ display: "flex", gap: 8, marginTop: 16 }}><button className="btn" onClick={() => answer("fold")}>Fold</button><button className="btn" onClick={() => answer("call")}>Call</button><button className="btn primary" onClick={() => answer("raise")}>Bet 66%</button></div>
         <div className="grid cols-3" style={{ marginTop: 16 }}>
           <Metric label="EV loss" value={loss === null ? "-" : `${loss.toFixed(3)}bb`} />
           <Metric label="Grade" value={grade} />
           <Metric label="GTO raise" value={`${(row.raise * 100).toFixed(0)}%`} />
         </div>
+        <div className="grid cols-3" style={{ marginTop: 16 }}>
+          <Metric label="Attempts" value={history.length} />
+          <Metric label="Average loss" value={avgLoss === null ? "-" : `${avgLoss.toFixed(3)}bb`} />
+          <Metric label="Last action" value={history[0]?.action ?? "-"} />
+        </div>
       </div>
     </div>
   );
+}
+
+function gradeForLoss(loss: number): string {
+  return loss <= 0.005 ? "Perfect" : loss <= 0.05 ? "Good" : loss <= 0.2 ? "Inaccuracy" : "Blunder";
 }
 
 export function RangeEditor() {
