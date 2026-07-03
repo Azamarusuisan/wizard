@@ -14,10 +14,31 @@ type AppState = {
 };
 
 export const useAppStore = create<AppState>((set) => ({
-  lang: "ja",
-  theme: "dark",
+  lang: readSetting<Lang>("gto-lab.lang", "ja", ["ja", "en"]),
+  theme: readSetting<Theme>("gto-lab.theme", "dark", ["dark", "light"]),
   result: null,
-  setLang: (lang) => set({ lang }),
-  setTheme: (theme) => set({ theme }),
+  setLang: (lang) => {
+    writeSetting("gto-lab.lang", lang);
+    set({ lang });
+  },
+  setTheme: (theme) => {
+    writeSetting("gto-lab.theme", theme);
+    set({ theme });
+  },
   setResult: (result) => set({ result })
 }));
+
+function readSetting<T extends string>(key: string, fallback: T, allowed: readonly T[]): T {
+  const storage = browserStorage();
+  const value = storage?.getItem(key);
+  return allowed.includes(value as T) ? value as T : fallback;
+}
+
+function writeSetting(key: string, value: string): void {
+  browserStorage()?.setItem(key, value);
+}
+
+function browserStorage(): Pick<Storage, "getItem" | "setItem"> | null {
+  const storage = typeof window === "undefined" ? globalThis.localStorage : window.localStorage;
+  return storage && typeof storage.getItem === "function" && typeof storage.setItem === "function" ? storage : null;
+}

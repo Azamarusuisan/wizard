@@ -185,13 +185,15 @@ export function RangeEditor() {
 
 export function Settings() {
   const [stats, setStats] = useState<CacheStats | null>(null);
+  const theme = useAppStore((s) => s.theme);
+  const setTheme = useAppStore((s) => s.setTheme);
   const refresh = () => void cacheStats().then(setStats);
   useEffect(refresh, []);
   return (
     <div className="grid">
       <h1 className="title">Settings</h1>
       <div className="grid cols-3">
-        <label className="field">Theme<select><option>Dark</option><option>Light</option></select></label>
+        <label className="field">Theme<select value={theme} onChange={(e) => setTheme(e.target.value as "dark" | "light")}><option value="dark">Dark</option><option value="light">Light</option></select></label>
         <label className="field">Deck colors<select><option>Four color</option><option>Two color</option></select></label>
         <label className="field">Precision<select><option>Balanced</option><option>Fast</option><option>Precise</option></select></label>
       </div>
