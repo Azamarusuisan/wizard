@@ -208,27 +208,65 @@ export const DEFAULT_RIVER_SPECS = [
   ["A5s", 0.32]
 ] as const;
 
-export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2): SolveResult {
+export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2, boardText = ""): SolveResult {
   if (!Number.isFinite(pot) || pot <= 0) throw new Error("pot must be positive");
   if (!Number.isFinite(bet) || bet < 0) throw new Error("bet must be non-negative");
   if (!Number.isFinite(stack) || stack <= 0) throw new Error("stack must be positive");
+  const board = parseBoardText(boardText);
   const potOdds = bet / (pot + 2 * bet);
   const mdf = pot / (pot + bet);
   const alpha = bet / (pot + bet);
   const rows = DEFAULT_RIVER_SPECS.map(([combo, e]) => {
-    const callEv = e * (pot + bet) - (1 - e) * bet;
-    const raiseEv = callEv + e * bet * 0.15;
+    const eq = boardEquity(combo, e, board);
+    const callEv = eq * (pot + bet) - (1 - eq) * bet;
+    const raiseEv = callEv + eq * bet * 0.15;
     const raise = raiseEv >= callEv && raiseEv >= 0 ? 1 : 0;
     const call = !raise && callEv >= 0 ? 1 : 0;
     const fold = raise || call ? 0 : 1;
     const ev = (call * callEv + raise * raiseEv) / 100;
-    return { combo, fold, call, raise, foldEv: 0, callEv: callEv / 100, raiseEv: raiseEv / 100, equity: e, ev, eqr: ev / Math.max(0.0001, e * pot / 100) };
+    return { combo, fold, call, raise, foldEv: 0, callEv: callEv / 100, raiseEv: raiseEv / 100, equity: eq, ev, eqr: ev / Math.max(0.0001, eq * pot / 100) };
   });
   return {
     rows,
     exploitability: riverStrategyProgress(rows, pot, bet, 36).map((value, i) => ({ iteration: (i + 1) * 50, value })),
     metrics: { spr: stack / pot, mdf, alpha, potOdds }
   };
+}
+
+function parseBoardText(text: string): Card[] {
+  const board = text.trim() ? text.trim().split(/\s+/).map(parseCard) : [];
+  if (board.length > 5) throw new Error("board cannot have more than five cards");
+  if (new Set(board).size !== board.length) throw new Error("duplicate board cards");
+  return board;
+}
+
+function boardEquity(label: string, fallback: number, board: Card[]): number {
+  if (!board.length) return fallback;
+  // ponytail: representative rows only; replace with full combo expansion when tree CFR lands.
+  const hero = representativeHoles(label, board);
+  if (!hero) return fallback;
+  const villain = deck([...board, ...hero]).slice(0, 2);
+  return equity([{ cards: hero }, { cards: villain }], board, "NLH", 0, 1)[0]!.equity;
+}
+
+function representativeHoles(label: string, blocked: Card[]): Card[] | null {
+  const r0 = RANK_VALUE.get(label[0]!.toUpperCase());
+  const r1 = RANK_VALUE.get(label[1]!.toUpperCase());
+  if (r0 === undefined || r1 === undefined) return null;
+  return r0 === r1 ? pickPair(r0, blocked) : pickSuited(r0, r1, blocked);
+}
+
+function pickPair(rank: number, blocked: Card[]): Card[] | null {
+  const cards = [0, 1, 2, 3].map((s) => card(rank, s as Suit)).filter((c) => !blocked.includes(c)).slice(0, 2);
+  return cards.length === 2 ? cards : null;
+}
+
+function pickSuited(a: number, b: number, blocked: Card[]): Card[] | null {
+  for (const suit of [0, 1, 2, 3] as Suit[]) {
+    const cards = [card(a, suit), card(b, suit)];
+    if (!cards.some((c) => blocked.includes(c))) return cards;
+  }
+  return null;
 }
 
 function riverStrategyProgress(rows: SolverRow[], pot: number, bet: number, points: number): number[] {

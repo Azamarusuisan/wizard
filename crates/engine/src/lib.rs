@@ -1057,6 +1057,7 @@ struct NativeSpot {
     pot: f64,
     bet: f64,
     stack: Option<f64>,
+    board: Option<String>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -1102,7 +1103,9 @@ pub fn init(_threads: Option<u32>) {
 pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
     let spot: NativeSpot = serde_json::from_str(spot_json)
         .map_err(|err| JsValue::from_str(&format!("bad spot json: {err}")))?;
-    validate_spot(&spot).map_err(JsValue::from_str)?;
+    validate_spot(&spot).map_err(|err| JsValue::from_str(&err))?;
+    let board = parse_board(spot.board.as_deref().unwrap_or(""))
+        .map_err(|err| JsValue::from_str(&err))?;
     let pot_odds = spot.bet / (spot.pot + 2.0 * spot.bet);
     let mdf = spot.pot / (spot.pot + spot.bet);
     let alpha = spot.bet / (spot.pot + spot.bet);
@@ -1116,7 +1119,9 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
     let mut metrics = Vec::with_capacity(br::DEFAULT_RIVER_SPECS.len() * 3 + 4);
     let rows = br::DEFAULT_RIVER_SPECS
         .iter()
-        .map(|(_, equity)| br::best_response_combo(*equity, spot.pot, spot.bet))
+        .map(|(combo, equity)| {
+            br::best_response_combo(board_equity(combo, *equity, &board), spot.pot, spot.bet)
+        })
         .collect::<Vec<_>>();
     for row in &rows {
         let equity = row.equity;
@@ -1156,19 +1161,91 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
     Ok(handle)
 }
 
-fn validate_spot(spot: &NativeSpot) -> Result<(), &'static str> {
+fn validate_spot(spot: &NativeSpot) -> Result<(), String> {
     if !(spot.pot.is_finite() && spot.pot > 0.0) {
-        return Err("pot must be positive");
+        return Err("pot must be positive".to_string());
     }
     if !(spot.bet.is_finite() && spot.bet >= 0.0) {
-        return Err("bet must be non-negative");
+        return Err("bet must be non-negative".to_string());
     }
     if let Some(stack) = spot.stack {
         if !(stack.is_finite() && stack > 0.0) {
-            return Err("stack must be positive");
+            return Err("stack must be positive".to_string());
         }
     }
+    parse_board(spot.board.as_deref().unwrap_or(""))?;
     Ok(())
+}
+
+fn parse_board(text: &str) -> Result<Vec<eval::Card>, String> {
+    let mut cards = Vec::new();
+    for token in text.split_whitespace() {
+        if token.len() != 2 {
+            return Err(format!("bad board card: {token}"));
+        }
+        let rank = "23456789TJQKA"
+            .find(token.as_bytes()[0].to_ascii_uppercase() as char)
+            .ok_or_else(|| format!("bad board card: {token}"))? as u8;
+        let suit = "cdhs"
+            .find(token.as_bytes()[1].to_ascii_lowercase() as char)
+            .ok_or_else(|| format!("bad board card: {token}"))? as u8;
+        cards.push(eval::card(rank, suit));
+    }
+    if cards.len() > 5 {
+        return Err("board cannot have more than five cards".to_string());
+    }
+    let mut uniq = cards.clone();
+    uniq.sort_unstable();
+    uniq.dedup();
+    if uniq.len() != cards.len() {
+        return Err("duplicate board cards".to_string());
+    }
+    Ok(cards)
+}
+
+fn board_equity(label: &str, fallback: f64, board: &[eval::Card]) -> f64 {
+    if board.is_empty() {
+        return fallback;
+    }
+    // ponytail: representative rows only; replace with full combo expansion when tree CFR lands.
+    let Some(hero) = representative_holes(label, board) else {
+        return fallback;
+    };
+    let mut dead = board.to_vec();
+    dead.extend(hero);
+    let villain = pick_villain(&dead);
+    equity::heads_up_nlh_equity_exact(hero, villain, board)
+}
+
+fn representative_holes(label: &str, blocked: &[eval::Card]) -> Option<[eval::Card; 2]> {
+    let chars = label.as_bytes();
+    let ranks = "23456789TJQKA";
+    let r0 = ranks.find(chars.first()?.to_ascii_uppercase() as char)? as u8;
+    let r1 = ranks.find(chars.get(1)?.to_ascii_uppercase() as char)? as u8;
+    if r0 == r1 {
+        return pick_pair(r0, blocked);
+    }
+    pick_suited(r0, r1, blocked)
+}
+
+fn pick_pair(rank: u8, blocked: &[eval::Card]) -> Option<[eval::Card; 2]> {
+    let cards: Vec<_> = (0..4)
+        .map(|s| eval::card(rank, s))
+        .filter(|c| !blocked.contains(c))
+        .take(2)
+        .collect();
+    (cards.len() == 2).then_some([cards[0], cards[1]])
+}
+
+fn pick_suited(a: u8, b: u8, blocked: &[eval::Card]) -> Option<[eval::Card; 2]> {
+    (0..4)
+        .map(|s| [eval::card(a, s), eval::card(b, s)])
+        .find(|cs| !blocked.contains(&cs[0]) && !blocked.contains(&cs[1]))
+}
+
+fn pick_villain(blocked: &[eval::Card]) -> [eval::Card; 2] {
+    let cards: Vec<_> = (0..52).filter(|c| !blocked.contains(c)).take(2).collect();
+    [cards[0], cards[1]]
 }
 
 #[wasm_bindgen]
@@ -1383,19 +1460,45 @@ mod tests {
             pot: 0.0,
             bet: 66.0,
             stack: None,
+            board: None,
         })
         .is_err());
         assert!(super::validate_spot(&super::NativeSpot {
             pot: 100.0,
             bet: -1.0,
             stack: None,
+            board: None,
         })
         .is_err());
         assert!(super::validate_spot(&super::NativeSpot {
             pot: 100.0,
             bet: 66.0,
             stack: Some(0.0),
+            board: None,
         })
         .is_err());
+        assert!(super::validate_spot(&super::NativeSpot {
+            pot: 100.0,
+            bet: 66.0,
+            stack: None,
+            board: Some("Ah Ah".to_string()),
+        })
+        .is_err());
+    }
+
+    #[test]
+    fn native_solve_board_changes_representative_equity() {
+        super::init(None);
+        let empty = super::solve(r#"{"pot":100.0,"bet":66.0,"stack":250.0}"#).unwrap();
+        let boarded =
+            super::solve(r#"{"pot":100.0,"bet":66.0,"stack":250.0,"board":"Ah Kd 7c"}"#)
+                .unwrap();
+        let empty_payload = super::serialize(empty).unwrap();
+        let board_payload = super::serialize(boarded).unwrap();
+        let empty_native: super::NativeSolve = serde_json::from_slice(&empty_payload).unwrap();
+        let board_native: super::NativeSolve = serde_json::from_slice(&board_payload).unwrap();
+        assert_ne!(empty_native.metrics[1], board_native.metrics[1]);
+        super::cancel(empty).unwrap();
+        super::cancel(boarded).unwrap();
     }
 }

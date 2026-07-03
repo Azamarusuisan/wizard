@@ -61,7 +61,7 @@ export function SolverStudio() {
   const cancelRef = useRef<AbortController | null>(null);
   const result = useAppStore((s) => s.result);
   const setResult = useAppStore((s) => s.setResult);
-  const shown = result ?? solveRiverSpot(pot, bet, stack);
+  const shown = result ?? solveRiverSpot(pot, bet, stack, board);
   return (
     <div className="split">
       <section className="card grid">

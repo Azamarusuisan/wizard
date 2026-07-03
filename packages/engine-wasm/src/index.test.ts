@@ -51,4 +51,11 @@ test("TS river solve fallback rejects invalid spots", () => {
   assert.throws(() => solveRiverSpot(0, 66), /pot/);
   assert.throws(() => solveRiverSpot(100, -1), /bet/);
   assert.throws(() => solveRiverSpot(100, 66, 0), /stack/);
+  assert.throws(() => solveRiverSpot(100, 66, 250, "Ah Ah"), /duplicate/);
+});
+
+test("TS river solve fallback uses board in representative equities", () => {
+  const empty = solveRiverSpot(100, 66, 250);
+  const boarded = solveRiverSpot(100, 66, 250, "Ah Kd 7c");
+  assert.notEqual(empty.rows[0]!.equity, boarded.rows[0]!.equity);
 });

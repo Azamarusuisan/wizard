@@ -24,13 +24,14 @@
 - Trainer now scores the selected action from solve-row action EVs and displays EV loss, grade, and GTO raise frequency.
 - Solver worker/client/UI now expose a cancel path wired to `EngineAPI.cancel`.
 - Solver spot payload now carries optional effective stack, and native/TS fallback/UI compute SPR as `stack / pot` instead of using a fixed display value.
-- Solver spot payload/cache key now carries optional board text from the Solver Studio input. The current native/TS river solve path still ignores board content numerically; real board-aware tree solving remains future work.
+- Solver spot payload/cache key now carries optional board text from the Solver Studio input. Native and TS fallback river rows parse/validate board cards and recompute representative combo equities from exact NLH enumeration when board text is present. This is still representative-row solving, not full range/tree board-aware CFR.
 - Native and TS solve entry points now reject non-positive pot/stack and negative bet before metric calculation.
 - IndexedDB stores `solves`, `ranges`, and `training` exist in the web app. Unit tests cover range save/load, quantized solve save/load, stats, clear, and oldest-first solve pruning. Playwright covers range persistence, same-spot solve cache hit, and Settings data clearing.
 - CI workflow exists for Node and Rust.
 - Production code grep for `TODO|FIXME|未実装|placeholder` is clean.
 - `packages/engine-wasm` now exposes an `EngineAPI` facade (`init`, `solve`, `pollProgress`, `getStrategy`, `getHandMetrics`, `cancel`, `serialize`, `result`). It prefers the generated wasm-pack backend when `pkg/gto_lab_engine.js` exists and falls back to `LocalEngine` only when the package is unavailable. The unit test proves the wasm backend is selected after `wasm-pack build`.
 - `crates/engine` now exports wasm-bindgen handle/progress functions matching the EngineAPI shape: `init`, `solve`, `poll_progress`, `get_strategy`, `get_hand_metrics`, `cancel`, and `serialize`. Native serialized solve payloads include combo labels, so TypeScript no longer owns solver row identity for the WASM path.
+- Last verified: `bash scripts/verify.sh` exited 0 after the board-aware solve change.
 
 ## Important Caveat
 
