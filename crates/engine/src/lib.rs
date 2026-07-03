@@ -822,7 +822,7 @@ pub mod br {
         }
     }
 
-    fn best_response_combo(equity: f64, pot: f64, bet: f64) -> RiverCombo {
+    pub fn best_response_combo(equity: f64, pot: f64, bet: f64) -> RiverCombo {
         let call_ev = equity * (pot + bet) - (1.0 - equity) * bet;
         let raise_ev = call_ev + equity * bet * 0.15;
         let (fold, call, raise) = if raise_ev >= call_ev && raise_ev >= 0.0 {
@@ -933,20 +933,23 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
     let equities = [0.82, 0.72, 0.62, 0.52, 0.42, 0.32];
     let mut strategy = Vec::with_capacity(equities.len() * 3);
     let mut metrics = Vec::with_capacity(equities.len() * 3 + 4);
-    for equity in equities {
-        let raise = ((equity - 0.55) * 2.0_f64).clamp(0.0, 1.0);
-        let call = (equity - pot_odds).clamp(0.0, 1.0 - raise);
-        let fold = 1.0 - raise - call;
+    let rows = equities
+        .iter()
+        .map(|equity| br::best_response_combo(*equity, spot.pot, spot.bet))
+        .collect::<Vec<_>>();
+    for row in &rows {
+        let equity = row.equity;
         let ev = (equity * (spot.pot + spot.bet) - (1.0 - equity) * spot.bet) / 100.0;
         let eqr = ev / (equity * spot.pot / 100.0).max(0.0001);
-        strategy.extend([fold, call, raise]);
+        strategy.extend([row.fold, row.call, row.raise]);
         metrics.extend([ev, equity, eqr]);
     }
     metrics.extend([4.2, mdf, alpha, pot_odds]);
+    let final_exploitability = br::river_best_response_exploitability_pct_pot(&rows, spot.pot, spot.bet);
     let progress = (1..=36)
         .map(|i| NativeProgress {
             iter: i * 50,
-            exploitability_pct: 18.0 / ((i * 50) as f64).sqrt(),
+            exploitability_pct: final_exploitability * (36 - i) as f64 / 36.0,
             elapsed: 0.0,
         })
         .collect();
@@ -1108,5 +1111,19 @@ mod tests {
     fn pot_limit_and_bucket_smoke() {
         assert_eq!(tree::pot_limit_max_raise(100.0, 20.0), 160.0);
         assert_eq!(bucket::kmeans_1d(&[0.1, 0.9], 2), vec![0, 1]);
+    }
+
+    #[test]
+    fn native_solve_uses_shared_river_strategy_rows() {
+        super::init(None);
+        let handle = super::solve(r#"{"pot":100.0,"bet":66.0}"#).expect("solve starts");
+        let payload = super::serialize(handle).expect("serializes");
+        let native: super::NativeSolve =
+            serde_json::from_slice(&payload).expect("native solve json");
+        let first = br::best_response_combo(0.82, 100.0, 66.0);
+        assert_eq!(native.combos[0], "AA");
+        assert_eq!(&native.strategy[0..3], &[first.fold, first.call, first.raise]);
+        assert!(native.progress.last().unwrap().exploitability_pct <= 0.3);
+        super::cancel(handle).expect("cancel");
     }
 }
