@@ -20,7 +20,7 @@ Evidence:
 - Card encoding is `rank * 4 + suit`.
 - Rust implements NLH 5/7-card evaluation and PLO4/PLO5 exact two-hole/three-board evaluation.
 - Exhaustive class-count tests cover NLH 169, PLO4 16,432, PLO5 134,459, and flop 1,755.
-- Criterion benches exist for `nlh7_eval` and representative river rows.
+- Criterion benches exist for `nlh7_eval` and default river rows.
 
 Verify:
 - `cargo test --release -p gto_lab_engine`

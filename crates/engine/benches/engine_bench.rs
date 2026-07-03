@@ -20,11 +20,11 @@ fn bench_nlh7_eval(c: &mut Criterion) {
     });
 }
 
-fn bench_representative_river_solve(c: &mut Criterion) {
-    c.bench_function("representative_river_solve", |b| {
+fn bench_default_river_solve(c: &mut Criterion) {
+    c.bench_function("default_river_solve", |b| {
         b.iter(|| black_box(br::river_strategy_rows()))
     });
 }
 
-criterion_group!(benches, bench_nlh7_eval, bench_representative_river_solve);
+criterion_group!(benches, bench_nlh7_eval, bench_default_river_solve);
 criterion_main!(benches);

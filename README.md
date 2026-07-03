@@ -18,7 +18,7 @@ Open `http://localhost:5173`.
 cargo bench -p gto_lab_engine --bench engine_bench
 ```
 
-Latest local run: `nlh7_eval` ~1.07 us/eval, `representative_river_solve` ~12.8 ns/row-set on this machine.
+Latest local run: `nlh7_eval` ~1.07 us/eval, `default_river_solve` ~12.8 ns/row-set on this machine.
 
 ## Current Engine Path
 

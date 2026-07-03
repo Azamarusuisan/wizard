@@ -849,9 +849,15 @@ pub mod br {
     ];
 
     pub fn river_strategy_rows() -> Vec<RiverCombo> {
-        DEFAULT_RIVER_SPECS
-            .iter()
-            .map(|(_, equity)| best_response_combo(*equity, 100.0, 66.0))
+        super::default_river_entries(&[])
+            .into_iter()
+            .map(|entry| {
+                best_response_combo(
+                    super::combo_equity(entry.holes, entry.fallback, &[]),
+                    100.0,
+                    66.0,
+                )
+            })
             .collect()
     }
 

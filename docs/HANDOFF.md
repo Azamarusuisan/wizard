@@ -19,6 +19,7 @@
 - Rust solver gates now include a compact flop abstraction trend check: 2 buckets >= 4 buckets >= 6 buckets exploitability.
 - Native WASM solve payload now reuses the shared river best-response row builder instead of duplicating strategy formulas in the handle serializer path.
 - Native and TS fallback river solve rows now use named default row specs instead of independent ad-hoc combo/equity arrays.
+- Rust river gate/bench row generation now goes through the same default concrete combo expansion used by native solve instead of six standalone representative equities.
 - Native and TS fallback solve progress now measures BR exploitability on interpolated strategy rows instead of emitting a synthetic linear curve.
 - Native and TS fallback combo EV/EQR now use strategy-weighted action EV rather than always using call EV.
 - Solve rows now carry fold/call/raise action EVs through native WASM, TS fallback, and IndexedDB cache.
@@ -55,8 +56,8 @@
 - README, architecture, and formats docs now reflect the current Plan A Rust/WASM path, IndexedDB solve cache shape, and remaining default-combo / sampled-PLO limitations.
 - IndexedDB solve cache keys are canonical JSON SHA-256 via WebCrypto in the web layer.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
-- Criterion benches now exist for `nlh7_eval` and `representative_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~1.07 us/eval, representative river rows ~12.8 ns. The evaluator still needs a faster table/perfect-hash path to reach the original 50M eval/s target.
-- Last verified: `bash scripts/verify.sh` exited 0 after aligning architecture/plan docs with WebCrypto cache hashing and PLO4/PLO5 Fast reporting.
+- Criterion benches now exist for `nlh7_eval` and `default_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~1.07 us/eval, default river rows ~12.8 ns. The evaluator still needs a faster table/perfect-hash path to reach the original 50M eval/s target.
+- Last verified: `bash scripts/verify.sh` exited 0 after moving Rust river gate/bench rows to default concrete combo expansion.
 
 ## Important Caveat
 
