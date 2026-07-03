@@ -13,6 +13,9 @@ test("PLO must use exactly two hole cards", () => {
   const oneHeart = evaluatePlo(cs("Th 9c 8d 7s"), board);
   const twoHeart = evaluatePlo(cs("Th 9h 8d 7s"), board);
   assert.ok(twoHeart > oneHeart);
+  const plo5OneHeart = evaluatePlo(cs("Th 9c 8d 7s 6c"), board);
+  const plo5TwoHeart = evaluatePlo(cs("Th 9h 8d 7s 6c"), board);
+  assert.ok(plo5TwoHeart > plo5OneHeart);
 });
 
 test("equity AA vs KK preflop is plausible", () => {
