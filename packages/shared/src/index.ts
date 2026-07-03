@@ -48,6 +48,7 @@ export type SiteConfig = {
   flow: string[];
   greeting: string;
   company: { address: string; hours: string; closed: string };
+  eventsBaseUrl?: string;
   previewBanner?: { leadId?: string; message: string; applyUrl: string };
 };
 

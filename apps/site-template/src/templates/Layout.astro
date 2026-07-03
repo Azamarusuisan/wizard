@@ -16,7 +16,7 @@ const { config } = Astro.props;
 const theme = themes[config.theme] ?? themes.honestNavy;
 const template = config.template ?? "classic";
 const description = `${config.businessName}は${config.area}で外壁・屋根塗装を承ります。`;
-const eventBase = "https://craftsite.jp/api/events";
+const eventBase = config.eventsBaseUrl;
 const eventQuery = config.previewBanner?.leadId ? `?leadId=${encodeURIComponent(config.previewBanner.leadId)}` : "?";
 const localBusiness = {
   "@context": "https://schema.org",
@@ -37,6 +37,7 @@ const localBusiness = {
     <meta property="og:title" content={config.businessName} />
     <meta property="og:description" content={description} />
     <meta property="og:image" content="/og.svg" />
+    {config.previewBanner ? <meta name="robots" content="noindex,nofollow" /> : null}
     <script type="application/ld+json" set:html={JSON.stringify(localBusiness)} />
   </head>
   <body>
@@ -89,7 +90,7 @@ const localBusiness = {
       )}
     </main>
     <Footer config={config} />
-    {config.previewBanner ? (
+    {config.previewBanner && eventBase ? (
       <script is:inline define:vars={{ eventBase, eventQuery }}>
         fetch(`${eventBase}${eventQuery}&name=qr_view`).catch(() => {});
         document.querySelectorAll("[data-event]").forEach((link) => {

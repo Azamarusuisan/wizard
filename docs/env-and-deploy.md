@@ -19,6 +19,16 @@ OPENAI_VISION_MODEL=gpt-4.1-mini
 
 未設定の場合はフォールバック生成で動かし、起動時に警告を1行出す。
 
+## プレビュー計測
+
+勝手にプレビューのQR表示・電話・LINE計測は `PUBLIC_EVENTS_BASE_URL` を入れた時だけ出力する。
+
+```env
+PUBLIC_EVENTS_BASE_URL=https://example.com/api/events
+APPLY_URL=https://example.com/apply
+LINE_OFFICIAL_URL=https://line.me/R/ti/p/@...
+```
+
 ## 生成ワーカー
 
 `site.generate` はリポジトリ内で `npm run build` と Playwright を動かすため、Vercel サーバレス関数では運用しない。当面は Mac mini を生成ワーカーにする。

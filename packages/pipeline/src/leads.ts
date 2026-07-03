@@ -26,6 +26,7 @@ export async function fetchPaintingLeads() {
   const leads = process.env.GOOGLE_PLACES_API_KEY ? await fetchGoogleLeads() : fixtureLeads;
   const filtered = dedupe(leads).filter((lead) => lead.phone && lead.address && isTargetWebsite(lead.website));
   await saveLeads(filtered);
+  console.log(`leads fetched=${leads.length} filtered=${filtered.length}`);
   return filtered;
 }
 
@@ -46,8 +47,8 @@ export function unsolicitedPreviewConfig(lead: Lead): SiteConfig {
     template: "singlePage",
     theme: "honestNavy",
     phone: lead.phone,
-    lineUrl: "https://line.me/R/ti/p/@example",
-    formUrl: "https://craftsite.jp/apply",
+    lineUrl: process.env.LINE_OFFICIAL_URL ?? "#",
+    formUrl: process.env.APPLY_URL ?? "#",
     area: lead.address.split(/[市区町村]/)[0] ? `${lead.address.split(/[市区町村]/)[0]}周辺` : lead.address,
     hero: `${lead.businessName}様の強みが伝わる塗装店ホームページ見本`,
     tagline: "公開情報をもとに、見やすさと電話しやすさを重視して作った見本です。",
@@ -63,8 +64,9 @@ export function unsolicitedPreviewConfig(lead: Lead): SiteConfig {
     previewBanner: {
       leadId: lead.id ?? lead.placeId,
       message: `このページは${lead.businessName}様のためにお作りした見本です`,
-      applyUrl: "https://craftsite.jp/apply"
-    }
+      applyUrl: process.env.APPLY_URL ?? "#"
+    },
+    eventsBaseUrl: process.env.PUBLIC_EVENTS_BASE_URL
   };
 }
 
@@ -72,15 +74,20 @@ async function fetchGoogleLeads() {
   const found: Lead[] = [];
   for (const area of areas) {
     for (const term of terms) {
-      const search = await google("textsearch", { query: `${area} ${term}` });
-      for (const result of search.results ?? []) {
-        const detail = await google("details", {
-          place_id: result.place_id,
-          fields: "place_id,name,formatted_address,formatted_phone_number,website,reviews,photos,url,business_status"
-        });
-        const place = detail.result;
-        const lead = normalizePlace(place);
-        if (lead) found.push(lead);
+      let pageToken: string | undefined;
+      for (let page = 0; page < 3; page++) {
+        if (pageToken) await new Promise((resolve) => setTimeout(resolve, 2000));
+        const search = await google("textsearch", pageToken ? { pagetoken: pageToken } : { query: `${area} ${term}` });
+        for (const result of search.results ?? []) {
+          const detail = await google("details", {
+            place_id: result.place_id,
+            fields: "place_id,name,formatted_address,formatted_phone_number,website,reviews,photos,url,business_status"
+          });
+          const lead = normalizePlace(detail.result);
+          if (lead) found.push(lead);
+        }
+        pageToken = search.next_page_token;
+        if (!pageToken) break;
       }
     }
   }

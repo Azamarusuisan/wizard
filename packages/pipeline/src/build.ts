@@ -13,7 +13,8 @@ const siteConfigPath = join(siteDir, "site.config.json");
 export async function buildPreview(config: SiteConfig) {
   // ponytail: one-process generator, use per-job temp worktrees if parallel builds matter.
   const previous = await readFile(siteConfigPath, "utf8");
-  await writeFile(siteConfigPath, JSON.stringify(config, null, 2));
+  const buildConfig = process.env.PUBLIC_EVENTS_BASE_URL && !config.eventsBaseUrl ? { ...config, eventsBaseUrl: process.env.PUBLIC_EVENTS_BASE_URL } : config;
+  await writeFile(siteConfigPath, JSON.stringify(buildConfig, null, 2));
   try {
     await exec("npm", ["run", "build", "--workspace", "@craftsite/site-template"], { cwd: repoRoot });
     return { workdir: siteDir, distDir: join(siteDir, "dist") };
