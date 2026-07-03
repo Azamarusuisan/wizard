@@ -5,6 +5,7 @@ test("solver runs and displays strategy metrics", async ({ page }) => {
   await page.getByRole("button", { name: "Start solve" }).click();
   await expect(page.getByRole("table", { name: "strategy table" })).toContainText("AA");
   await expect(page.getByText("MDF")).toBeVisible();
+  await expect(page.getByText("SPR")).toBeVisible();
   await page.getByRole("button", { name: "Start solve" }).click();
   await expect(page.getByText("cached")).toBeVisible();
 });

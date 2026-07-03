@@ -1,6 +1,6 @@
 import { engine } from "@gto-lab/engine-wasm";
 
-type Req = { id: string; type: "solve"; payload: { pot: number; bet: number } };
+type Req = { id: string; type: "solve"; payload: { pot: number; bet: number; stack?: number } };
 
 self.onmessage = (event: MessageEvent<Req>) => {
   const { id, payload } = event.data;

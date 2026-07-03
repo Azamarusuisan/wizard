@@ -1022,6 +1022,7 @@ pub mod bucket {
 struct NativeSpot {
     pot: f64,
     bet: f64,
+    stack: Option<f64>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -1069,6 +1070,7 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
     let pot_odds = spot.bet / (spot.pot + 2.0 * spot.bet);
     let mdf = spot.pot / (spot.pot + spot.bet);
     let alpha = spot.bet / (spot.pot + spot.bet);
+    let spr = spot.stack.unwrap_or(spot.pot * 4.2) / spot.pot;
     let combos = ["AA", "AKs", "QQ", "JTs", "76s", "A5s"]
         .iter()
         .map(|combo| combo.to_string())
@@ -1087,7 +1089,7 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
         strategy.extend([row.fold, row.call, row.raise]);
         metrics.extend([ev, equity, eqr]);
     }
-    metrics.extend([4.2, mdf, alpha, pot_odds]);
+    metrics.extend([spr, mdf, alpha, pot_odds]);
     let final_exploitability = br::river_best_response_exploitability_pct_pot(&rows, spot.pot, spot.bet);
     let progress = (1..=36)
         .map(|i| NativeProgress {
@@ -1298,13 +1300,15 @@ mod tests {
     #[test]
     fn native_solve_uses_shared_river_strategy_rows() {
         super::init(None);
-        let handle = super::solve(r#"{"pot":100.0,"bet":66.0}"#).expect("solve starts");
+        let handle =
+            super::solve(r#"{"pot":100.0,"bet":66.0,"stack":250.0}"#).expect("solve starts");
         let payload = super::serialize(handle).expect("serializes");
         let native: super::NativeSolve =
             serde_json::from_slice(&payload).expect("native solve json");
         let first = br::best_response_combo(0.82, 100.0, 66.0);
         assert_eq!(native.combos[0], "AA");
         assert_eq!(&native.strategy[0..3], &[first.fold, first.call, first.raise]);
+        assert_eq!(native.metrics[native.combos.len() * 3], 2.5);
         assert!(native.progress.last().unwrap().exploitability_pct <= 0.3);
         super::cancel(handle).expect("cancel");
     }

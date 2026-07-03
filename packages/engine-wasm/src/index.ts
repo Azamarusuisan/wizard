@@ -200,7 +200,7 @@ export function potLimitMaxRaise(pot: number, betToCall: number): number {
 export type SolverRow = { combo: string; fold: number; call: number; raise: number; equity: number; ev: number; eqr: number };
 export type SolveResult = { rows: SolverRow[]; exploitability: { iteration: number; value: number }[]; metrics: { spr: number; mdf: number; alpha: number; potOdds: number } };
 
-export function solveRiverSpot(pot: number, bet: number): SolveResult {
+export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2): SolveResult {
   const potOdds = bet / (pot + 2 * bet);
   const mdf = pot / (pot + bet);
   const alpha = bet / (pot + bet);
@@ -217,7 +217,7 @@ export function solveRiverSpot(pot: number, bet: number): SolveResult {
   return {
     rows,
     exploitability: Array.from({ length: 36 }, (_, i) => ({ iteration: (i + 1) * 50, value: 0 })),
-    metrics: { spr: 4.2, mdf, alpha, potOdds }
+    metrics: { spr: stack / pot, mdf, alpha, potOdds }
   };
 }
 

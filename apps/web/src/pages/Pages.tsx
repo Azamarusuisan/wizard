@@ -53,11 +53,12 @@ export function RangeExplorer() {
 export function SolverStudio() {
   const [pot, setPot] = useState(100);
   const [bet, setBet] = useState(66);
+  const [stack, setStack] = useState(420);
   const [progress, setProgress] = useState<{ iteration: number; value: number }[]>([]);
   const [cached, setCached] = useState(false);
   const result = useAppStore((s) => s.result);
   const setResult = useAppStore((s) => s.setResult);
-  const shown = result ?? solveRiverSpot(pot, bet);
+  const shown = result ?? solveRiverSpot(pot, bet, stack);
   return (
     <div className="split">
       <section className="card grid">
@@ -65,11 +66,12 @@ export function SolverStudio() {
         <label className="field">Game<select><option>NLH</option><option>PLO4</option><option>PLO5</option></select></label>
         <label className="field">Pot<input type="number" value={pot} onChange={(e) => setPot(Number(e.target.value))} /></label>
         <label className="field">Bet<input type="number" value={bet} onChange={(e) => setBet(Number(e.target.value))} /></label>
+        <label className="field">Stack<input type="number" value={stack} onChange={(e) => setStack(Number(e.target.value))} /></label>
         <label className="field">Board<input defaultValue="Ah Kd 7c" /></label>
         <button className="btn primary" onClick={() => {
           setProgress([]);
           setCached(false);
-          void runSolve({ pot, bet }, (p) => setProgress((xs) => [...xs, p])).then((run) => {
+          void runSolve({ pot, bet, stack }, (p) => setProgress((xs) => [...xs, p])).then((run) => {
             setCached(run.cached);
             setResult(run.result);
           });
@@ -82,6 +84,7 @@ export function SolverStudio() {
       </section>
       <section className="grid">
         <Metric label="MDF" value={`${(shown.metrics.mdf * 100).toFixed(1)}%`} />
+        <Metric label="SPR" value={shown.metrics.spr.toFixed(2)} />
         <Metric label="Bluff breakeven alpha" value={`${(shown.metrics.alpha * 100).toFixed(1)}%`} />
         <Metric label="Pot odds" value={`${(shown.metrics.potOdds * 100).toFixed(1)}%`} />
         <div className="card" style={{ height: 220 }}><Curve data={progress.length ? progress : shown.exploitability} /></div>
