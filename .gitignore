@@ -1,5 +1,7 @@
 node_modules
 dist
 target
+test-results
+packages/engine-wasm/pkg
 *.tsbuildinfo
 .DS_Store

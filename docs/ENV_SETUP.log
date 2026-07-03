@@ -1,0 +1,54 @@
+# ENV_SETUP 2026-07-03T09:19:09Z
+$ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
+info: downloading installer
+warn: It looks like you have an existing rustup settings file at:
+warn: /Users/zettai/.rustup/settings.toml
+warn: Rustup will install the default toolchain as specified in the settings file,
+warn: instead of the one inferred from the default host triple.
+info: profile set to default
+info: default host triple is aarch64-apple-darwin
+info: syncing channel updates for stable-aarch64-apple-darwin
+info: latest update on 2026-06-30 for version 1.96.1 (31fca3adb 2026-06-26)
+info: downloading 6 components
+info: default toolchain set to stable-aarch64-apple-darwin
+
+  stable-aarch64-apple-darwin installed - rustc 1.96.1 (31fca3adb 2026-06-26)
+
+
+Rust is installed now. Great!
+
+To get started you may need to restart your current shell.
+This would reload your PATH environment variable to include
+Cargo's bin directory ($HOME/.cargo/bin).
+
+To configure your current shell, you need to source
+the corresponding env file under $HOME/.cargo.
+
+This is usually done by running one of the following (note the leading DOT):
+. "$HOME/.cargo/env"            # For sh/bash/zsh/ash/dash/pdksh
+source "$HOME/.cargo/env.fish"  # For fish
+source "~/.cargo/env.nu"  # For nushell
+source "$HOME/.cargo/env.tcsh"  # For tcsh
+. "$HOME/.cargo/env.ps1"        # For pwsh
+source "$HOME/.cargo/env.xsh"   # For xonsh
+$ . "/Users/zettai/.cargo/env"
+$ cargo --version && rustc --version
+cargo 1.96.1 (356927216 2026-06-26)
+rustc 1.96.1 (31fca3adb 2026-06-26)
+$ rustup target add wasm32-unknown-unknown
+info: downloading component rust-std
+$ curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh || cargo install wasm-pack
+info: downloading wasm-pack
+info: successfully installed wasm-pack to `/Users/zettai/.cargo/bin/wasm-pack`
+$ wasm-pack --version
+wasm-pack 0.13.1
+$ rustup toolchain install nightly && rustup component add rust-src --toolchain nightly
+info: syncing channel updates for nightly-aarch64-apple-darwin
+info: latest update on 2026-07-03 for version 1.98.0-nightly (c397dae80 2026-07-02)
+info: downloading 6 components
+
+  nightly-aarch64-apple-darwin installed - rustc 1.98.0-nightly (c397dae80 2026-07-02)
+
+info: checking for self-update (current version: 1.29.0)
+info: downloading component rust-src
+$ pnpm exec playwright install --with-deps chromium

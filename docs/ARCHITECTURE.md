@@ -30,11 +30,22 @@ Target boundary:
 - TypeScript owns UI state, i18n, persistence, worker protocol, charts, and formatting.
 
 Current boundary:
-- TypeScript fallback implements enough engine behavior for browser demo and tests.
-- `crates/engine` keeps the Rust module layout ready for replacement.
+- Rust builds natively and through `wasm-pack`.
+- The React app still calls the TypeScript facade while Rust exports are expanded to the full EngineAPI.
 
 ## State
 
 - Zustand keeps UI settings and recent results.
 - URL query stores shareable spot config as base64url JSON.
 - IndexedDB is deferred; localStorage stores lightweight settings only in this slice.
+
+## Memory Budget Targets
+
+| Tree | Combos/player | Nodes | Actions | Float tables | Approx |
+|---|---:|---:|---:|---:|---:|
+| NLH river small | 1,326 | 200 | 3 | regret + strategy + EV | 19 MB |
+| NLH turn balanced | 1,326 | 3,000 | 3 | regret + strategy | 191 MB |
+| NLH flop balanced | 1,326 | 12,000 | 3 | regret + strategy, bucketed chance | 764 MB |
+| PLO4 fast | capped 20,000 | 2,000 | 3 | bucket/node flat arrays | 960 MB |
+
+Default browser solving must stay under these caps by pruning impossible combos, bucketing chance nodes, and storing terminal EV tables as `Float32`.

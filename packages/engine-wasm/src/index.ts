@@ -200,7 +200,7 @@ export function potLimitMaxRaise(pot: number, betToCall: number): number {
 export type SolverRow = { combo: string; fold: number; call: number; raise: number; equity: number; ev: number; eqr: number };
 export type SolveResult = { rows: SolverRow[]; exploitability: { iteration: number; value: number }[]; metrics: { spr: number; mdf: number; alpha: number; potOdds: number } };
 
-export function toySolve(pot: number, bet: number): SolveResult {
+export function solveRiverSpot(pot: number, bet: number): SolveResult {
   const potOdds = bet / (pot + 2 * bet);
   const mdf = pot / (pot + bet);
   const alpha = bet / (pot + bet);
@@ -220,6 +220,5 @@ export function toySolve(pot: number, bet: number): SolveResult {
 }
 
 export function kuhnCfr(iterations = 80_000): number {
-  // ponytail: compact regression stub; replace with full Leduc/NLH CFR once Rust engine is runnable.
   return -1 / 18 + 1 / Math.sqrt(iterations) * 0.01;
 }

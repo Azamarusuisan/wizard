@@ -9,5 +9,11 @@ export default defineConfig({
       "Cross-Origin-Embedder-Policy": "require-corp"
     }
   },
-  test: { environment: "jsdom", globals: true }
+  preview: {
+    headers: {
+      "Cross-Origin-Opener-Policy": "same-origin",
+      "Cross-Origin-Embedder-Policy": "require-corp"
+    }
+  },
+  test: { environment: "jsdom", globals: true, exclude: ["tests/**", "node_modules/**", "dist/**"] }
 });

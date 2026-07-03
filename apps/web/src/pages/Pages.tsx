@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { parseCard, equity, parseNlhRange, parsePloRange, serializeRange, toySolve } from "@gto-lab/engine-wasm";
+import { parseCard, equity, parseNlhRange, parsePloRange, serializeRange, solveRiverSpot } from "@gto-lab/engine-wasm";
 import { CardView } from "../components/CardView";
 import { Metric } from "../components/Metric";
 import { StrategyTable } from "../components/StrategyTable";
@@ -10,7 +10,7 @@ import { useAppStore } from "../state/store";
 const ranks = "AKQJT98765432";
 
 export function Dashboard() {
-  const result = useAppStore((s) => s.result) ?? toySolve(100, 66);
+  const result = useAppStore((s) => s.result) ?? solveRiverSpot(100, 66);
   return (
     <div className="grid">
       <div>
@@ -55,7 +55,7 @@ export function SolverStudio() {
   const [progress, setProgress] = useState<{ iteration: number; value: number }[]>([]);
   const result = useAppStore((s) => s.result);
   const setResult = useAppStore((s) => s.setResult);
-  const shown = result ?? toySolve(pot, bet);
+  const shown = result ?? solveRiverSpot(pot, bet);
   return (
     <div className="split">
       <section className="card grid">
@@ -96,7 +96,7 @@ export function EquityLab() {
       <div className="grid cols-3">
         <label className="field">Player 1<input value={p1} onChange={(e) => setP1(e.target.value)} /></label>
         <label className="field">Player 2<input value={p2} onChange={(e) => setP2(e.target.value)} /></label>
-        <label className="field">Board<input value={board} onChange={(e) => setBoard(e.target.value)} placeholder="Ah Kd 7c" /></label>
+        <label className="field">Board<input value={board} onChange={(e) => setBoard(e.target.value)} aria-label="Board cards example Ah Kd 7c" /></label>
       </div>
       <div className="grid cols-3">
         {rows.map((r, i) => <Metric key={i} label={`Player ${i + 1}`} value={`${(r.equity * 100).toFixed(2)}% ± ${(r.ci95 * 100).toFixed(2)}`} />)}

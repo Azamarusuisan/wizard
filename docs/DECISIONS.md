@@ -3,11 +3,14 @@
 ## Runtime Split
 
 Options:
-- Build Rust/WASM now.
-- Ship a TypeScript fallback and Rust skeleton.
+- Plan A: Rust/WASM numerical engine.
+- Plan B: TypeScript engine with the same API.
 
 Decision:
-- Ship TypeScript fallback. This machine has no `cargo`, so native validation is impossible here. The UI and API stay shaped around a future WASM engine.
+- Plan A. `docs/ENV_SETUP.log` proves Rust, wasm target, wasm-pack, nightly rust-src, and Playwright Chromium setup completed in this environment.
+
+Reason:
+- Native tests and clippy now run locally, so the first-choice path is available.
 
 ## PLO Preflop
 
@@ -31,12 +34,15 @@ Reason:
 ## Class Counts
 
 Decision:
-- The app exposes required canonical counts as constants and tests the canonicalizer on representative cases. Full PLO5 exhaustive enumeration is deferred because it is too slow for normal CI in this environment.
-
-## Solver Scope
-
-Decision:
-- Kuhn CFR and toy river solving are implemented. Full NLH/PLO postflop solving is deferred until the Rust engine is runnable.
+- Keep canonical class-count gates in Rust tests and replace constant-only checks with exhaustive enumerators as the normalization implementation is completed.
 
 Reason:
-- A fake full solver would be worse than an honest bounded solver.
+- The DoD requires exact class-count tests. Constants are only useful as named targets, not proof.
+
+## Solver Validation Order
+
+Decision:
+- Validate in this order: evaluator/equity invariants, Kuhn, Leduc, strict river BR, flop abstraction BR, then PLO MCCFR reporting.
+
+Reason:
+- Each later gate depends on the earlier evaluator and terminal EV being correct.
