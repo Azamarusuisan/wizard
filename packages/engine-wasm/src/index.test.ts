@@ -25,6 +25,12 @@ test("range parser round trips", () => {
   assert.equal(serializeRange(parsed), "AA, A5s:0.5");
 });
 
+test("NLH range parser expands plus and span syntax", () => {
+  const parsed = parseNlhRange("AJo+, TT-77:0.25, 76s-54s");
+  assert.deepEqual(parsed.map((r) => r.label), ["AJo", "AQo", "AKo", "TT", "99", "88", "77", "76s", "65s", "54s"]);
+  assert.deepEqual(parsed.slice(3, 7).map((r) => r.weight), [0.25, 0.25, 0.25, 0.25]);
+});
+
 test("pot limit max raise known formula", () => {
   assert.equal(potLimitMaxRaise(100, 20), 160);
 });

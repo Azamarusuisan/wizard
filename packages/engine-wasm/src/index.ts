@@ -172,16 +172,57 @@ function sample<T>(items: T[], k: number, rng: () => number): T[] {
 export type RangeCombo = { label: string; weight: number };
 
 export function parseNlhRange(text: string): RangeCombo[] {
-  return text.split(",").map((raw) => raw.trim()).filter(Boolean).map((term) => {
+  return text.split(",").map((raw) => raw.trim()).filter(Boolean).flatMap((term) => {
     const [label, w] = term.split(":");
     const weight = w === undefined ? 1 : Number(w);
     if (!label || !Number.isFinite(weight) || weight < 0 || weight > 1) throw new Error(`bad range term: ${term}`);
-    return { label, weight };
+    return expandNlhLabel(label).map((expanded) => ({ label: expanded, weight }));
   });
 }
 
 export function serializeRange(range: RangeCombo[]): string {
   return range.map((r) => `${r.label}${r.weight === 1 ? "" : `:${r.weight}`}`).join(", ");
+}
+
+function expandNlhLabel(label: string): string[] {
+  if (label.endsWith("+")) return expandNlhPlus(label.slice(0, -1));
+  if (label.includes("-")) {
+    const [from, to] = label.split("-");
+    if (!from || !to) throw new Error(`bad range span: ${label}`);
+    return expandNlhSpan(from, to);
+  }
+  validateNlhLabel(label);
+  return [label];
+}
+
+function expandNlhPlus(label: string): string[] {
+  validateNlhLabel(label);
+  const first = RANKS.indexOf(label[0]!);
+  const second = RANKS.indexOf(label[1]!);
+  if (first < 0 || second < 0) throw new Error(`bad range plus: ${label}+`);
+  if (first === second) return RANKS.slice(second).split("").map((r) => `${r}${r}`);
+  const suffix = label.slice(2);
+  return RANKS.slice(second, first).split("").map((r) => `${label[0]}${r}${suffix}`);
+}
+
+function expandNlhSpan(from: string, to: string): string[] {
+  validateNlhLabel(from);
+  validateNlhLabel(to);
+  const suffix = from.slice(2);
+  if (suffix !== to.slice(2)) throw new Error(`mixed suitedness span: ${from}-${to}`);
+  const a0 = RANKS.indexOf(from[0]!);
+  const a1 = RANKS.indexOf(from[1]!);
+  const b0 = RANKS.indexOf(to[0]!);
+  const b1 = RANKS.indexOf(to[1]!);
+  const step = a0 <= b0 ? 1 : -1;
+  const length = Math.abs(b0 - a0) + 1;
+  if (a0 === a1 && b0 === b1) return Array.from({ length }, (_, i) => `${RANKS[a0 + i * step]}${RANKS[a0 + i * step]}`);
+  if (a0 - b0 !== a1 - b1) throw new Error(`unsupported range span: ${from}-${to}`);
+  return Array.from({ length }, (_, i) => `${RANKS[a0 + i * step]}${RANKS[a1 + i * step]}${suffix}`);
+}
+
+function validateNlhLabel(label: string): void {
+  if (!/^[2-9TJQKA]{2}[so]?$/.test(label)) throw new Error(`bad range label: ${label}`);
 }
 
 export function parsePloRange(text: string): RangeCombo[] {
