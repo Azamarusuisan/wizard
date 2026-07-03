@@ -88,6 +88,9 @@ test("TS river solve fallback emits pure best-response rows", () => {
   assert.ok(result.rows[0]!.raiseEv >= result.rows[0]!.callEv);
   assert.ok(result.rows.at(-1)!.ev >= 0);
   assert.equal(result.metrics.spr, 2.5);
+  assert.equal(result.metrics.mdf, 100 / 166);
+  assert.equal(result.metrics.alpha, 66 / 166);
+  assert.equal(result.metrics.potOdds, 66 / 232);
   assert.equal(result.metrics.brGapPctPot, result.exploitability.at(-1)!.value);
 });
 

@@ -2022,9 +2022,13 @@ mod tests {
         );
         assert!(native.action_evs[2] >= native.action_evs[1]);
         assert!(native.metrics[(native.combos.len() - 1) * 3] >= 0.0);
-        assert_eq!(native.metrics[native.combos.len() * 3], 2.5);
+        let base = native.combos.len() * 3;
+        assert_eq!(native.metrics[base], 2.5);
+        assert_eq!(native.metrics[base + 1], 100.0 / 166.0);
+        assert_eq!(native.metrics[base + 2], 66.0 / 166.0);
+        assert_eq!(native.metrics[base + 3], 66.0 / 232.0);
         assert_eq!(
-            native.metrics[native.combos.len() * 3 + 4],
+            native.metrics[base + 4],
             native.progress.last().unwrap().exploitability_pct
         );
         assert!(

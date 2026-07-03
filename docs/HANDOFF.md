@@ -22,6 +22,7 @@
 - Rust river gate/bench row generation now goes through the same default concrete combo expansion used by native solve instead of six standalone representative equities.
 - Native and TS fallback solve progress now measures BR exploitability on interpolated strategy rows instead of emitting a synthetic linear curve.
 - Native and TS fallback combo EV/EQR now use strategy-weighted action EV rather than always using call EV.
+- Native and TS fallback tests now explicitly assert `SPR = stack / pot`, `MDF = P / (P+B)`, bluff breakeven alpha `= B / (P+B)`, and pot odds `= B / (P+2B)`.
 - Solve rows now carry fold/call/raise action EVs through native WASM, TS fallback, and IndexedDB cache.
 - Strategy table now displays fold/call/raise action EV columns alongside aggregate EV/EQR.
 - Trainer now scores the selected action from solve-row action EVs, persists attempts to IndexedDB training history, and displays EV loss, grade, GTO raise frequency, attempts, average loss, and last action. Keyboard shortcuts are wired: `F`/`X` fold, `C` call, `B`/`R` bet/raise, with Playwright coverage.
@@ -62,7 +63,7 @@
 - IndexedDB solve cache keys are canonical JSON SHA-256 via WebCrypto in the web layer.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `default_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~316 ns/eval, default river rows ~2.57 us. The evaluator still needs a faster table/perfect-hash path to reach the original 50M eval/s target.
-- Last verified: `bash scripts/verify.sh` exited 0 after removing `evaluate5` heap allocations with fixed arrays.
+- Last verified: `bash scripts/verify.sh` exited 0 after adding explicit native/TS metric formula tests.
 
 ## Important Caveat
 
