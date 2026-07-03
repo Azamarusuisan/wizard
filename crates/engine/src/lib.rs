@@ -40,19 +40,25 @@ pub mod eval {
         for r in ranks {
             count[r as usize] += 1;
         }
-        let mut groups: Vec<(u8, u8)> = (0..13)
-            .filter_map(|r| {
-                let c = count[r];
-                (c > 0).then_some((r as u8, c))
-            })
-            .collect();
-        groups.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| b.0.cmp(&a.0)));
-        let mut uniq: Vec<u8> = groups.iter().map(|(r, _)| *r).collect();
-        uniq.sort_by(|a, b| b.cmp(a));
-        let wheel = uniq == [12, 3, 2, 1, 0];
+        let mut groups = [(0u8, 0u8); 5];
+        let mut group_len = 0usize;
+        for r in (0..13).rev() {
+            let c = count[r];
+            if c > 0 {
+                groups[group_len] = (r as u8, c);
+                group_len += 1;
+            }
+        }
+        groups[..group_len].sort_by(|a, b| b.1.cmp(&a.1).then_with(|| b.0.cmp(&a.0)));
+        let mut uniq = [0u8; 5];
+        for i in 0..group_len {
+            uniq[i] = groups[i].0;
+        }
+        uniq[..group_len].sort_by(|a, b| b.cmp(a));
+        let wheel = group_len == 5 && uniq == [12, 3, 2, 1, 0];
         let straight_high = if wheel {
             Some(3)
-        } else if uniq.len() == 5 && uniq[0] - uniq[4] == 4 {
+        } else if group_len == 5 && uniq[0] - uniq[4] == 4 {
             Some(uniq[0])
         } else {
             None
