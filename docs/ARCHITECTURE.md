@@ -9,10 +9,11 @@ apps/web
     browser-safe TypeScript numerical fallback
 
 packages/engine-wasm
-  public API facade, currently re-exporting TS fallback types
+  public API facade
+  prefers generated Rust/WASM pkg, falls back to TypeScript
 
 crates/engine
-  Rust target shape for the native/WASM engine
+  Rust native/WASM engine: eval, iso, equity, tree, cfr, br, bucket
 ```
 
 ## Data Flow
@@ -31,13 +32,14 @@ Target boundary:
 
 Current boundary:
 - Rust builds natively and through `wasm-pack`.
-- The React app still calls the TypeScript facade while Rust exports are expanded to the full EngineAPI.
+- `EngineAPI` uses Rust/WASM when `packages/engine-wasm/pkg` exists and TypeScript otherwise.
+- The current production solve result is representative NLH river rows with exact board-aware equities, not the final full postflop tree.
 
 ## State
 
 - Zustand keeps UI settings and recent results.
 - URL query stores shareable spot config as base64url JSON.
-- IndexedDB is deferred; localStorage stores lightweight settings only in this slice.
+- IndexedDB stores solve cache, custom ranges, and training data. Solve cache keys are SHA-256 of canonical JSON spot configs.
 
 ## Memory Budget Targets
 

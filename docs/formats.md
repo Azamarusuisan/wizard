@@ -37,4 +37,27 @@ All persisted documents include:
 { "version": 1, "kind": "range|spot|solve-result", "payload": {} }
 ```
 
-Spot cache key is `sha256(normalized-json)`. Float table compression is deferred.
+Spot cache key is `sha256(canonical-json)`.
+
+Solve cache records:
+
+```json
+{
+  "key": "sha256",
+  "meta": { "version": 1, "createdAt": 0, "spot": {} },
+  "blob": {
+    "combos": ["AA"],
+    "fold": "Uint16 probability table",
+    "call": "Uint16 probability table",
+    "raise": "Uint16 probability table",
+    "foldEv": "Float32Array",
+    "callEv": "Float32Array",
+    "raiseEv": "Float32Array",
+    "equity": "Uint16 probability table",
+    "ev": "Float32Array",
+    "eqr": "Float32Array",
+    "exploitability": [],
+    "metrics": {}
+  }
+}
+```

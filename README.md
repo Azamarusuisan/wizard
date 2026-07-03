@@ -1,43 +1,40 @@
 # GTO Lab
 
-Browser-only poker study suite prototype for NLH, PLO4, and PLO5.
-
-This repository currently ships a working TypeScript numerical fallback and a Rust/WASM engine skeleton. The local machine used to create it does not have `cargo`, so the Rust engine is not validated yet.
+Browser-only poker study suite for NLH, PLO4, and PLO5.
 
 ## Setup
 
 ```bash
 pnpm install
+bash scripts/verify.sh
 pnpm dev
 ```
 
 Open `http://localhost:5173`.
 
-## Checks
+## Current Engine Path
 
-```bash
-pnpm lint
-pnpm test
-pnpm build
-```
+Plan A is active: Rust, `wasm32-unknown-unknown`, `wasm-pack`, and Playwright Chromium are installed and logged in `docs/ENV_SETUP.log`.
 
-`cargo test` and `cargo clippy -- -D warnings` are expected once Rust is installed.
+The web app calls `packages/engine-wasm`, which prefers the generated Rust/WASM package and falls back to the local TypeScript engine only when the generated package is unavailable.
 
 ## Architecture
 
 ```text
-React UI -> Solver Worker -> engine facade
-                         -> TypeScript fallback now
-                         -> Rust/WASM target later
+React UI -> Solver Worker -> EngineAPI facade -> Rust/WASM
+                                           -> TypeScript fallback
+IndexedDB <- solve cache / ranges / training
 ```
 
 See `docs/ARCHITECTURE.md`.
 
 ## Accuracy and Limits
 
-- NLH/PLO hand evaluation, exact-two PLO evaluation, small exact/MC equity, NLH/PLO range parsers, pot-limit sizing, and Kuhn regression are implemented.
-- Full postflop NLH/PLO solving, MCCFR, flop/turn abstraction, IndexedDB compressed solve cache, and native WASM threading are deferred.
-- PLO5 is computationally expensive; any future precise preset must expose runtime and confidence honestly.
+- Implemented: NLH/PLO hand evaluation, exact-two PLO evaluation, exact and Monte Carlo equity, range parsers, pot-limit sizing, Kuhn/Leduc gates, representative NLH river rows, IndexedDB solve cache, and Playwright flows.
+- Current limitation: the production solve path is still representative-row solving, not the required full postflop CFR tree. NLH flop Balanced and PLO4 Fast gates currently use compact abstractions/proxies.
+- PLO5 is computationally expensive; precise runs must expose runtime and approximation status honestly.
+
+Completion is defined only by `/Users/zettai/Downloads/codex-prompt-completion-directive.md` §6. This repository is not complete until that checklist is fully proven.
 
 ## Fair Use
 
