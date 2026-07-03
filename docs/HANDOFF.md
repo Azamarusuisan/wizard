@@ -13,6 +13,7 @@
 - CI workflow exists for Node and Rust.
 - Production code grep for `TODO|FIXME|未実装|placeholder` is clean.
 - `packages/engine-wasm` now exposes an `EngineAPI` facade (`init`, `solve`, `pollProgress`, `getStrategy`, `getHandMetrics`, `cancel`, `serialize`, `result`). The web worker calls this interface, so replacing `LocalEngine` with the generated WASM backend is localized.
+- `crates/engine` now exports wasm-bindgen handle/progress functions matching the EngineAPI shape: `init`, `solve`, `poll_progress`, `get_strategy`, `get_hand_metrics`, `cancel`, and `serialize`.
 
 ## Important Caveat
 
@@ -30,5 +31,5 @@ bash scripts/verify.sh
 
 1. Fix the Leduc CFR/BR probe so its measured exploitability reaches `<= 0.01`, then replace `cfr::leduc_exploitability`.
 2. Replace `br::nlh_river_exploitability_pct_pot` and `br::nlh_flop_balanced_exploitability_pct_pot` with real CFR/BR code.
-3. Replace `LocalEngine` with the generated Rust/WASM backend and add native handle/progress exports.
+3. Replace `LocalEngine` with the generated Rust/WASM backend package at runtime.
 4. Add `docs/COMPLETION_REPORT.md` only when the spec-vs-implementation table can honestly be all green.

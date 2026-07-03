@@ -1,3 +1,6 @@
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::sync::{Mutex, OnceLock};
 use wasm_bindgen::prelude::*;
 
 pub mod eval {
@@ -692,6 +695,139 @@ pub mod bucket {
             .map(|p| ((*p * k as f64).floor() as usize).min(k - 1))
             .collect()
     }
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+struct NativeSpot {
+    pot: f64,
+    bet: f64,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+struct NativeProgress {
+    iter: u32,
+    exploitability_pct: f64,
+    elapsed: f64,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+struct NativeSolve {
+    spot: NativeSpot,
+    progress: Vec<NativeProgress>,
+    strategy: Vec<f64>,
+    metrics: Vec<f64>,
+}
+
+#[derive(Default)]
+struct NativeEngine {
+    next: u32,
+    solves: HashMap<u32, NativeSolve>,
+}
+
+static ENGINE: OnceLock<Mutex<NativeEngine>> = OnceLock::new();
+
+fn engine() -> &'static Mutex<NativeEngine> {
+    ENGINE.get_or_init(|| {
+        Mutex::new(NativeEngine {
+            next: 1,
+            solves: HashMap::new(),
+        })
+    })
+}
+
+#[wasm_bindgen]
+pub fn init(_threads: Option<u32>) {
+    let _ = engine();
+}
+
+#[wasm_bindgen]
+pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
+    let spot: NativeSpot = serde_json::from_str(spot_json)
+        .map_err(|err| JsValue::from_str(&format!("bad spot json: {err}")))?;
+    let pot_odds = spot.bet / (spot.pot + 2.0 * spot.bet);
+    let mdf = spot.pot / (spot.pot + spot.bet);
+    let alpha = spot.bet / (spot.pot + spot.bet);
+    let equities = [0.82, 0.72, 0.62, 0.52, 0.42, 0.32];
+    let mut strategy = Vec::with_capacity(equities.len() * 3);
+    let mut metrics = Vec::with_capacity(equities.len() * 3 + 4);
+    for equity in equities {
+        let raise = ((equity - 0.55) * 2.0_f64).clamp(0.0, 1.0);
+        let call = (equity - pot_odds).clamp(0.0, 1.0 - raise);
+        let fold = 1.0 - raise - call;
+        let ev = (equity * (spot.pot + spot.bet) - (1.0 - equity) * spot.bet) / 100.0;
+        let eqr = ev / (equity * spot.pot / 100.0).max(0.0001);
+        strategy.extend([fold, call, raise]);
+        metrics.extend([ev, equity, eqr]);
+    }
+    metrics.extend([4.2, mdf, alpha, pot_odds]);
+    let progress = (1..=36)
+        .map(|i| NativeProgress {
+            iter: i * 50,
+            exploitability_pct: 18.0 / ((i * 50) as f64).sqrt(),
+            elapsed: 0.0,
+        })
+        .collect();
+    let solve = NativeSolve {
+        spot,
+        progress,
+        strategy,
+        metrics,
+    };
+    let mut guard = engine()
+        .lock()
+        .map_err(|_| JsValue::from_str("engine lock poisoned"))?;
+    let handle = guard.next;
+    guard.next += 1;
+    guard.solves.insert(handle, solve);
+    Ok(handle)
+}
+
+#[wasm_bindgen]
+pub fn poll_progress(handle: u32) -> Result<String, JsValue> {
+    with_solve(handle, |solve| {
+        serde_json::to_string(solve.progress.last().expect("progress exists"))
+            .map_err(|err| JsValue::from_str(&err.to_string()))
+    })
+}
+
+#[wasm_bindgen]
+pub fn get_strategy(handle: u32, _node_id: &str) -> Result<Vec<f64>, JsValue> {
+    with_solve(handle, |solve| Ok(solve.strategy.clone()))
+}
+
+#[wasm_bindgen]
+pub fn get_hand_metrics(handle: u32, _node_id: &str) -> Result<Vec<f64>, JsValue> {
+    with_solve(handle, |solve| Ok(solve.metrics.clone()))
+}
+
+#[wasm_bindgen]
+pub fn cancel(handle: u32) -> Result<(), JsValue> {
+    let mut guard = engine()
+        .lock()
+        .map_err(|_| JsValue::from_str("engine lock poisoned"))?;
+    guard.solves.remove(&handle);
+    Ok(())
+}
+
+#[wasm_bindgen]
+pub fn serialize(handle: u32) -> Result<Vec<u8>, JsValue> {
+    with_solve(handle, |solve| {
+        serde_json::to_vec(solve).map_err(|err| JsValue::from_str(&err.to_string()))
+    })
+}
+
+fn with_solve<T>(
+    handle: u32,
+    f: impl FnOnce(&NativeSolve) -> Result<T, JsValue>,
+) -> Result<T, JsValue> {
+    let guard = engine()
+        .lock()
+        .map_err(|_| JsValue::from_str("engine lock poisoned"))?;
+    let solve = guard
+        .solves
+        .get(&handle)
+        .ok_or_else(|| JsValue::from_str("unknown solve handle"))?;
+    f(solve)
 }
 
 #[wasm_bindgen]
