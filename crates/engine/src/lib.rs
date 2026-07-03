@@ -291,18 +291,19 @@ pub mod equity {
         }
     }
 
-    pub fn plo4_vs_random_equity_mc(hero: [Card; 4], samples: usize, seed: u64) -> EquityMc {
+    pub fn plo_vs_random_equity_mc(hero: &[Card], samples: usize, seed: u64) -> EquityMc {
+        assert!(hero.len() == 4 || hero.len() == 5);
         let dead = hero.to_vec();
         assert_eq!(unique_len(&dead), hero.len());
         let deck: Vec<Card> = (0..52).filter(|c| !dead.contains(c)).collect();
         let mut rng = Lcg(seed);
         let mut wins = 0.0;
         for _ in 0..samples {
-            let drawn = sample_runout(&deck, 9, &mut rng);
-            let villain = [drawn[0], drawn[1], drawn[2], drawn[3]];
-            let board = [drawn[4], drawn[5], drawn[6], drawn[7], drawn[8]];
-            let hero_rank = evaluate_plo(&hero, &board);
-            let villain_rank = evaluate_plo(&villain, &board);
+            let drawn = sample_runout(&deck, hero.len() + 5, &mut rng);
+            let villain = &drawn[..hero.len()];
+            let board = &drawn[hero.len()..];
+            let hero_rank = evaluate_plo(hero, board);
+            let villain_rank = evaluate_plo(villain, board);
             if hero_rank > villain_rank {
                 wins += 1.0;
             } else if hero_rank == villain_rank {
@@ -315,6 +316,10 @@ pub mod equity {
             samples,
             ci95: 1.96 * ((equity * (1.0 - equity)) / samples as f64).sqrt(),
         }
+    }
+
+    pub fn plo4_vs_random_equity_mc(hero: [Card; 4], samples: usize, seed: u64) -> EquityMc {
+        plo_vs_random_equity_mc(&hero, samples, seed)
     }
 
     fn unique_len(cards: &[Card]) -> usize {
@@ -829,7 +834,10 @@ pub mod cfr {
 }
 
 pub mod br {
-    use crate::{equity, eval::card};
+    use crate::{
+        equity,
+        eval::{card, Card},
+    };
 
     #[derive(Clone, Copy)]
     pub struct RiverCombo {
@@ -1099,40 +1107,40 @@ pub mod br {
     #[derive(Clone, Copy)]
     pub struct PloFastSample {
         pub combo: &'static str,
-        pub equity: f64,
         pub weight: f64,
+        pub seed: u64,
     }
 
     pub const PLO4_FAST_SAMPLES: [PloFastSample; 6] = [
         PloFastSample {
             combo: "AsAhKsKh",
-            equity: 0.61,
             weight: 0.12,
+            seed: 11,
         },
         PloFastSample {
             combo: "AsKsQhJh",
-            equity: 0.55,
             weight: 0.18,
+            seed: 13,
         },
         PloFastSample {
             combo: "JsTs9h8h",
-            equity: 0.49,
             weight: 0.22,
+            seed: 17,
         },
         PloFastSample {
             combo: "QdJc9s8h",
-            equity: 0.43,
             weight: 0.20,
+            seed: 19,
         },
         PloFastSample {
             combo: "KcKd7s2h",
-            equity: 0.36,
             weight: 0.16,
+            seed: 23,
         },
         PloFastSample {
             combo: "Ac9d6s2h",
-            equity: 0.28,
             weight: 0.12,
+            seed: 29,
         },
     ];
 
@@ -1143,33 +1151,33 @@ pub mod br {
     pub const PLO5_FAST_SAMPLES: [PloFastSample; 6] = [
         PloFastSample {
             combo: "AsAhKsKhQs",
-            equity: 0.64,
             weight: 0.10,
+            seed: 31,
         },
         PloFastSample {
             combo: "AsKsQhJhTd",
-            equity: 0.58,
             weight: 0.16,
+            seed: 37,
         },
         PloFastSample {
             combo: "JsTs9h8h7d",
-            equity: 0.51,
             weight: 0.22,
+            seed: 41,
         },
         PloFastSample {
             combo: "QdJc9s8h6c",
-            equity: 0.44,
             weight: 0.21,
+            seed: 43,
         },
         PloFastSample {
             combo: "KcKd7s2h2d",
-            equity: 0.37,
             weight: 0.18,
+            seed: 47,
         },
         PloFastSample {
             combo: "Ac9d6s2h2c",
-            equity: 0.29,
             weight: 0.13,
+            seed: 53,
         },
     ];
 
@@ -1181,11 +1189,36 @@ pub mod br {
         let rows: Vec<FlopBucket> = samples
             .iter()
             .map(|sample| FlopBucket {
-                representative: best_response_combo(sample.equity, 100.0, 66.0),
+                representative: best_response_combo(sample.equity(), 100.0, 66.0),
                 weight: sample.weight,
             })
             .collect();
         flop_bucket_exploitability_pct_pot(&rows, 100.0, 66.0)
+    }
+
+    impl PloFastSample {
+        pub fn equity(self) -> f64 {
+            let cards = parse_combo_cards(self.combo);
+            equity::plo_vs_random_equity_mc(&cards, 512, self.seed).equity
+        }
+    }
+
+    fn parse_combo_cards(combo: &str) -> Vec<Card> {
+        combo
+            .as_bytes()
+            .chunks_exact(2)
+            .map(|chunk| {
+                let rank = b"23456789TJQKA"
+                    .iter()
+                    .position(|r| *r == chunk[0])
+                    .expect("valid PLO sample rank") as u8;
+                let suit = b"cdhs"
+                    .iter()
+                    .position(|s| *s == chunk[1])
+                    .expect("valid PLO sample suit") as u8;
+                card(rank, suit)
+            })
+            .collect()
     }
 }
 
@@ -1489,7 +1522,13 @@ fn solve_plo_fast(
     let rows = samples
         .iter()
         .map(|sample| {
-            br::best_response_combo_with_rake(sample.equity, spot.pot, spot.bet, rake_pct, rake_cap)
+            br::best_response_combo_with_rake(
+                sample.equity(),
+                spot.pot,
+                spot.bet,
+                rake_pct,
+                rake_cap,
+            )
         })
         .collect::<Vec<_>>();
     let mut strategy = Vec::with_capacity(rows.len() * 3);

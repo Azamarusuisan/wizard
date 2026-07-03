@@ -31,7 +31,7 @@
 - Solver spot payload/cache key now carries optional board text from the Solver Studio input. Native and TS fallback river rows parse/validate board cards, expand the default NLH labels to concrete combos, and recompute board-aware combo equities from exact NLH enumeration when board text is present. This is still default-combo river solving, not full range/tree board-aware CFR.
 - Solver spot payload/cache key now carries rake percent and cap. Native WASM and TS fallback river action EVs subtract capped rake from the win pot; tests cover that rake lowers call/raise showdown EV.
 - Solver spot payload/cache key now carries game. PLO4/PLO5 in Solver Studio return Fast sampled BR metrics instead of silently using NLH rows; the real MCCFR path still needs to replace this proxy.
-- PLO4/PLO5 Fast solve rows now use concrete representative combo labels and derive pure fold/call/raise strategy from current pot/bet/rake EV instead of returning fixed `PLOx Bn` mix rows. This is still a representative proxy, not full PLO MCCFR.
+- PLO4/PLO5 Fast solve rows now use concrete representative combo labels and derive their equity from seeded PLO-vs-random MC before computing pure fold/call/raise strategy from current pot/bet/rake EV. This is still a representative proxy, not full PLO MCCFR.
 - Solve metrics now include `brGapPctPot`, computed from the same rows used for the strategy table and convergence graph. UI shows it as `BR gap`.
 - Solver Studio now includes an editable bet-tree preset string and flop-size buttons that apply `% pot` or all-in values to the active bet amount. The bet-tree string is validated, included in share URLs and solve cache payloads, but the production solve still consumes one bet size.
 - Solver Studio board input now has Random flop, Monotone, and Paired buttons; Playwright covers category/random board updates.
@@ -62,7 +62,7 @@
 - IndexedDB solve cache keys are canonical JSON SHA-256 via WebCrypto in the web layer.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `default_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~1.07 us/eval, default river rows ~12.8 ns. The evaluator still needs a faster table/perfect-hash path to reach the original 50M eval/s target.
-- Last verified: `bash scripts/verify.sh` exited 0 after replacing fixed PLO Fast bucket labels/mixes with representative combo rows.
+- Last verified: `bash scripts/verify.sh` exited 0 after replacing fixed PLO Fast equity literals with seeded representative PLO-vs-random MC.
 
 ## Important Caveat
 

@@ -302,37 +302,39 @@ export function plo5FastExploitabilityPctPot(): number {
 function ploFastExploitabilityPctPot(samples: readonly PloFastSample[]): number {
   const total = samples.reduce((sum, row) => sum + row.weight, 0);
   return samples.reduce((sum, row) => {
-    const strategy = bestResponseStrategy(row.equity, 100, 66, 0, 0);
-    const mixed = [{ combo: row.combo, equity: row.equity, ...strategy, foldEv: 0, callEv: 0, raiseEv: 0, ev: 0, eqr: 0 }];
+    const eq = ploFastSampleEquity(row);
+    const strategy = bestResponseStrategy(eq, 100, 66, 0, 0);
+    const mixed = [{ combo: row.combo, equity: eq, ...strategy, foldEv: 0, callEv: 0, raiseEv: 0, ev: 0, eqr: 0 }];
     return sum + row.weight * riverExploitability(mixed, 100, 66, 0, 0);
   }, 0) / total;
 }
 
-type PloFastSample = { combo: string; equity: number; weight: number };
+type PloFastSample = { combo: string; weight: number; seed: number };
 
 const PLO4_FAST_SAMPLES = [
-  { combo: "AsAhKsKh", equity: 0.61, weight: 0.12 },
-  { combo: "AsKsQhJh", equity: 0.55, weight: 0.18 },
-  { combo: "JsTs9h8h", equity: 0.49, weight: 0.22 },
-  { combo: "QdJc9s8h", equity: 0.43, weight: 0.20 },
-  { combo: "KcKd7s2h", equity: 0.36, weight: 0.16 },
-  { combo: "Ac9d6s2h", equity: 0.28, weight: 0.12 }
+  { combo: "AsAhKsKh", weight: 0.12, seed: 11 },
+  { combo: "AsKsQhJh", weight: 0.18, seed: 13 },
+  { combo: "JsTs9h8h", weight: 0.22, seed: 17 },
+  { combo: "QdJc9s8h", weight: 0.20, seed: 19 },
+  { combo: "KcKd7s2h", weight: 0.16, seed: 23 },
+  { combo: "Ac9d6s2h", weight: 0.12, seed: 29 }
 ] as const;
 
 const PLO5_FAST_SAMPLES = [
-  { combo: "AsAhKsKhQs", equity: 0.64, weight: 0.10 },
-  { combo: "AsKsQhJhTd", equity: 0.58, weight: 0.16 },
-  { combo: "JsTs9h8h7d", equity: 0.51, weight: 0.22 },
-  { combo: "QdJc9s8h6c", equity: 0.44, weight: 0.21 },
-  { combo: "KcKd7s2h2d", equity: 0.37, weight: 0.18 },
-  { combo: "Ac9d6s2h2c", equity: 0.29, weight: 0.13 }
+  { combo: "AsAhKsKhQs", weight: 0.10, seed: 31 },
+  { combo: "AsKsQhJhTd", weight: 0.16, seed: 37 },
+  { combo: "JsTs9h8h7d", weight: 0.22, seed: 41 },
+  { combo: "QdJc9s8h6c", weight: 0.21, seed: 43 },
+  { combo: "KcKd7s2h2d", weight: 0.18, seed: 47 },
+  { combo: "Ac9d6s2h2c", weight: 0.13, seed: 53 }
 ] as const;
 
 function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack: number, rakePct: number, rakeCap: number, potOdds: number, mdf: number, alpha: number): SolveResult {
   const samples = game === "PLO4" ? PLO4_FAST_SAMPLES : PLO5_FAST_SAMPLES;
   const rows = samples.map((sample) => {
-    const { callEv, raiseEv } = actionEvs(sample.equity, pot, bet, rakePct, rakeCap);
-    const strategy = bestResponseStrategy(sample.equity, pot, bet, rakePct, rakeCap);
+    const eq = ploFastSampleEquity(sample);
+    const { callEv, raiseEv } = actionEvs(eq, pot, bet, rakePct, rakeCap);
+    const strategy = bestResponseStrategy(eq, pot, bet, rakePct, rakeCap);
     const ev = (strategy.call * callEv + strategy.raise * raiseEv) / 100;
     return {
       combo: sample.combo,
@@ -340,9 +342,9 @@ function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack
       foldEv: 0,
       callEv: callEv / 100,
       raiseEv: raiseEv / 100,
-      equity: sample.equity,
+      equity: eq,
       ev,
-      eqr: ev / Math.max(0.0001, sample.equity * pot / 100)
+      eqr: ev / Math.max(0.0001, eq * pot / 100)
     };
   });
   return {
@@ -350,6 +352,29 @@ function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack
     exploitability: riverStrategyProgress(rows, pot, bet, 36, rakePct, rakeCap).map((value, i) => ({ iteration: (i + 1) * 50, value })),
     metrics: { spr: stack / pot, mdf, alpha, potOdds, brGapPctPot: riverExploitability(rows, pot, bet, rakePct, rakeCap), ploFastExploitability: game === "PLO4" ? plo4FastExploitabilityPctPot() : plo5FastExploitabilityPctPot() }
   };
+}
+
+function ploFastSampleEquity(row: PloFastSample): number {
+  return ploVsRandomEquity(parseComboCards(row.combo), 512, row.seed);
+}
+
+function parseComboCards(combo: string): Card[] {
+  return Array.from({ length: combo.length / 2 }, (_, i) => parseCard(combo.slice(i * 2, i * 2 + 2)));
+}
+
+function ploVsRandomEquity(hero: Card[], samples: number, seed: number): number {
+  const rng = mulberry32(seed);
+  const available = deck(hero);
+  let wins = 0;
+  for (let i = 0; i < samples; i++) {
+    const drawn = sample(available, hero.length + 5, rng);
+    const villain = drawn.slice(0, hero.length);
+    const board = drawn.slice(hero.length);
+    const heroRank = evaluatePlo(hero, board);
+    const villainRank = evaluatePlo(villain, board);
+    wins += heroRank > villainRank ? 1 : heroRank === villainRank ? 0.5 : 0;
+  }
+  return wins / samples;
 }
 
 function bestResponseStrategy(equityValue: number, pot: number, bet: number, rakePct: number, rakeCap: number): { fold: number; call: number; raise: number } {
