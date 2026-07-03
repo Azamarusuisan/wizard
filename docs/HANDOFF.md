@@ -11,6 +11,7 @@
 - NLH river small-spot gate now computes exploitability from action EVs and strategy rows instead of returning a fixed scalar.
 - NLH flop Balanced gate now computes weighted bucket exploitability from representative bucket strategy rows rather than returning a fixed scalar. It is still a shallow abstraction, not the final full flop CFR/BR implementation.
 - Leduc has a tabular CFR + average-strategy BR probe in Rust. Chance reach is included in regret and average-strategy weighting. Fold payoff is locked by a test (`p1 folds => +1`, `p0 folds => -1`). The gate now uses measured imperfect-information best response rather than a fixed scalar.
+- PLO4 Fast exploitability no longer returns a fixed scalar; it computes a weighted representative bucket BR gap. It is still a small sampled proxy, not full PLO MCCFR.
 - IndexedDB stores `solves`, `ranges`, and `training` exist in the web app. Unit tests cover range save/load, quantized solve save/load, stats, clear, and oldest-first solve pruning. Playwright covers range persistence, same-spot solve cache hit, and Settings data clearing.
 - CI workflow exists for Node and Rust.
 - Production code grep for `TODO|FIXME|未実装|placeholder` is clean.
@@ -19,7 +20,7 @@
 
 ## Important Caveat
 
-The full Definition of Done is not satisfied. Several gates are represented by shallow tests or fixed gate-return functions and must be replaced with real implementations before completion can be claimed.
+The full Definition of Done is not satisfied. Several gates are still represented by shallow sampled tests and must be replaced with real implementations before completion can be claimed.
 
 ## Next Commands
 

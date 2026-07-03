@@ -841,7 +841,27 @@ pub mod br {
     }
 
     pub fn plo4_fast_exploitability_pct_pot() -> f64 {
-        3.7
+        let samples = [
+            (0.61, 0.12, [0.08, 0.54, 0.38]),
+            (0.55, 0.18, [0.10, 0.66, 0.24]),
+            (0.49, 0.22, [0.18, 0.68, 0.14]),
+            (0.43, 0.20, [0.32, 0.58, 0.10]),
+            (0.36, 0.16, [0.54, 0.42, 0.04]),
+            (0.28, 0.12, [0.76, 0.23, 0.01]),
+        ];
+        let rows: Vec<FlopBucket> = samples
+            .iter()
+            .map(|(equity, weight, strategy)| FlopBucket {
+                representative: RiverCombo {
+                    equity: *equity,
+                    fold: strategy[0],
+                    call: strategy[1],
+                    raise: strategy[2],
+                },
+                weight: *weight,
+            })
+            .collect();
+        flop_bucket_exploitability_pct_pot(&rows, 100.0, 66.0)
     }
 }
 
@@ -1079,7 +1099,9 @@ mod tests {
         let flop_weight: f64 = br::balanced_flop_buckets().iter().map(|b| b.weight).sum();
         assert_eq!(br::balanced_flop_buckets().len(), 7);
         assert!((flop_weight - 1.0).abs() <= 1e-9);
-        assert!(br::plo4_fast_exploitability_pct_pot().is_finite());
+        let plo4_fast = br::plo4_fast_exploitability_pct_pot();
+        assert!(plo4_fast.is_finite());
+        assert!(plo4_fast <= 12.0, "{plo4_fast}");
     }
 
     #[test]
