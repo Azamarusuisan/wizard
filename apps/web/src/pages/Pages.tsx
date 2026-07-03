@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { parseCard, equity, parseNlhRange, parsePloRange, serializeRange, solveRiverSpot } from "@gto-lab/engine-wasm";
+import { parseCard, equity, parseNlhRange, parsePloRange, serializeRange, solveRiverSpot, type Game } from "@gto-lab/engine-wasm";
 import { CardView } from "../components/CardView";
 import { Metric } from "../components/Metric";
 import { StrategyTable } from "../components/StrategyTable";
@@ -124,19 +124,24 @@ export function SolverStudio() {
 }
 
 export function EquityLab() {
+  const [game, setGame] = useState<Game>("NLH");
   const [p1, setP1] = useState("As Ah");
   const [p2, setP2] = useState("Kc Kd");
   const [board, setBoard] = useState("");
+  const parse = (s: string) => s.trim().split(/\s+/).filter(Boolean).map(parseCard);
   const rows = useMemo(() => {
     try {
-      const parse = (s: string) => s.trim().split(/\s+/).filter(Boolean).map(parseCard);
-      return equity([{ cards: parse(p1) }, { cards: parse(p2) }], parse(board), "NLH", board.trim() ? 0 : 20000, 11);
+      return equity([{ cards: parse(p1) }, { cards: parse(p2) }], parse(board), game, board.trim() ? 0 : 20000, 11);
     } catch { return []; }
-  }, [p1, p2, board]);
+  }, [p1, p2, board, game]);
+  const cards = useMemo(() => {
+    try { return parse(`${p1} ${p2}`); } catch { return []; }
+  }, [p1, p2]);
   return (
     <div className="grid">
       <h1 className="title">Equity Lab</h1>
       <div className="grid cols-3">
+        <label className="field">Game<select value={game} onChange={(e) => setGame(e.target.value as Game)}><option>NLH</option><option>PLO4</option><option>PLO5</option></select></label>
         <label className="field">Player 1<input value={p1} onChange={(e) => setP1(e.target.value)} /></label>
         <label className="field">Player 2<input value={p2} onChange={(e) => setP2(e.target.value)} /></label>
         <label className="field">Board<input value={board} onChange={(e) => setBoard(e.target.value)} aria-label="Board cards example Ah Kd 7c" /></label>
@@ -144,7 +149,7 @@ export function EquityLab() {
       <div className="grid cols-3">
         {rows.map((r, i) => <Metric key={i} label={`Player ${i + 1}`} value={`${(r.equity * 100).toFixed(2)}% ± ${(r.ci95 * 100).toFixed(2)}`} />)}
       </div>
-      <div className="cards">{[...p1.split(/\s+/), ...p2.split(/\s+/)].filter(Boolean).map((c) => <CardView key={c} card={parseCard(c)} />)}</div>
+      <div className="cards">{cards.map((c) => <CardView key={c} card={c} />)}</div>
     </div>
   );
 }
