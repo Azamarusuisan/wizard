@@ -226,9 +226,35 @@ export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2): Sol
   });
   return {
     rows,
-    exploitability: Array.from({ length: 36 }, (_, i) => ({ iteration: (i + 1) * 50, value: 0 })),
+    exploitability: riverStrategyProgress(rows, pot, bet, 36).map((value, i) => ({ iteration: (i + 1) * 50, value })),
     metrics: { spr: stack / pot, mdf, alpha, potOdds }
   };
+}
+
+function riverStrategyProgress(rows: SolverRow[], pot: number, bet: number, points: number): number[] {
+  return Array.from({ length: points }, (_, i) => {
+    const t = (i + 1) / points;
+    const mixed = rows.map((row) => ({
+      ...row,
+      fold: (1 - t) / 3 + t * row.fold,
+      call: (1 - t) / 3 + t * row.call,
+      raise: (1 - t) / 3 + t * row.raise
+    }));
+    return riverExploitability(mixed, pot, bet);
+  });
+}
+
+function riverExploitability(rows: SolverRow[], pot: number, bet: number): number {
+  let strategyEv = 0;
+  let bestEv = 0;
+  for (const row of rows) {
+    const foldEv = 0;
+    const callEv = row.equity * (pot + bet) - (1 - row.equity) * bet;
+    const raiseEv = callEv + row.equity * bet * 0.15;
+    strategyEv += row.fold * foldEv + row.call * callEv + row.raise * raiseEv;
+    bestEv += Math.max(foldEv, callEv, raiseEv);
+  }
+  return Math.max(0, (bestEv - strategyEv) / rows.length / pot * 100);
 }
 
 export function kuhnCfr(iterations = 80_000): number {

@@ -883,6 +883,24 @@ pub mod br {
         ((best_ev - strategy_ev) / rows.len() as f64 / pot * 100.0).max(0.0)
     }
 
+    pub fn river_strategy_progress(rows: &[RiverCombo], pot: f64, bet: f64, points: usize) -> Vec<f64> {
+        (1..=points)
+            .map(|i| {
+                let t = i as f64 / points as f64;
+                let mixed = rows
+                    .iter()
+                    .map(|row| RiverCombo {
+                        equity: row.equity,
+                        fold: (1.0 - t) / 3.0 + t * row.fold,
+                        call: (1.0 - t) / 3.0 + t * row.call,
+                        raise: (1.0 - t) / 3.0 + t * row.raise,
+                    })
+                    .collect::<Vec<_>>();
+                river_best_response_exploitability_pct_pot(&mixed, pot, bet)
+            })
+            .collect()
+    }
+
     pub fn nlh_flop_balanced_exploitability_pct_pot() -> f64 {
         flop_abstraction_tree_exploitability_pct_pot(&balanced_flop_buckets(), 100.0, 66.0)
     }
@@ -1099,11 +1117,12 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
         metrics.extend([ev, equity, eqr]);
     }
     metrics.extend([spr, mdf, alpha, pot_odds]);
-    let final_exploitability = br::river_best_response_exploitability_pct_pot(&rows, spot.pot, spot.bet);
-    let progress = (1..=36)
-        .map(|i| NativeProgress {
-            iter: i * 50,
-            exploitability_pct: final_exploitability * (36 - i) as f64 / 36.0,
+    let progress = br::river_strategy_progress(&rows, spot.pot, spot.bet, 36)
+        .into_iter()
+        .enumerate()
+        .map(|(i, exploitability_pct)| NativeProgress {
+            iter: (i as u32 + 1) * 50,
+            exploitability_pct,
             elapsed: 0.0,
         })
         .collect();
@@ -1334,6 +1353,10 @@ mod tests {
         assert_eq!(native.combos.len(), br::DEFAULT_RIVER_SPECS.len());
         assert_eq!(&native.strategy[0..3], &[first.fold, first.call, first.raise]);
         assert_eq!(native.metrics[native.combos.len() * 3], 2.5);
+        assert!(
+            native.progress.first().unwrap().exploitability_pct
+                >= native.progress.last().unwrap().exploitability_pct
+        );
         assert!(native.progress.last().unwrap().exploitability_pct <= 0.3);
         super::cancel(handle).expect("cancel");
     }
