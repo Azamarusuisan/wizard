@@ -1,6 +1,7 @@
 import { engine } from "@gto-lab/engine-wasm";
 
-type Req = { id: string; type: "solve"; payload: { pot: number; bet: number; stack?: number } } | { id: string; type: "cancel" };
+type SolvePayload = { pot: number; bet: number; stack?: number; board?: string };
+type Req = { id: string; type: "solve"; payload: SolvePayload } | { id: string; type: "cancel" };
 
 const handles = new Map<string, number>();
 const canceled = new Set<string>();

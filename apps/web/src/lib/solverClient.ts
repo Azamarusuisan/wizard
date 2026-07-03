@@ -2,8 +2,9 @@ import type { SolveResult } from "@gto-lab/engine-wasm";
 import { loadSolve, saveSolve } from "./db";
 
 export type SolveRun = { result: SolveResult; cached: boolean };
+export type SolvePayload = { pot: number; bet: number; stack?: number; board?: string };
 
-export async function runSolve(payload: { pot: number; bet: number; stack?: number }, onProgress: (p: { iteration: number; value: number }) => void, signal?: AbortSignal): Promise<SolveRun> {
+export async function runSolve(payload: SolvePayload, onProgress: (p: { iteration: number; value: number }) => void, signal?: AbortSignal): Promise<SolveRun> {
   const cached = await loadSolve(payload);
   if (cached) return { result: cached, cached: true };
   const worker = new Worker(new URL("../workers/solver.worker.ts", import.meta.url), { type: "module" });

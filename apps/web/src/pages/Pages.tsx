@@ -54,6 +54,7 @@ export function SolverStudio() {
   const [pot, setPot] = useState(100);
   const [bet, setBet] = useState(66);
   const [stack, setStack] = useState(420);
+  const [board, setBoard] = useState("Ah Kd 7c");
   const [progress, setProgress] = useState<{ iteration: number; value: number }[]>([]);
   const [cached, setCached] = useState(false);
   const [running, setRunning] = useState(false);
@@ -69,14 +70,14 @@ export function SolverStudio() {
         <label className="field">Pot<input type="number" min="1" value={pot} onChange={(e) => setPot(Number(e.target.value))} /></label>
         <label className="field">Bet<input type="number" min="0" value={bet} onChange={(e) => setBet(Number(e.target.value))} /></label>
         <label className="field">Stack<input type="number" min="1" value={stack} onChange={(e) => setStack(Number(e.target.value))} /></label>
-        <label className="field">Board<input defaultValue="Ah Kd 7c" /></label>
+        <label className="field">Board<input value={board} onChange={(e) => setBoard(e.target.value)} /></label>
         <button className="btn primary" onClick={() => {
           const controller = new AbortController();
           cancelRef.current = controller;
           setRunning(true);
           setProgress([]);
           setCached(false);
-          void runSolve({ pot, bet, stack }, (p) => setProgress((xs) => [...xs, p]), controller.signal).then((run) => {
+          void runSolve({ pot, bet, stack, board }, (p) => setProgress((xs) => [...xs, p]), controller.signal).then((run) => {
             setCached(run.cached);
             setResult(run.result);
           }).catch((err: unknown) => {
