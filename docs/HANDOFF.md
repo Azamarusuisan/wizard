@@ -29,7 +29,7 @@
 - Solver Studio now reads/writes shareable spot configs through `?spot=<base64url-json>`. Unit tests cover the codec and Playwright verifies solve updates the URL.
 - Native and TS solve entry points now reject non-positive pot/stack and negative bet before metric calculation.
 - IndexedDB stores `solves`, `ranges`, and `training` exist in the web app. Solve records now carry `meta.version = 1`. Unit tests cover range save/load, quantized solve save/load, record version, stats, clear, and oldest-first solve pruning. Playwright covers range persistence, same-spot solve cache hit, and Settings data clearing.
-- Language and theme settings are persisted to localStorage through the Zustand store. Settings theme select updates `html[data-theme]`; unit and Playwright tests cover this.
+- Language, theme, and deck-color settings are persisted to localStorage through the Zustand store. Settings theme/deck selects update `html[data-theme]` and `html[data-deck]`; unit and Playwright tests cover this.
 - NLH range parser now expands standard plus/span syntax such as `AJo+`, `TT-77:0.25`, and `76s-54s`; package tests cover the spec examples.
 - PLO range parser now validates rank patterns, `ds`/`ss`/`r` suitedness, and `@0..100` percentages; package tests cover the spec examples.
 - CI workflow exists for Node and Rust.

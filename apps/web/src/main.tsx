@@ -23,11 +23,15 @@ function App() {
   const lang = useAppStore((s) => s.lang);
   const setLang = useAppStore((s) => s.setLang);
   const theme = useAppStore((s) => s.theme);
+  const deckColors = useAppStore((s) => s.deckColors);
   const match = routes.find(([p]) => p === path) ?? routes[0]!;
   const Page = match[3];
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
+  useEffect(() => {
+    document.documentElement.dataset.deck = deckColors;
+  }, [deckColors]);
   return (
     <div className="app">
       <nav className="nav" aria-label="Primary">
