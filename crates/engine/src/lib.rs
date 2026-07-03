@@ -903,6 +903,29 @@ pub mod br {
         flop_abstraction_tree_exploitability_pct_pot(&balanced_flop_buckets(), 100.0, 66.0)
     }
 
+    pub fn nlh_flop_bucketed_exploitability_pct_pot(bucket_count: usize) -> f64 {
+        let mut equities = [
+            0.18, 0.22, 0.28, 0.34, 0.40, 0.46, 0.52, 0.58, 0.64, 0.70, 0.76, 0.82,
+        ];
+        equities.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let bucket_count = bucket_count.clamp(1, equities.len());
+        let mut rows = Vec::with_capacity(equities.len());
+        for bucket in 0..bucket_count {
+            let start = bucket * equities.len() / bucket_count;
+            let end = (bucket + 1) * equities.len() / bucket_count;
+            let slice = &equities[start..end];
+            let representative = slice.iter().sum::<f64>() / slice.len() as f64;
+            let strategy = best_response_combo(representative, 100.0, 66.0);
+            rows.extend(slice.iter().map(|equity| RiverCombo {
+                equity: *equity,
+                fold: strategy.fold,
+                call: strategy.call,
+                raise: strategy.raise,
+            }));
+        }
+        river_best_response_exploitability_pct_pot(&rows, 100.0, 66.0)
+    }
+
     #[derive(Clone, Copy)]
     pub struct FlopBucket {
         pub representative: RiverCombo,
@@ -1559,6 +1582,12 @@ mod tests {
         let flop_weight: f64 = br::balanced_flop_buckets().iter().map(|b| b.weight).sum();
         assert_eq!(br::balanced_flop_buckets().len(), 7);
         assert!((flop_weight - 1.0).abs() <= 1e-9);
+        let coarse = br::nlh_flop_bucketed_exploitability_pct_pot(2);
+        let balanced = br::nlh_flop_bucketed_exploitability_pct_pot(4);
+        let precise = br::nlh_flop_bucketed_exploitability_pct_pot(6);
+        assert!(coarse >= balanced, "{coarse} {balanced}");
+        assert!(balanced >= precise, "{balanced} {precise}");
+        assert!(precise <= 1.0, "{precise}");
         let plo4_fast = br::plo4_fast_exploitability_pct_pot();
         assert!(plo4_fast.is_finite());
         assert!(plo4_fast <= 12.0, "{plo4_fast}");

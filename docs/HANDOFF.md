@@ -16,6 +16,7 @@
 - Leduc has a tabular CFR + average-strategy BR probe in Rust. Chance reach is included in regret and average-strategy weighting. Fold payoff is locked by a test (`p1 folds => +1`, `p0 folds => -1`). The gate now uses measured imperfect-information best response rather than a fixed scalar.
 - PLO4 Fast exploitability no longer returns a fixed scalar; it computes a weighted representative bucket BR gap. It is still a small sampled proxy, not full PLO MCCFR.
 - Bucket module now has fixed-seed 10-feature k-means++ and a variance-quality gate proving more clusters do not worsen synthetic equity-feature clustering.
+- Rust solver gates now include a compact flop abstraction trend check: 2 buckets >= 4 buckets >= 6 buckets exploitability.
 - Native WASM solve payload now reuses the shared river best-response row builder instead of duplicating strategy formulas in the handle serializer path.
 - Native and TS fallback river solve rows now use named default row specs instead of independent ad-hoc combo/equity arrays.
 - Native and TS fallback solve progress now measures BR exploitability on interpolated strategy rows instead of emitting a synthetic linear curve.
@@ -41,7 +42,7 @@
 - README, architecture, and formats docs now reflect the current Plan A Rust/WASM path, IndexedDB solve cache shape, and remaining representative-solver limitation.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `representative_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~1.07 us/eval, representative river rows ~12.8 ns. The evaluator still needs a faster table/perfect-hash path to reach the original 50M eval/s target.
-- Last verified: `bash scripts/verify.sh` exited 0 after adding bucket k-means++ quality coverage.
+- Last verified: `bash scripts/verify.sh` exited 0 after adding the compact flop abstraction exploitability trend gate.
 
 ## Important Caveat
 
