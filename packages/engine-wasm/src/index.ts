@@ -199,6 +199,14 @@ export function potLimitMaxRaise(pot: number, betToCall: number): number {
 
 export type SolverRow = { combo: string; fold: number; call: number; raise: number; equity: number; ev: number; eqr: number };
 export type SolveResult = { rows: SolverRow[]; exploitability: { iteration: number; value: number }[]; metrics: { spr: number; mdf: number; alpha: number; potOdds: number } };
+export const DEFAULT_RIVER_SPECS = [
+  ["AA", 0.82],
+  ["AKs", 0.72],
+  ["QQ", 0.62],
+  ["JTs", 0.52],
+  ["76s", 0.42],
+  ["A5s", 0.32]
+] as const;
 
 export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2): SolveResult {
   if (!Number.isFinite(pot) || pot <= 0) throw new Error("pot must be positive");
@@ -207,8 +215,7 @@ export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2): Sol
   const potOdds = bet / (pot + 2 * bet);
   const mdf = pot / (pot + bet);
   const alpha = bet / (pot + bet);
-  const rows = ["AA", "AKs", "QQ", "JTs", "76s", "A5s"].map((combo, i) => {
-    const e = 0.82 - i * 0.1;
+  const rows = DEFAULT_RIVER_SPECS.map(([combo, e]) => {
     const callEv = e * (pot + bet) - (1 - e) * bet;
     const raiseEv = callEv + e * bet * 0.15;
     const raise = raiseEv >= callEv && raiseEv >= 0 ? 1 : 0;

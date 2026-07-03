@@ -846,10 +846,19 @@ pub mod br {
         pub raise: f64,
     }
 
+    pub const DEFAULT_RIVER_SPECS: [(&str, f64); 6] = [
+        ("AA", 0.82),
+        ("AKs", 0.72),
+        ("QQ", 0.62),
+        ("JTs", 0.52),
+        ("76s", 0.42),
+        ("A5s", 0.32),
+    ];
+
     pub fn river_strategy_rows() -> Vec<RiverCombo> {
-        [0.82, 0.72, 0.62, 0.52, 0.42, 0.32]
+        DEFAULT_RIVER_SPECS
             .iter()
-            .map(|equity| best_response_combo(*equity, 100.0, 66.0))
+            .map(|(_, equity)| best_response_combo(*equity, 100.0, 66.0))
             .collect()
     }
 
@@ -1072,16 +1081,15 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
     let mdf = spot.pot / (spot.pot + spot.bet);
     let alpha = spot.bet / (spot.pot + spot.bet);
     let spr = spot.stack.unwrap_or(spot.pot * 4.2) / spot.pot;
-    let combos = ["AA", "AKs", "QQ", "JTs", "76s", "A5s"]
+    let combos = br::DEFAULT_RIVER_SPECS
         .iter()
-        .map(|combo| combo.to_string())
+        .map(|(combo, _)| combo.to_string())
         .collect::<Vec<_>>();
-    let equities = [0.82, 0.72, 0.62, 0.52, 0.42, 0.32];
-    let mut strategy = Vec::with_capacity(equities.len() * 3);
-    let mut metrics = Vec::with_capacity(equities.len() * 3 + 4);
-    let rows = equities
+    let mut strategy = Vec::with_capacity(br::DEFAULT_RIVER_SPECS.len() * 3);
+    let mut metrics = Vec::with_capacity(br::DEFAULT_RIVER_SPECS.len() * 3 + 4);
+    let rows = br::DEFAULT_RIVER_SPECS
         .iter()
-        .map(|equity| br::best_response_combo(*equity, spot.pot, spot.bet))
+        .map(|(_, equity)| br::best_response_combo(*equity, spot.pot, spot.bet))
         .collect::<Vec<_>>();
     for row in &rows {
         let equity = row.equity;
@@ -1321,8 +1329,9 @@ mod tests {
         let payload = super::serialize(handle).expect("serializes");
         let native: super::NativeSolve =
             serde_json::from_slice(&payload).expect("native solve json");
-        let first = br::best_response_combo(0.82, 100.0, 66.0);
-        assert_eq!(native.combos[0], "AA");
+        let first = br::best_response_combo(br::DEFAULT_RIVER_SPECS[0].1, 100.0, 66.0);
+        assert_eq!(native.combos[0], br::DEFAULT_RIVER_SPECS[0].0);
+        assert_eq!(native.combos.len(), br::DEFAULT_RIVER_SPECS.len());
         assert_eq!(&native.strategy[0..3], &[first.fold, first.call, first.raise]);
         assert_eq!(native.metrics[native.combos.len() * 3], 2.5);
         assert!(native.progress.last().unwrap().exploitability_pct <= 0.3);

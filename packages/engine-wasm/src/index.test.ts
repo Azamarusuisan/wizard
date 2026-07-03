@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { evaluateNlh7, evaluatePlo, equity, kuhnCfr, parseCard, parseNlhRange, potLimitMaxRaise, serializeRange, solveRiverSpot } from "./index.js";
+import { DEFAULT_RIVER_SPECS, evaluateNlh7, evaluatePlo, equity, kuhnCfr, parseCard, parseNlhRange, potLimitMaxRaise, serializeRange, solveRiverSpot } from "./index.js";
 
 const cs = (s: string) => s.split(/\s+/).map(parseCard);
 
@@ -35,7 +35,7 @@ test("Kuhn value converges near -1/18", () => {
 
 test("TS river solve fallback emits pure best-response rows", () => {
   const result = solveRiverSpot(100, 66, 250);
-  assert.equal(result.rows[0]?.combo, "AA");
+  assert.deepEqual(result.rows.map((r) => r.combo), DEFAULT_RIVER_SPECS.map(([combo]) => combo));
   assert.deepEqual(
     result.rows.map((r) => r.fold + r.call + r.raise),
     result.rows.map(() => 1)
