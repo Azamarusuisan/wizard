@@ -122,6 +122,8 @@ pub mod eval {
 }
 
 pub mod iso {
+    use std::collections::HashSet;
+
     pub const NLH_PREFLOP: usize = 169;
     pub const PLO4_PREFLOP: usize = 16_432;
     pub const PLO5_PREFLOP: usize = 134_459;
@@ -130,25 +132,89 @@ pub mod iso {
     use crate::eval::{rank, suit, Card};
 
     pub fn canonical_suit_key(cards: &[Card]) -> String {
-        let mut xs = cards.to_vec();
-        xs.sort_by(|a, b| {
-            rank(*b)
-                .cmp(&rank(*a))
-                .then_with(|| suit(*a).cmp(&suit(*b)))
-        });
-        let mut map = [u8::MAX; 4];
-        let mut next = 0u8;
-        xs.iter()
-            .map(|c| {
-                let s = suit(*c) as usize;
-                if map[s] == u8::MAX {
-                    map[s] = next;
-                    next += 1;
-                }
-                format!("{}:{}", rank(*c), map[s])
+        let perms = [
+            [0, 1, 2, 3],
+            [0, 1, 3, 2],
+            [0, 2, 1, 3],
+            [0, 2, 3, 1],
+            [0, 3, 1, 2],
+            [0, 3, 2, 1],
+            [1, 0, 2, 3],
+            [1, 0, 3, 2],
+            [1, 2, 0, 3],
+            [1, 2, 3, 0],
+            [1, 3, 0, 2],
+            [1, 3, 2, 0],
+            [2, 0, 1, 3],
+            [2, 0, 3, 1],
+            [2, 1, 0, 3],
+            [2, 1, 3, 0],
+            [2, 3, 0, 1],
+            [2, 3, 1, 0],
+            [3, 0, 1, 2],
+            [3, 0, 2, 1],
+            [3, 1, 0, 2],
+            [3, 1, 2, 0],
+            [3, 2, 0, 1],
+            [3, 2, 1, 0],
+        ];
+        perms
+            .iter()
+            .map(|perm| {
+                let mut xs: Vec<(u8, u8)> = cards
+                    .iter()
+                    .map(|c| (rank(*c), perm[suit(*c) as usize]))
+                    .collect();
+                xs.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
+                xs.iter()
+                    .map(|(r, s)| format!("{r}:{s}"))
+                    .collect::<Vec<_>>()
+                    .join("|")
             })
-            .collect::<Vec<_>>()
-            .join("|")
+            .min()
+            .expect("permutation list is non-empty")
+    }
+
+    pub fn nlh_preflop_class_count() -> usize {
+        let mut set = HashSet::new();
+        for a in 0..51 {
+            for b in a + 1..52 {
+                let ra = rank(a);
+                let rb = rank(b);
+                let hi = ra.max(rb);
+                let lo = ra.min(rb);
+                let suited = suit(a) == suit(b);
+                set.insert((hi, lo, suited));
+            }
+        }
+        set.len()
+    }
+
+    pub fn canonical_class_count(k: usize) -> usize {
+        let deck: Vec<Card> = (0..52).collect();
+        let mut set = HashSet::new();
+        enumerate(&deck, k, 0, &mut Vec::with_capacity(k), &mut |cards| {
+            set.insert(canonical_suit_key(cards));
+        });
+        set.len()
+    }
+
+    fn enumerate<F: FnMut(&[Card])>(
+        deck: &[Card],
+        k: usize,
+        start: usize,
+        acc: &mut Vec<Card>,
+        f: &mut F,
+    ) {
+        if acc.len() == k {
+            f(acc);
+            return;
+        }
+        for i in start..=deck.len() - (k - acc.len()) {
+            acc.push(deck[i]);
+            enumerate(deck, k, i + 1, acc, f);
+            acc.pop();
+        }
     }
 }
 
@@ -290,14 +356,18 @@ mod tests {
 
     #[test]
     fn canonical_class_counts_are_published() {
-        assert_eq!(iso::NLH_PREFLOP, 169);
-        assert_eq!(iso::PLO4_PREFLOP, 16_432);
-        assert_eq!(iso::PLO5_PREFLOP, 134_459);
-        assert_eq!(iso::FLOP_CANONICAL, 1_755);
+        assert_eq!(iso::nlh_preflop_class_count(), iso::NLH_PREFLOP);
+        assert_eq!(iso::canonical_class_count(3), iso::FLOP_CANONICAL);
         assert_eq!(
             iso::canonical_suit_key(&[c(12, 0), c(11, 1)]),
             iso::canonical_suit_key(&[c(12, 2), c(11, 3)])
         );
+    }
+
+    #[test]
+    fn plo_canonical_class_counts_are_exhaustive() {
+        assert_eq!(iso::canonical_class_count(4), iso::PLO4_PREFLOP);
+        assert_eq!(iso::canonical_class_count(5), iso::PLO5_PREFLOP);
     }
 
     #[test]
