@@ -63,7 +63,14 @@ export function SolverStudio() {
   const cancelRef = useRef<AbortController | null>(null);
   const result = useAppStore((s) => s.result);
   const setResult = useAppStore((s) => s.setResult);
-  const shown = result ?? solveRiverSpot(pot, bet, stack, board);
+  const preview = useMemo(() => {
+    try {
+      return { result: solveRiverSpot(pot, bet, stack, board), error: "" };
+    } catch (err) {
+      return { result: null, error: err instanceof Error ? err.message : "invalid spot" };
+    }
+  }, [pot, bet, stack, board]);
+  const shown = preview.error ? null : result ?? preview.result;
   return (
     <div className="split">
       <section className="card grid">
@@ -73,7 +80,9 @@ export function SolverStudio() {
         <label className="field">Bet<input type="number" min="0" value={bet} onChange={(e) => setBet(Number(e.target.value))} /></label>
         <label className="field">Stack<input type="number" min="1" value={stack} onChange={(e) => setStack(Number(e.target.value))} /></label>
         <label className="field">Board<input value={board} onChange={(e) => setBoard(e.target.value)} /></label>
-        <button className="btn primary" onClick={() => {
+        {preview.error ? <p className="error" role="alert">{preview.error}</p> : null}
+        <button className="btn primary" disabled={!!preview.error} onClick={() => {
+          if (preview.error) return;
           const controller = new AbortController();
           cancelRef.current = controller;
           setRunning(true);
@@ -99,14 +108,16 @@ export function SolverStudio() {
       </section>
       <section className="card">
         <h2 className="title">Strategy</h2>
-        <StrategyTable rows={shown.rows} />
+        {shown ? <StrategyTable rows={shown.rows} /> : <p className="muted">Fix spot inputs to preview strategy.</p>}
       </section>
       <section className="grid">
-        <Metric label="MDF" value={`${(shown.metrics.mdf * 100).toFixed(1)}%`} />
-        <Metric label="SPR" value={shown.metrics.spr.toFixed(2)} />
-        <Metric label="Bluff breakeven alpha" value={`${(shown.metrics.alpha * 100).toFixed(1)}%`} />
-        <Metric label="Pot odds" value={`${(shown.metrics.potOdds * 100).toFixed(1)}%`} />
-        <div className="card" style={{ height: 220 }}><Curve data={progress.length ? progress : shown.exploitability} /></div>
+        {shown ? <>
+          <Metric label="MDF" value={`${(shown.metrics.mdf * 100).toFixed(1)}%`} />
+          <Metric label="SPR" value={shown.metrics.spr.toFixed(2)} />
+          <Metric label="Bluff breakeven alpha" value={`${(shown.metrics.alpha * 100).toFixed(1)}%`} />
+          <Metric label="Pot odds" value={`${(shown.metrics.potOdds * 100).toFixed(1)}%`} />
+          <div className="card" style={{ height: 220 }}><Curve data={progress.length ? progress : shown.exploitability} /></div>
+        </> : <div className="card"><p className="muted">No valid spot.</p></div>}
       </section>
     </div>
   );

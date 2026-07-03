@@ -3,6 +3,10 @@ import { expect, test } from "@playwright/test";
 test("solver runs and displays strategy metrics", async ({ page }) => {
   await page.goto("/solver");
   await expect(page.getByRole("button", { name: "Cancel" })).toBeDisabled();
+  await page.getByLabel("Board").fill("Ah Ah");
+  await expect(page.getByRole("alert")).toContainText("duplicate");
+  await expect(page.getByRole("button", { name: "Start solve" })).toBeDisabled();
+  await page.getByLabel("Board").fill("Ah Kd 7c");
   await page.getByRole("button", { name: "Start solve" }).click();
   await expect(page.getByRole("table", { name: "strategy table" })).toContainText("AA");
   await expect(page.getByRole("table", { name: "strategy table" })).toContainText("R EV");

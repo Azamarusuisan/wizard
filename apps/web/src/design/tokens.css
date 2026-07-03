@@ -50,6 +50,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .card { background: linear-gradient(180deg, var(--layer-2), var(--layer)); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; box-shadow: 0 20px 60px rgba(0,0,0,.18); }
 .title { margin: 0 0 6px; font-size: 20px; line-height: 1.2; }
 .muted { color: var(--muted); }
+.error { color: #fda4af; margin: 0; font-size: 13px; }
 .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 .btn { border: 1px solid var(--line); background: var(--layer-2); color: var(--text); border-radius: 7px; padding: 9px 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
 .btn.primary { border-color: transparent; background: linear-gradient(135deg, #4f46e5, #0891b2); }
