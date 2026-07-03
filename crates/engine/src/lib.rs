@@ -310,15 +310,26 @@ pub mod cfr {
         total / (iterations as f64 * deals.len() as f64)
     }
 
-    pub fn leduc_exploitability(_iterations: usize) -> f64 {
-        0.009
+    pub struct LeducDiagnostics {
+        pub br0: f64,
+        pub br1: f64,
+        pub exploitability: f64,
+        pub nodes: usize,
     }
 
-    pub fn leduc_cfr_probe_exploitability(_iterations: usize) -> f64 {
-        let iterations = _iterations.min(5_000);
+    pub fn leduc_exploitability(iterations: usize) -> f64 {
+        leduc_cfr_probe_diagnostics(iterations).exploitability
+    }
+
+    pub fn leduc_cfr_probe_exploitability(iterations: usize) -> f64 {
+        leduc_cfr_probe_diagnostics(iterations).exploitability
+    }
+
+    pub fn leduc_cfr_probe_diagnostics(iterations: usize) -> LeducDiagnostics {
+        let iterations = iterations.min(100_000);
         let mut trainer = LeducTrainer::default();
         trainer.train(iterations);
-        trainer.exploitability()
+        trainer.diagnostics()
     }
 
     fn cfr(
@@ -457,6 +468,16 @@ pub mod cfr {
             )
         }
 
+        fn br_key(&self, br_player: usize) -> String {
+            format!(
+                "{}:{}:{}:{}",
+                self.private[br_player] / 2,
+                self.public.map_or(9, |c| c / 2),
+                self.round,
+                self.history
+            )
+        }
+
         fn apply(&self, action: char) -> Self {
             let mut next = self.clone();
             let p = self.player;
@@ -554,22 +575,28 @@ pub mod cfr {
             }
         }
 
-        fn exploitability(&self) -> f64 {
+        fn diagnostics(&self) -> LeducDiagnostics {
+            let br0 = self.best_response_value(0);
+            let br1 = self.best_response_value(1);
+            LeducDiagnostics {
+                br0,
+                br1,
+                exploitability: (br0 + br1) / 2.0,
+                nodes: self.nodes.len(),
+            }
+        }
+
+        fn best_response_value(&self, br_player: usize) -> f64 {
             let deck = [0, 1, 2, 3, 4, 5];
-            let mut br = [0.0, 0.0];
-            let mut deals = 0.0;
+            let mut states = Vec::new();
             for c0 in deck {
                 for c1 in deck {
-                    if c0 == c1 {
-                        continue;
+                    if c0 != c1 {
+                        states.push((LeducState::root([c0, c1]), 1.0 / 30.0));
                     }
-                    deals += 1.0;
-                    let state = LeducState::root([c0, c1]);
-                    br[0] += self.best_response(&state, 0);
-                    br[1] += self.best_response(&state, 1);
                 }
             }
-            (br[0] + br[1]) / (2.0 * deals)
+            self.weighted_best_response(states, br_player)
         }
 
         fn cfr(&mut self, state: LeducState, reach: [f64; 2], chance: f64) -> f64 {
@@ -620,42 +647,83 @@ pub mod cfr {
             node_util
         }
 
-        fn best_response(&self, state: &LeducState, br_player: usize) -> f64 {
-            if let Some(value) = state.terminal_p0() {
-                return if br_player == 0 { value } else { -value };
-            }
-            if state.round == 0 && state.round_complete() {
-                let mut total = 0.0;
-                let mut count = 0.0;
-                for public in 0..6 {
-                    if public == state.private[0] || public == state.private[1] {
-                        continue;
-                    }
-                    total += self.best_response(&state.advance_round(public), br_player);
-                    count += 1.0;
+        fn weighted_best_response(
+            &self,
+            states: Vec<(LeducState, f64)>,
+            br_player: usize,
+        ) -> f64 {
+            let mut total = 0.0;
+            let mut chance_states = Vec::new();
+            let mut opponent_states = Vec::new();
+            let mut br_groups = HashMap::<String, Vec<(LeducState, f64)>>::new();
+
+            for (state, weight) in states {
+                if weight <= 0.0 {
+                    continue;
                 }
-                return total / count;
+                if let Some(value) = state.terminal_p0() {
+                    total += weight * if br_player == 0 { value } else { -value };
+                } else if state.round == 0 && state.round_complete() {
+                    chance_states.push((state, weight));
+                } else if state.player == br_player {
+                    br_groups
+                        .entry(state.br_key(br_player))
+                        .or_default()
+                        .push((state, weight));
+                } else {
+                    opponent_states.push((state, weight));
+                }
             }
-            let actions = state.actions();
-            if state.player == br_player {
-                actions
+
+            if !chance_states.is_empty() {
+                let mut next = Vec::new();
+                for (state, weight) in chance_states {
+                    let available: Vec<u8> = (0..6)
+                        .filter(|public| {
+                            *public != state.private[0] && *public != state.private[1]
+                        })
+                        .collect();
+                    let chance_weight = weight / available.len() as f64;
+                    for public in available {
+                        next.push((state.advance_round(public), chance_weight));
+                    }
+                }
+                total += self.weighted_best_response(next, br_player);
+            }
+
+            if !opponent_states.is_empty() {
+                let mut next = Vec::new();
+                for (state, weight) in opponent_states {
+                    let actions = state.actions();
+                    let avg = self.nodes.get(&state.key()).map_or_else(
+                        || vec![1.0 / actions.len() as f64; actions.len()],
+                        |n| n.average(actions.len()),
+                    );
+                    for (i, action) in actions.iter().enumerate() {
+                        next.push((state.apply(*action), weight * avg[i]));
+                    }
+                }
+                total += self.weighted_best_response(next, br_player);
+            }
+
+            for group in br_groups.into_values() {
+                let actions = group[0].0.actions();
+                let best = actions
                     .iter()
-                    .map(|action| self.best_response(&state.apply(*action), br_player))
-                    .fold(f64::NEG_INFINITY, f64::max)
-            } else {
-                let avg = self.nodes.get(&state.key()).map_or_else(
-                    || vec![1.0 / actions.len() as f64; actions.len()],
-                    |n| n.average(actions.len()),
-                );
-                actions
-                    .iter()
-                    .enumerate()
-                    .map(|(i, action)| {
-                        avg[i] * self.best_response(&state.apply(*action), br_player)
+                    .map(|action| {
+                        let next = group
+                            .iter()
+                            .map(|(state, weight)| (state.apply(*action), *weight))
+                            .collect();
+                        self.weighted_best_response(next, br_player)
                     })
-                    .sum()
+                    .fold(f64::NEG_INFINITY, f64::max);
+                total += best;
             }
+
+            total
         }
+
     }
 
     fn reach_with(mut reach: [f64; 2], player: usize, prob: f64) -> [f64; 2] {

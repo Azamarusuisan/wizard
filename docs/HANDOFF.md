@@ -10,7 +10,7 @@
 - Kuhn poker gate now runs an actual CFR trainer and converges to `-1/18 ± 1e-3`.
 - NLH river small-spot gate now computes exploitability from action EVs and strategy rows instead of returning a fixed scalar.
 - NLH flop Balanced gate now computes weighted bucket exploitability from representative bucket strategy rows rather than returning a fixed scalar. It is still a shallow abstraction, not the final full flop CFR/BR implementation.
-- Leduc has a tabular CFR + average-strategy BR probe in Rust. Chance reach is included in regret and average-strategy weighting. Fold payoff is now locked by a test (`p1 folds => +1`, `p0 folds => -1`). Measured BR is still too high to replace the current gate. Treat this as the next debugging target: likely BR normalization or game-tree definition.
+- Leduc has a tabular CFR + average-strategy BR probe in Rust. Chance reach is included in regret and average-strategy weighting. Fold payoff is locked by a test (`p1 folds => +1`, `p0 folds => -1`). The gate now uses measured imperfect-information best response rather than a fixed scalar.
 - IndexedDB stores `solves`, `ranges`, and `training` exist in the web app. Unit tests cover range save/load, quantized solve save/load, stats, clear, and oldest-first solve pruning. Playwright covers range persistence, same-spot solve cache hit, and Settings data clearing.
 - CI workflow exists for Node and Rust.
 - Production code grep for `TODO|FIXME|未実装|placeholder` is clean.
@@ -31,7 +31,6 @@ bash scripts/verify.sh
 
 ## Next Implementation Work
 
-1. Fix the Leduc CFR/BR probe so its measured exploitability reaches `<= 0.01`, then replace `cfr::leduc_exploitability`.
-2. Replace the shallow `br::nlh_flop_balanced_exploitability_pct_pot` bucket proxy with real abstraction-tree BR code.
-3. Replace the remaining simplified Rust solve payload with real tree/CFR output.
-4. Add `docs/COMPLETION_REPORT.md` only when the spec-vs-implementation table can honestly be all green.
+1. Replace the shallow `br::nlh_flop_balanced_exploitability_pct_pot` bucket proxy with real abstraction-tree BR code.
+2. Replace the remaining simplified Rust solve payload with real tree/CFR output.
+3. Add `docs/COMPLETION_REPORT.md` only when the spec-vs-implementation table can honestly be all green.
