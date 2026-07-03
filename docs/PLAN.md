@@ -69,11 +69,11 @@ Remaining:
 ## M5 PLO4/PLO5
 
 Evidence:
-- PLO evaluator and PLO4 Fast proxy exploitability exist.
+- PLO evaluator and PLO4/PLO5 Fast sampled BR reporting exist.
 - PLO4 AAxx double-suited-over-rainbow monotonicity is tested.
 
 Remaining:
-- Implement external-sampling MCCFR, stratified range caps, PLO bucket tables, sampled BR reporting, and UI approximation disclosure.
+- Replace Fast sampled reporting with external-sampling MCCFR, stratified range caps, PLO bucket tables, and full UI approximation disclosure.
 
 ## M6 Trainer And Range Editor
 

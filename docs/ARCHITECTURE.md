@@ -27,13 +27,13 @@ crates/engine
 ## WASM Boundary
 
 Target boundary:
-- Rust owns cards, evaluator, equity enumeration, game tree, CFR, abstraction, and cache key hashing.
-- TypeScript owns UI state, i18n, persistence, worker protocol, charts, and formatting.
+- Rust owns cards, evaluator, equity enumeration, game tree, CFR, and abstraction.
+- TypeScript owns UI state, i18n, persistence, WebCrypto cache key hashing, worker protocol, charts, and formatting.
 
 Current boundary:
 - Rust builds natively and through `wasm-pack`.
 - `EngineAPI` uses Rust/WASM when `packages/engine-wasm/pkg` exists and TypeScript otherwise.
-- The current production solve result is default NLH river combo rows with exact board-aware equities, not the final full postflop tree.
+- The current production solve result is default NLH river combo rows with exact board-aware equities plus PLO4/PLO5 Fast sampled rows, not the final full postflop tree/MCCFR implementation.
 
 ## State
 
