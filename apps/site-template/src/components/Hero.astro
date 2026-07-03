@@ -1,0 +1,12 @@
+---
+const { config } = Astro.props;
+---
+<section class="hero" id="top">
+  <p class="eyebrow">{config.area}の外壁・屋根塗装</p>
+  <h1>{config.hero}</h1>
+  <p>{config.tagline}</p>
+  <div class="actions">
+    <a class="button primary" href={`tel:${config.phone}`}>電話で相談</a>
+    <a class="button" href={config.lineUrl}>LINEで相談</a>
+  </div>
+</section>

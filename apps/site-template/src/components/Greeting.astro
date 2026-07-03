@@ -1,0 +1,10 @@
+---
+const { config } = Astro.props;
+---
+<section>
+  <h2>代表挨拶</h2>
+  <div class="card">
+    <p>{config.greeting}</p>
+    <p><strong>{config.representativeName}</strong></p>
+  </div>
+</section>

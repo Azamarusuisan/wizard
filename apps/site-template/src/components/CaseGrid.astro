@@ -1,0 +1,23 @@
+---
+const { cases = [] } = Astro.props;
+const fallbackCases = [
+  {
+    title: "施工事例は準備中です",
+    area: "写真をお送りいただくと、こちらに掲載できます。",
+    image: "/stock/painting-placeholder.svg"
+  }
+];
+const rows = cases.length ? cases : fallbackCases;
+---
+<section>
+  <h2>施工事例</h2>
+  <div class="grid cases">
+    {rows.map((item: any) => (
+      <article class="card case-card">
+        <img src={item.image} alt={item.title} />
+        <h3>{item.title}</h3>
+        <p>{item.area}</p>
+      </article>
+    ))}
+  </div>
+</section>

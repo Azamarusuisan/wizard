@@ -1,0 +1,12 @@
+---
+const { config } = Astro.props;
+---
+<section id="contact" class="contact">
+  <h2>お問い合わせ</h2>
+  <p>お急ぎの方はお電話ください。写真を見せたい方はLINEが便利です。</p>
+  <div class="actions">
+    <a class="button primary" href={`tel:${config.phone}`}>電話する</a>
+    <a class="button" href={config.lineUrl}>LINEで送る</a>
+    <a class="button" href={config.formUrl}>フォーム</a>
+  </div>
+</section>

@@ -1,0 +1,18 @@
+{
+  "name": "@craftsite/site-template",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "screenshots": "node ../../scripts/screenshot-template.mjs"
+  },
+  "dependencies": {
+    "@astrojs/tailwind": "^5.1.1",
+    "@craftsite/shared": "*",
+    "astro": "^4.16.0",
+    "@lhci/cli": "^0.14.0",
+    "playwright": "^1.48.0",
+    "tailwindcss": "^3.4.13"
+  }
+}

@@ -1,0 +1,4 @@
+{
+  "buildCommand": "npm run check",
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- ."
+}

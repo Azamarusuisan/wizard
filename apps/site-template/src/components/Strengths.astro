@@ -1,0 +1,9 @@
+---
+const { items = [] } = Astro.props;
+---
+<section>
+  <h2>選ばれる理由</h2>
+  <div class="grid three">
+    {items.map((item: string) => <div class="card"><strong>{item}</strong></div>)}
+  </div>
+</section>

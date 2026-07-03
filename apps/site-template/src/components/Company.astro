@@ -1,0 +1,13 @@
+---
+const { config } = Astro.props;
+---
+<section>
+  <h2>会社概要</h2>
+  <dl class="company">
+    <dt>屋号</dt><dd>{config.businessName}</dd>
+    <dt>所在地</dt><dd>{config.company.address}</dd>
+    <dt>電話</dt><dd><a href={`tel:${config.phone}`}>{config.phone}</a></dd>
+    <dt>営業時間</dt><dd>{config.company.hours}</dd>
+    <dt>定休日</dt><dd>{config.company.closed}</dd>
+  </dl>
+</section>

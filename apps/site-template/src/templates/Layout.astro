@@ -1,0 +1,180 @@
+---
+import { themes } from "../lib/themes";
+import Header from "../components/Header.astro";
+import Hero from "../components/Hero.astro";
+import Strengths from "../components/Strengths.astro";
+import CaseGrid from "../components/CaseGrid.astro";
+import BeforeAfter from "../components/BeforeAfter.astro";
+import Pricing from "../components/Pricing.astro";
+import Area from "../components/Area.astro";
+import Greeting from "../components/Greeting.astro";
+import Company from "../components/Company.astro";
+import Contact from "../components/Contact.astro";
+import Footer from "../components/Footer.astro";
+
+const { config } = Astro.props;
+const theme = themes[config.theme] ?? themes.honestNavy;
+const template = config.template ?? "classic";
+const description = `${config.businessName}は${config.area}で外壁・屋根塗装を承ります。`;
+const localBusiness = {
+  "@context": "https://schema.org",
+  "@type": "LocalBusiness",
+  name: config.businessName,
+  telephone: config.phone,
+  address: config.company.address,
+  areaServed: config.area,
+  url: Astro.url.href
+};
+---
+<html lang="ja" style={`--primary:${theme.primary};--accent:${theme.accent};--bg:${theme.bg};--text:${theme.text};`}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>{config.businessName}</title>
+    <meta name="description" content={description} />
+    <meta property="og:title" content={config.businessName} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content="/og.svg" />
+    <script type="application/ld+json" set:html={JSON.stringify(localBusiness)} />
+  </head>
+  <body>
+    <Header config={config} />
+    <main class:list={[template]}>
+      {template === "caseFirst" ? (
+        <>
+          <CaseGrid cases={config.cases} />
+          <Hero config={config} />
+          <BeforeAfter />
+          <Strengths items={config.strengths} />
+          <Pricing prices={config.prices} />
+          <Area area={config.area} />
+          <Greeting config={config} />
+          <Contact config={config} />
+        </>
+      ) : template === "singlePage" ? (
+        <>
+          <Hero config={config} />
+          <Strengths items={config.strengths} />
+          <Pricing prices={config.prices} />
+          <Area area={config.area} />
+          <Contact config={config} />
+          <Company config={config} />
+        </>
+      ) : (
+        <>
+          <Hero config={config} />
+          <Strengths items={config.strengths} />
+          <CaseGrid cases={config.cases} />
+          <section>
+            <h2>工事の流れ</h2>
+            <ol class="flow">{config.flow.map((item: string) => <li>{item}</li>)}</ol>
+          </section>
+          <Pricing prices={config.prices} />
+          <Greeting config={config} />
+          <Contact config={config} />
+          <Company config={config} />
+        </>
+      )}
+    </main>
+    <Footer config={config} />
+  </body>
+</html>
+
+<style is:global>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+    font-size: 18px;
+    line-height: 1.75;
+    padding-bottom: 68px;
+  }
+  a { color: inherit; }
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    padding: 14px clamp(16px, 4vw, 48px);
+    background: white;
+    border-bottom: 4px solid var(--primary);
+  }
+  .brand { font-weight: 800; text-decoration: none; }
+  .phone { color: var(--primary); font-size: clamp(20px, 3vw, 30px); font-weight: 900; }
+  main { max-width: 1120px; margin: 0 auto; padding: 24px clamp(16px, 4vw, 48px); }
+  section { padding: 42px 0; }
+  h1, h2, h3 { line-height: 1.25; margin: 0 0 16px; }
+  h1 { font-size: clamp(34px, 5vw, 64px); }
+  h2 { font-size: clamp(28px, 3vw, 40px); color: var(--primary); }
+  .hero {
+    min-height: 58vh;
+    display: grid;
+    align-content: center;
+    border-bottom: 1px solid #d8dee4;
+  }
+  .eyebrow, .note { color: #52616f; }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 22px; }
+  .button {
+    min-width: 148px;
+    padding: 14px 18px;
+    border: 2px solid var(--primary);
+    border-radius: 8px;
+    text-align: center;
+    text-decoration: none;
+    font-weight: 800;
+    background: white;
+  }
+  .button.primary { background: var(--primary); color: white; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; }
+  .card {
+    background: white;
+    border: 1px solid #d8dee4;
+    border-radius: 8px;
+    padding: 18px;
+  }
+  .case-card img, .before-after img {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    border-radius: 6px;
+    background: #e5e7eb;
+  }
+  .before-after { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  table { width: 100%; border-collapse: collapse; background: white; }
+  th, td { padding: 16px; border: 1px solid #d8dee4; text-align: left; }
+  td { font-size: 24px; font-weight: 900; color: var(--primary); }
+  .flow { display: grid; gap: 10px; padding-left: 24px; }
+  .large { font-size: 24px; font-weight: 800; }
+  .company { display: grid; grid-template-columns: 8em 1fr; background: white; border: 1px solid #d8dee4; }
+  .company dt, .company dd { margin: 0; padding: 14px; border-bottom: 1px solid #d8dee4; }
+  .company dt { font-weight: 800; background: color-mix(in srgb, var(--primary) 10%, white); }
+  footer { padding: 32px clamp(16px, 4vw, 48px); background: var(--primary); color: white; }
+  .sticky-contact {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 3;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    background: white;
+    border-top: 1px solid #d8dee4;
+  }
+  .sticky-contact a {
+    padding: 14px;
+    text-align: center;
+    font-weight: 900;
+    text-decoration: none;
+  }
+  .sticky-contact a:first-child { background: var(--accent); color: #111; }
+  @media (max-width: 640px) {
+    .site-header { align-items: flex-start; flex-direction: column; }
+    .before-after, .company { grid-template-columns: 1fr; }
+    .company dt { border-bottom: 0; }
+  }
+</style>

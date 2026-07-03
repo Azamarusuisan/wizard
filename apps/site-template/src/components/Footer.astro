@@ -1,0 +1,11 @@
+---
+const { config } = Astro.props;
+---
+<footer>
+  <p><strong>{config.businessName}</strong></p>
+  <p>{config.area}</p>
+</footer>
+<div class="sticky-contact">
+  <a href={`tel:${config.phone}`}>電話</a>
+  <a href={config.lineUrl}>LINE</a>
+</div>

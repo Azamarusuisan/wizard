@@ -1,0 +1,26 @@
+{
+  "businessName": "山田塗装",
+  "representativeName": "山田 太郎",
+  "template": "classic",
+  "theme": "honestNavy",
+  "phone": "050-0000-0000",
+  "lineUrl": "https://line.me/R/ti/p/@example",
+  "formUrl": "#contact",
+  "area": "町田市・八王子市・相模原市",
+  "hero": "外壁・屋根塗装を地元でていねいに承ります",
+  "tagline": "見積もり無料。小さな相談でもお電話ください。",
+  "strengths": ["地元で早く動けます", "写真で状態をていねいに説明", "無理な営業はしません"],
+  "cases": [],
+  "prices": [
+    { "label": "外壁塗装", "price": "60万円〜" },
+    { "label": "屋根塗装", "price": "25万円〜" },
+    { "label": "外壁・屋根セット", "price": "85万円〜" }
+  ],
+  "flow": ["お問い合わせ", "現地確認", "お見積もり", "工事", "確認・お引き渡し"],
+  "greeting": "住まいの状態を見て、必要な工事だけをわかりやすくお伝えします。",
+  "company": {
+    "address": "東京都町田市",
+    "hours": "9:00〜18:00",
+    "closed": "日曜"
+  }
+}

@@ -1,0 +1,7 @@
+---
+const { config } = Astro.props;
+---
+<header class="site-header">
+  <a class="brand" href="#top">{config.businessName}</a>
+  <a class="phone" href={`tel:${config.phone}`}>{config.phone}</a>
+</header>

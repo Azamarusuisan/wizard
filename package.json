@@ -1,0 +1,19 @@
+{
+  "name": "craftsite",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "check": "node scripts/check-phase-1.mjs && npm run selfcheck --workspace @craftsite/pipeline",
+    "phase3:dummy": "tsx scripts/run-phase-3-dummies.ts",
+    "phase3:gate": "node scripts/check-phase-3-findings.mjs",
+    "phase3:gate:test": "node scripts/check-phase-3-findings.test.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.0",
+    "@types/react": "^19.2.17",
+    "typescript": "^5.5.4"
+  }
+}

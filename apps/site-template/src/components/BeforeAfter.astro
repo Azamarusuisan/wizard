@@ -1,0 +1,10 @@
+---
+const { before, after } = Astro.props;
+---
+<section>
+  <h2>ビフォーアフター</h2>
+  <div class="before-after">
+    <img src={before ?? "/stock/painting-placeholder.svg"} alt="施工前" />
+    <img src={after ?? "/stock/painting-placeholder.svg"} alt="施工後" />
+  </div>
+</section>

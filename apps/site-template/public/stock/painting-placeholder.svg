@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" role="img" aria-label="塗装工事の準備中画像">
+  <rect width="800" height="600" fill="#e8eef2"/>
+  <path d="M120 440h560V210L400 90 120 210z" fill="#ffffff" stroke="#17324d" stroke-width="18"/>
+  <path d="M250 430V285h120v145M450 430V285h105v145" fill="#f2b705" stroke="#17324d" stroke-width="14"/>
+  <text x="400" y="520" text-anchor="middle" font-family="sans-serif" font-size="42" fill="#17324d">施工事例は準備中です</text>
+</svg>

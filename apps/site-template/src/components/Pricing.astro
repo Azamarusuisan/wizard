@@ -1,0 +1,17 @@
+---
+const { prices = [] } = Astro.props;
+---
+<section>
+  <h2>料金の目安</h2>
+  <table>
+    <tbody>
+      {prices.map((row: any) => (
+        <tr>
+          <th>{row.label}</th>
+          <td>{row.price}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <p class="note">家の大きさや傷み具合で変わります。正確な金額は現地確認後にお伝えします。</p>
+</section>

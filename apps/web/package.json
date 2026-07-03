@@ -1,0 +1,18 @@
+{
+  "name": "@craftsite/web",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@craftsite/pipeline": "*",
+    "@craftsite/shared": "*",
+    "inngest": "^3.22.9",
+    "next": "^15.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "stripe": "^16.12.0"
+  }
+}
