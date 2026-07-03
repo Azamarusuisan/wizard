@@ -129,10 +129,12 @@ export function EquityLab() {
   const [p2, setP2] = useState("Kc Kd");
   const [board, setBoard] = useState("");
   const parse = (s: string) => s.trim().split(/\s+/).filter(Boolean).map(parseCard);
-  const rows = useMemo(() => {
+  const calc = useMemo(() => {
     try {
-      return equity([{ cards: parse(p1) }, { cards: parse(p2) }], parse(board), game, board.trim() ? 0 : 20000, 11);
-    } catch { return []; }
+      return { rows: equity([{ cards: parse(p1) }, { cards: parse(p2) }], parse(board), game, board.trim() ? 0 : 20000, 11), error: "" };
+    } catch (err) {
+      return { rows: [], error: err instanceof Error ? err.message : "invalid equity input" };
+    }
   }, [p1, p2, board, game]);
   const cards = useMemo(() => {
     try { return parse(`${p1} ${p2}`); } catch { return []; }
@@ -146,8 +148,9 @@ export function EquityLab() {
         <label className="field">Player 2<input value={p2} onChange={(e) => setP2(e.target.value)} /></label>
         <label className="field">Board<input value={board} onChange={(e) => setBoard(e.target.value)} aria-label="Board cards example Ah Kd 7c" /></label>
       </div>
+      {calc.error ? <p className="error" role="alert">{calc.error}</p> : null}
       <div className="grid cols-3">
-        {rows.map((r, i) => <Metric key={i} label={`Player ${i + 1}`} value={`${(r.equity * 100).toFixed(2)}% ± ${(r.ci95 * 100).toFixed(2)}`} />)}
+        {calc.rows.map((r, i) => <Metric key={i} label={`Player ${i + 1}`} value={`${(r.equity * 100).toFixed(2)}% ± ${(r.ci95 * 100).toFixed(2)}`} />)}
       </div>
       <div className="cards">{cards.map((c) => <CardView key={c} card={c} />)}</div>
     </div>
