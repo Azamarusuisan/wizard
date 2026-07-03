@@ -160,7 +160,7 @@ export function EquityLab() {
       </div>
       {calc.error ? <p className="error" role="alert">{calc.error}</p> : null}
       <div className="grid cols-3">
-        {calc.rows.map((r, i) => <Metric key={i} label={`Player ${i + 1}`} value={`${(r.equity * 100).toFixed(2)}% ± ${(r.ci95 * 100).toFixed(2)}`} />)}
+        {calc.rows.map((r, i) => <Metric key={i} label={`Player ${i + 1}`} value={`Eq ${(r.equity * 100).toFixed(2)}% / W ${(r.win * 100).toFixed(2)}% / T ${(r.tie * 100).toFixed(2)}% / CI ± ${(r.ci95 * 100).toFixed(2)}`} />)}
       </div>
       <div className="cards">{cards.map((c) => <CardView key={c} card={c} />)}</div>
     </div>

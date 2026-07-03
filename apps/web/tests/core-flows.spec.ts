@@ -24,7 +24,9 @@ test("solver runs and displays strategy metrics", async ({ page }) => {
 test("equity lab shows AA vs KK", async ({ page }) => {
   await page.goto("/equity");
   await expect(page.locator(".card").filter({ hasText: "Player 1" })).toBeVisible();
-  await expect(page.getByText(/8[0-3]\./)).toBeVisible();
+  await expect(page.locator('[aria-label^="Player 1:"]')).toContainText(/Eq 8[0-3]\./);
+  await expect(page.locator('[aria-label^="Player 1:"]')).toContainText("W");
+  await expect(page.locator('[aria-label^="Player 1:"]')).toContainText("T");
   await page.getByLabel("Mode").selectOption("mc");
   await page.getByLabel("Iterations").fill("1000");
   await expect(page.locator('[aria-label^="Player 1:"]')).toContainText("±");

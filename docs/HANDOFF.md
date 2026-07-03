@@ -38,6 +38,7 @@
 - Equity Lab now supports adding/removing player slots from 2 to 6; Playwright covers a 3-way exact-board equity path.
 - Equity calculation now accepts dead cards in the TypeScript API and Equity Lab UI; unit and Playwright tests cover blocker exclusion and duplicate-card validation.
 - Equity Lab now exposes Auto/Exact/MC mode and iteration controls; Playwright covers manual MC.
+- Equity Lab displays equity, win, tie, and CI for each player; Playwright asserts win/tie labels are present.
 - Language, theme, deck-color, and precision settings are persisted to localStorage through the Zustand store. Settings theme/deck selects update `html[data-theme]` and `html[data-deck]`; precision select preserves `fast`/`balanced`/`precise`; unit and Playwright tests cover this.
 - NLH range parser now expands standard plus/span syntax such as `AJo+`, `TT-77:0.25`, and `76s-54s`; package tests cover the spec examples.
 - PLO range parser now validates rank patterns, `ds`/`ss`/`r` suitedness, and `@0..100` percentages; package tests cover the spec examples.
@@ -50,7 +51,7 @@
 - README, architecture, and formats docs now reflect the current Plan A Rust/WASM path, IndexedDB solve cache shape, and remaining representative-solver limitation.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `representative_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~1.07 us/eval, representative river rows ~12.8 ns. The evaluator still needs a faster table/perfect-hash path to reach the original 50M eval/s target.
-- Last verified: `bash scripts/verify.sh` exited 0 after adding Equity Lab Exact/MC controls.
+- Last verified: `bash scripts/verify.sh` exited 0 after adding Equity Lab win/tie display.
 
 ## Important Caveat
 
