@@ -13,6 +13,10 @@ const ranks = "AKQJT98765432";
 
 export function Dashboard() {
   const result = useAppStore((s) => s.result) ?? solveRiverSpot(100, 66);
+  const [stats, setStats] = useState<CacheStats | null>(null);
+  useEffect(() => {
+    void cacheStats().then(setStats);
+  }, []);
   return (
     <div className="grid">
       <div>
@@ -21,8 +25,8 @@ export function Dashboard() {
       </div>
       <div className="grid cols-3">
         <Metric label="Recent exploitability" value={`${result.exploitability.at(-1)!.value.toFixed(2)}% pot`} />
-        <Metric label="Average EV loss" value="0.034bb" />
-        <Metric label="Saved drills" value="18" />
+        <Metric label="Average EV loss" value={stats?.training ? "tracked" : "No sessions"} />
+        <Metric label="Saved solves" value={stats?.solves ?? 0} />
       </div>
       <div className="card" style={{ height: 280 }}><Curve data={result.exploitability} /></div>
     </div>
