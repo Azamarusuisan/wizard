@@ -12,7 +12,7 @@
 - IndexedDB stores `solves`, `ranges`, and `training` exist in the web app. Unit tests cover range save/load, quantized solve save/load, stats, clear, and oldest-first solve pruning. Playwright covers range persistence, same-spot solve cache hit, and Settings data clearing.
 - CI workflow exists for Node and Rust.
 - Production code grep for `TODO|FIXME|未実装|placeholder` is clean.
-- `packages/engine-wasm` now exposes an `EngineAPI` facade (`init`, `solve`, `pollProgress`, `getStrategy`, `getHandMetrics`, `cancel`, `serialize`, `result`). The web worker calls this interface, so replacing `LocalEngine` with the generated WASM backend is localized.
+- `packages/engine-wasm` now exposes an `EngineAPI` facade (`init`, `solve`, `pollProgress`, `getStrategy`, `getHandMetrics`, `cancel`, `serialize`, `result`). It prefers the generated wasm-pack backend when `pkg/gto_lab_engine.js` exists and falls back to `LocalEngine` only when the package is unavailable. The unit test proves the wasm backend is selected after `wasm-pack build`.
 - `crates/engine` now exports wasm-bindgen handle/progress functions matching the EngineAPI shape: `init`, `solve`, `poll_progress`, `get_strategy`, `get_hand_metrics`, `cancel`, and `serialize`.
 
 ## Important Caveat
@@ -31,5 +31,5 @@ bash scripts/verify.sh
 
 1. Fix the Leduc CFR/BR probe so its measured exploitability reaches `<= 0.01`, then replace `cfr::leduc_exploitability`.
 2. Replace `br::nlh_river_exploitability_pct_pot` and `br::nlh_flop_balanced_exploitability_pct_pot` with real CFR/BR code.
-3. Replace `LocalEngine` with the generated Rust/WASM backend package at runtime.
+3. Replace the remaining simplified Rust solve payload with real tree/CFR output.
 4. Add `docs/COMPLETION_REPORT.md` only when the spec-vs-implementation table can honestly be all green.

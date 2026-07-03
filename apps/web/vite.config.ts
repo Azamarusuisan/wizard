@@ -3,6 +3,7 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   plugins: [react()],
+  worker: { format: "es" },
   server: {
     headers: {
       "Cross-Origin-Opener-Policy": "same-origin",
