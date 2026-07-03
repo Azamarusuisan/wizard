@@ -82,6 +82,7 @@ test("TS river solve fallback emits pure best-response rows", () => {
   assert.ok(result.rows[0]!.raiseEv >= result.rows[0]!.callEv);
   assert.ok(result.rows.at(-1)!.ev >= 0);
   assert.equal(result.metrics.spr, 2.5);
+  assert.equal(result.metrics.brGapPctPot, result.exploitability.at(-1)!.value);
 });
 
 test("TS river solve fallback rejects invalid spots", () => {
@@ -109,8 +110,10 @@ test("TS river solve fallback subtracts capped rake from showdown EV", () => {
 test("TS solve fallback reports PLO Fast BR metrics", () => {
   const plo4 = solveRiverSpot(100, 66, 250, "", 0, 0, "PLO4");
   assert.equal(plo4.rows[0]!.combo, "PLO4 B1");
+  assert.ok((plo4.metrics.brGapPctPot ?? -1) >= 0);
   assert.equal(plo4.metrics.ploFastExploitability, plo4FastExploitabilityPctPot());
   const plo5 = solveRiverSpot(100, 66, 250, "", 0, 0, "PLO5");
   assert.equal(plo5.rows[0]!.combo, "PLO5 B1");
+  assert.ok((plo5.metrics.brGapPctPot ?? -1) >= 0);
   assert.equal(plo5.metrics.ploFastExploitability, plo5FastExploitabilityPctPot());
 });

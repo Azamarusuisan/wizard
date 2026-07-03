@@ -22,6 +22,7 @@ test("solver runs and displays strategy metrics", async ({ page }) => {
   await expect(page.getByRole("table", { name: "strategy table" })).toContainText("R EV");
   await expect(page.getByText("MDF")).toBeVisible();
   await expect(page.getByText("SPR")).toBeVisible();
+  await expect(page.getByText("BR gap")).toBeVisible();
   await expect(page.getByText("abstracted")).toBeVisible();
   await expect(page.getByText(/default-combo abstraction/)).toBeVisible();
   await expect(page).toHaveURL(/spot=/);

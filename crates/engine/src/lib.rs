@@ -1370,7 +1370,15 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
         action_evs.extend([fold_ev / 100.0, call_ev / 100.0, raise_ev / 100.0]);
         metrics.extend([ev, equity, eqr]);
     }
-    metrics.extend([spr, mdf, alpha, pot_odds]);
+    metrics.extend([
+        spr,
+        mdf,
+        alpha,
+        pot_odds,
+        br::river_best_response_exploitability_pct_pot_with_rake(
+            &rows, spot.pot, spot.bet, rake_pct, rake_cap,
+        ),
+    ]);
     let progress =
         br::river_strategy_progress_with_rake(&rows, spot.pot, spot.bet, 36, rake_pct, rake_cap)
             .into_iter()
@@ -1432,7 +1440,7 @@ fn solve_plo_fast(
         .collect::<Vec<_>>();
     let mut strategy = Vec::with_capacity(rows.len() * 3);
     let mut action_evs = Vec::with_capacity(rows.len() * 3);
-    let mut metrics = Vec::with_capacity(rows.len() * 3 + 5);
+    let mut metrics = Vec::with_capacity(rows.len() * 3 + 6);
     for row in &rows {
         let (fold_ev, call_ev, raise_ev) =
             br::action_evs(row.equity, spot.pot, spot.bet, rake_pct, rake_cap);
@@ -1442,7 +1450,16 @@ fn solve_plo_fast(
         action_evs.extend([fold_ev / 100.0, call_ev / 100.0, raise_ev / 100.0]);
         metrics.extend([ev, row.equity, eqr]);
     }
-    metrics.extend([spr, mdf, alpha, pot_odds, metric]);
+    metrics.extend([
+        spr,
+        mdf,
+        alpha,
+        pot_odds,
+        br::river_best_response_exploitability_pct_pot_with_rake(
+            &rows, spot.pot, spot.bet, rake_pct, rake_cap,
+        ),
+        metric,
+    ]);
     let progress =
         br::river_strategy_progress_with_rake(&rows, spot.pot, spot.bet, 36, rake_pct, rake_cap)
             .into_iter()
@@ -1907,6 +1924,10 @@ mod tests {
         assert!(native.action_evs[2] >= native.action_evs[1]);
         assert!(native.metrics[(native.combos.len() - 1) * 3] >= 0.0);
         assert_eq!(native.metrics[native.combos.len() * 3], 2.5);
+        assert_eq!(
+            native.metrics[native.combos.len() * 3 + 4],
+            native.progress.last().unwrap().exploitability_pct
+        );
         assert!(
             native.progress.first().unwrap().exploitability_pct
                 >= native.progress.last().unwrap().exploitability_pct
@@ -1940,16 +1961,18 @@ mod tests {
         let plo4_native: super::NativeSolve = serde_json::from_slice(&plo4_payload).unwrap();
         assert_eq!(plo4_native.combos[0], "PLO4 B1");
         assert_eq!(plo4_native.combos.len(), br::PLO4_FAST_SAMPLES.len());
+        assert!(plo4_native.metrics[plo4_native.combos.len() * 3 + 4] >= 0.0);
         assert_eq!(
-            plo4_native.metrics[plo4_native.combos.len() * 3 + 4],
+            plo4_native.metrics[plo4_native.combos.len() * 3 + 5],
             br::plo4_fast_exploitability_pct_pot()
         );
         let plo5 = super::solve(r#"{"game":"PLO5","pot":100.0,"bet":66.0,"stack":250.0}"#).unwrap();
         let plo5_payload = super::serialize(plo5).unwrap();
         let plo5_native: super::NativeSolve = serde_json::from_slice(&plo5_payload).unwrap();
         assert_eq!(plo5_native.combos[0], "PLO5 B1");
+        assert!(plo5_native.metrics[plo5_native.combos.len() * 3 + 4] >= 0.0);
         assert_eq!(
-            plo5_native.metrics[plo5_native.combos.len() * 3 + 4],
+            plo5_native.metrics[plo5_native.combos.len() * 3 + 5],
             br::plo5_fast_exploitability_pct_pot()
         );
         super::cancel(plo4).unwrap();

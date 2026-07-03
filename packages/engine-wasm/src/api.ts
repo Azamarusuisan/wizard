@@ -211,7 +211,8 @@ function nativeToResult(native: NativeSolve): SolveResult {
       mdf: native.metrics[combos.length * 3 + 1] ?? 0,
       alpha: native.metrics[combos.length * 3 + 2] ?? 0,
       potOdds: native.metrics[combos.length * 3 + 3] ?? 0,
-      ploFastExploitability: native.metrics[combos.length * 3 + 4]
+      brGapPctPot: native.metrics[combos.length * 3 + 4],
+      ploFastExploitability: native.metrics[combos.length * 3 + 5]
     }
   };
 }
