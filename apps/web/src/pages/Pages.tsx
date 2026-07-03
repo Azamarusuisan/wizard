@@ -64,9 +64,9 @@ export function SolverStudio() {
       <section className="card grid">
         <h1 className="title">Solver Studio</h1>
         <label className="field">Game<select><option>NLH</option><option>PLO4</option><option>PLO5</option></select></label>
-        <label className="field">Pot<input type="number" value={pot} onChange={(e) => setPot(Number(e.target.value))} /></label>
-        <label className="field">Bet<input type="number" value={bet} onChange={(e) => setBet(Number(e.target.value))} /></label>
-        <label className="field">Stack<input type="number" value={stack} onChange={(e) => setStack(Number(e.target.value))} /></label>
+        <label className="field">Pot<input type="number" min="1" value={pot} onChange={(e) => setPot(Number(e.target.value))} /></label>
+        <label className="field">Bet<input type="number" min="0" value={bet} onChange={(e) => setBet(Number(e.target.value))} /></label>
+        <label className="field">Stack<input type="number" min="1" value={stack} onChange={(e) => setStack(Number(e.target.value))} /></label>
         <label className="field">Board<input defaultValue="Ah Kd 7c" /></label>
         <button className="btn primary" onClick={() => {
           setProgress([]);
