@@ -379,8 +379,10 @@ function expandNlhCombo(label: string, blocked: Card[]): Card[][] {
 
 function comboEquity(hero: Card[], fallback: number, board: Card[]): number {
   if (!board.length) return fallback;
-  const villain = deck([...board, ...hero]).slice(0, 2);
-  return equity([{ cards: hero }, { cards: villain }], board, "NLH", 0, 1)[0]!.equity;
+  const blocked = new Set([...board, ...hero]);
+  const villains = defaultRiverCombos(board).filter((combo) => !combo.holes.some((card) => blocked.has(card)));
+  if (!villains.length) return fallback;
+  return villains.reduce((sum, villain) => sum + equity([{ cards: hero }, { cards: villain.holes }], board, "NLH", 0, 1)[0]!.equity, 0) / villains.length;
 }
 
 function riverStrategyProgress(rows: SolverRow[], pot: number, bet: number, points: number, rakePct: number, rakeCap: number): number[] {

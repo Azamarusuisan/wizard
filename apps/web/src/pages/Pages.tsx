@@ -70,6 +70,8 @@ export function SolverStudio() {
   const currentKey = JSON.stringify({ game, pot, bet, stack, board, rakePct, rakeCap });
   const preview = useMemo(() => {
     try {
+      validateSolverInputs(game, pot, bet, stack, board, rakePct, rakeCap);
+      if (game === "NLH" && board.trim()) return { result: null, error: "" };
       return { result: solveRiverSpot(pot, bet, stack, board, rakePct, rakeCap, game), error: "" };
     } catch (err) {
       return { result: null, error: err instanceof Error ? err.message : "invalid spot" };
@@ -132,6 +134,18 @@ export function SolverStudio() {
       </section>
     </div>
   );
+}
+
+function validateSolverInputs(game: Game, pot: number, bet: number, stack: number, board: string, rakePct: number, rakeCap: number): void {
+  if (!Number.isFinite(pot) || pot <= 0) throw new Error("pot must be positive");
+  if (!Number.isFinite(bet) || bet < 0) throw new Error("bet must be non-negative");
+  if (!Number.isFinite(stack) || stack <= 0) throw new Error("stack must be positive");
+  if (!Number.isFinite(rakePct) || rakePct < 0 || rakePct > 100) throw new Error("rake percent must be 0-100");
+  if (!Number.isFinite(rakeCap) || rakeCap < 0) throw new Error("rake cap must be non-negative");
+  if (game === "PLO5") throw new Error("PLO5 solver is not implemented yet");
+  const cards = board.trim() ? board.trim().split(/\s+/).map(parseCard) : [];
+  if (cards.length > 5) throw new Error("board cannot have more than five cards");
+  if (new Set(cards).size !== cards.length) throw new Error("duplicate board cards");
 }
 
 export function EquityLab() {

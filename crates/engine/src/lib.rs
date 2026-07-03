@@ -1585,15 +1585,23 @@ fn combo_equity(hero: [eval::Card; 2], fallback: f64, board: &[eval::Card]) -> f
     if board.is_empty() {
         return fallback;
     }
-    let mut dead = board.to_vec();
-    dead.extend(hero);
-    let villain = pick_villain(&dead);
-    equity::heads_up_nlh_equity_exact(hero, villain, board)
-}
-
-fn pick_villain(blocked: &[eval::Card]) -> [eval::Card; 2] {
-    let cards: Vec<_> = (0..52).filter(|c| !blocked.contains(c)).take(2).collect();
-    [cards[0], cards[1]]
+    let villains = default_river_entries(board)
+        .into_iter()
+        .filter(|entry| {
+            !hero.contains(&entry.holes[0])
+                && !hero.contains(&entry.holes[1])
+                && !board.contains(&entry.holes[0])
+                && !board.contains(&entry.holes[1])
+        })
+        .collect::<Vec<_>>();
+    if villains.is_empty() {
+        return fallback;
+    }
+    villains
+        .iter()
+        .map(|villain| equity::heads_up_nlh_equity_exact(hero, villain.holes, board))
+        .sum::<f64>()
+        / villains.len() as f64
 }
 
 #[wasm_bindgen]
