@@ -230,10 +230,40 @@ pub mod iso {
 pub mod equity {
     use crate::eval::{evaluate_nlh7, evaluate_plo, Card};
 
+    pub const EXACT_EQUITY_EVAL_THRESHOLD: usize = 20_000_000;
+
     pub struct EquityMc {
         pub equity: f64,
         pub samples: usize,
         pub ci95: f64,
+    }
+
+    pub fn heads_up_nlh_evaluation_estimate(a: [Card; 2], b: [Card; 2], board: &[Card]) -> usize {
+        let mut dead = vec![a[0], a[1], b[0], b[1]];
+        dead.extend_from_slice(board);
+        dead.sort_unstable();
+        dead.dedup();
+        assert_eq!(dead.len(), 4 + board.len());
+        choose(52 - dead.len(), 5 - board.len()) * 2
+    }
+
+    pub fn heads_up_nlh_equity_auto(
+        a: [Card; 2],
+        b: [Card; 2],
+        board: &[Card],
+        mc_samples: usize,
+        seed: u64,
+        exact_threshold: usize,
+    ) -> EquityMc {
+        if heads_up_nlh_evaluation_estimate(a, b, board) <= exact_threshold {
+            let equity = heads_up_nlh_equity_exact(a, b, board);
+            return EquityMc {
+                equity,
+                samples: choose(52 - 4 - board.len(), 5 - board.len()),
+                ci95: 0.0,
+            };
+        }
+        heads_up_nlh_equity_mc(a, b, board, mc_samples.max(1), seed)
     }
 
     pub fn heads_up_nlh_equity_exact(a: [Card; 2], b: [Card; 2], board: &[Card]) -> f64 {
@@ -333,6 +363,13 @@ pub mod equity {
         sorted.sort_unstable();
         sorted.dedup();
         sorted.len()
+    }
+
+    fn choose(n: usize, k: usize) -> usize {
+        if k > n {
+            return 0;
+        }
+        (1..=k).fold(1, |acc, i| acc * (n - k + i) / i)
     }
 
     struct Lcg(u64);
@@ -1925,6 +1962,27 @@ mod tests {
             mc.equity,
             exact
         );
+    }
+
+    #[test]
+    fn equity_auto_switches_by_evaluation_estimate() {
+        let aa = [c(12, 0), c(12, 2)];
+        let kk = [c(11, 1), c(11, 3)];
+        let board = [c(0, 0), c(1, 1), c(2, 2), c(3, 3)];
+        assert_eq!(equity::heads_up_nlh_evaluation_estimate(aa, kk, &board), 88);
+        let exact = equity::heads_up_nlh_equity_auto(
+            aa,
+            kk,
+            &board,
+            1_000,
+            7,
+            equity::EXACT_EQUITY_EVAL_THRESHOLD,
+        );
+        assert_eq!(exact.samples, 44);
+        assert_eq!(exact.ci95, 0.0);
+        let mc = equity::heads_up_nlh_equity_auto(aa, kk, &[], 123, 7, 1);
+        assert_eq!(mc.samples, 123);
+        assert!(mc.ci95 > 0.0);
     }
 
     #[test]
