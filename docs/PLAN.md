@@ -59,10 +59,11 @@ Remaining:
 
 Evidence:
 - Current NLH flop Balanced gate uses a compact abstraction tree over representative buckets and passes the numeric threshold.
+- Rust bucket tests cover fixed-seed 10-feature k-means++ and verify within-cluster variance does not worsen when bucket count increases.
 
 Remaining:
 - Implement full flop/turn public tree construction, card abstraction, terminal EV, strict BR, rake handling, and solve serialization for real information sets.
-- Add quality tests for bucket variance and exploitability trend as bucket counts increase.
+- Add exploitability trend tests as production bucket counts increase.
 
 ## M5 PLO4/PLO5
 

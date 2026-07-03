@@ -30,6 +30,7 @@ Decision:
 
 Reason:
 - Browser workers need predictable latency. The UI reports approximation status rather than pretending exactness.
+- Bucketing uses fixed-seed k-means++ over ten features: eight equity quantiles plus EHS and EHS2. The seed makes test and cache behavior reproducible.
 
 ## Class Counts
 

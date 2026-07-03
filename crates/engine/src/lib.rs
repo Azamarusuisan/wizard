@@ -741,11 +741,7 @@ pub mod cfr {
             node_util
         }
 
-        fn weighted_best_response(
-            &self,
-            states: Vec<(LeducState, f64)>,
-            br_player: usize,
-        ) -> f64 {
+        fn weighted_best_response(&self, states: Vec<(LeducState, f64)>, br_player: usize) -> f64 {
             let mut total = 0.0;
             let mut chance_states = Vec::new();
             let mut opponent_states = Vec::new();
@@ -773,9 +769,7 @@ pub mod cfr {
                 let mut next = Vec::new();
                 for (state, weight) in chance_states {
                     let available: Vec<u8> = (0..6)
-                        .filter(|public| {
-                            *public != state.private[0] && *public != state.private[1]
-                        })
+                        .filter(|public| *public != state.private[0] && *public != state.private[1])
                         .collect();
                     let chance_weight = weight / available.len() as f64;
                     for public in available {
@@ -817,7 +811,6 @@ pub mod cfr {
 
             total
         }
-
     }
 
     fn reach_with(mut reach: [f64; 2], player: usize, prob: f64) -> [f64; 2] {
@@ -883,7 +876,12 @@ pub mod br {
         ((best_ev - strategy_ev) / rows.len() as f64 / pot * 100.0).max(0.0)
     }
 
-    pub fn river_strategy_progress(rows: &[RiverCombo], pot: f64, bet: f64, points: usize) -> Vec<f64> {
+    pub fn river_strategy_progress(
+        rows: &[RiverCombo],
+        pot: f64,
+        bet: f64,
+        points: usize,
+    ) -> Vec<f64> {
         (1..=points)
             .map(|i| {
                 let t = i as f64 / points as f64;
@@ -939,11 +937,7 @@ pub mod br {
         pot: f64,
         bet: f64,
     ) -> f64 {
-        let root = FlopAbstractionNode {
-            pot,
-            bet,
-            buckets,
-        };
+        let root = FlopAbstractionNode { pot, bet, buckets };
         root.exploitability_pct_pot()
     }
 
@@ -1043,12 +1037,142 @@ pub mod br {
 }
 
 pub mod bucket {
+    pub type EquityFeature = [f64; 10];
+
     pub fn kmeans_1d(points: &[f64], k: usize) -> Vec<usize> {
         assert!(k > 0);
         points
             .iter()
             .map(|p| ((*p * k as f64).floor() as usize).min(k - 1))
             .collect()
+    }
+
+    pub fn kmeans_features(
+        points: &[EquityFeature],
+        k: usize,
+        iterations: usize,
+        seed: u64,
+    ) -> Vec<usize> {
+        assert!(k > 0);
+        assert!(k <= points.len());
+        let mut rng = seed.max(1);
+        let mut centroids = Vec::with_capacity(k);
+        centroids.push(points[(next_u64(&mut rng) as usize) % points.len()]);
+        while centroids.len() < k {
+            let distances: Vec<f64> = points
+                .iter()
+                .map(|point| {
+                    centroids
+                        .iter()
+                        .map(|centroid| squared_distance(point, centroid))
+                        .fold(f64::INFINITY, f64::min)
+                })
+                .collect();
+            let total: f64 = distances.iter().sum();
+            if total == 0.0 {
+                centroids.push(points[centroids.len() % points.len()]);
+                continue;
+            }
+            let mut pick = next_f64(&mut rng) * total;
+            let mut chosen = points[0];
+            for (point, distance) in points.iter().zip(distances) {
+                pick -= distance;
+                if pick <= 0.0 {
+                    chosen = *point;
+                    break;
+                }
+            }
+            centroids.push(chosen);
+        }
+
+        let mut assignments = vec![0; points.len()];
+        for _ in 0..iterations.max(1) {
+            for (i, point) in points.iter().enumerate() {
+                assignments[i] = nearest(point, &centroids);
+            }
+            let mut sums = vec![[0.0; 10]; k];
+            let mut counts = vec![0usize; k];
+            for (point, bucket) in points.iter().zip(assignments.iter().copied()) {
+                counts[bucket] += 1;
+                for (sum, value) in sums[bucket].iter_mut().zip(point) {
+                    *sum += *value;
+                }
+            }
+            for (i, centroid) in centroids.iter_mut().enumerate() {
+                if counts[i] == 0 {
+                    continue;
+                }
+                for value in &mut sums[i] {
+                    *value /= counts[i] as f64;
+                }
+                *centroid = sums[i];
+            }
+        }
+        assignments
+    }
+
+    pub fn within_cluster_variance(points: &[EquityFeature], assignments: &[usize]) -> f64 {
+        assert_eq!(points.len(), assignments.len());
+        let k = assignments.iter().copied().max().map_or(0, |x| x + 1);
+        if k == 0 {
+            return 0.0;
+        }
+        let mut sums = vec![[0.0; 10]; k];
+        let mut counts = vec![0usize; k];
+        for (point, bucket) in points.iter().zip(assignments.iter().copied()) {
+            counts[bucket] += 1;
+            for (sum, value) in sums[bucket].iter_mut().zip(point) {
+                *sum += *value;
+            }
+        }
+        for (i, sum) in sums.iter_mut().enumerate() {
+            if counts[i] == 0 {
+                continue;
+            }
+            for value in sum {
+                *value /= counts[i] as f64;
+            }
+        }
+        let total: f64 = points
+            .iter()
+            .zip(assignments.iter().copied())
+            .map(|(point, bucket)| squared_distance(point, &sums[bucket]))
+            .sum();
+        total / points.len() as f64
+    }
+
+    fn nearest(point: &EquityFeature, centroids: &[EquityFeature]) -> usize {
+        centroids
+            .iter()
+            .enumerate()
+            .min_by(|(_, a), (_, b)| {
+                squared_distance(point, a)
+                    .partial_cmp(&squared_distance(point, b))
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
+            .map(|(i, _)| i)
+            .unwrap_or(0)
+    }
+
+    fn squared_distance(a: &EquityFeature, b: &EquityFeature) -> f64 {
+        a.iter()
+            .zip(b)
+            .map(|(x, y)| {
+                let d = *x - *y;
+                d * d
+            })
+            .sum()
+    }
+
+    fn next_u64(seed: &mut u64) -> u64 {
+        *seed ^= *seed << 13;
+        *seed ^= *seed >> 7;
+        *seed ^= *seed << 17;
+        *seed
+    }
+
+    fn next_f64(seed: &mut u64) -> f64 {
+        next_u64(seed) as f64 / u64::MAX as f64
     }
 }
 
@@ -1104,8 +1228,8 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
     let spot: NativeSpot = serde_json::from_str(spot_json)
         .map_err(|err| JsValue::from_str(&format!("bad spot json: {err}")))?;
     validate_spot(&spot).map_err(|err| JsValue::from_str(&err))?;
-    let board = parse_board(spot.board.as_deref().unwrap_or(""))
-        .map_err(|err| JsValue::from_str(&err))?;
+    let board =
+        parse_board(spot.board.as_deref().unwrap_or("")).map_err(|err| JsValue::from_str(&err))?;
     let pot_odds = spot.bet / (spot.pot + 2.0 * spot.bet);
     let mdf = spot.pot / (spot.pot + spot.bet);
     let alpha = spot.bet / (spot.pot + spot.bet);
@@ -1351,7 +1475,12 @@ mod tests {
         let aa_kq_rainbow = [c(12, 0), c(12, 1), c(11, 2), c(10, 3)];
         let ds = equity::plo4_vs_random_equity_mc(aa_kq_ds, 30_000, 19);
         let rainbow = equity::plo4_vs_random_equity_mc(aa_kq_rainbow, 30_000, 19);
-        assert!(ds.equity > rainbow.equity, "{} {}", ds.equity, rainbow.equity);
+        assert!(
+            ds.equity > rainbow.equity,
+            "{} {}",
+            ds.equity,
+            rainbow.equity
+        );
     }
 
     #[test]
@@ -1385,7 +1514,8 @@ mod tests {
         let e = equity::heads_up_nlh_equity_exact(aks, qq, &[]);
         assert!((0.45..=0.47).contains(&e), "{e}");
 
-        let suited = equity::heads_up_nlh_equity_exact([c(12, 0), c(11, 0)], [c(10, 1), c(10, 2)], &[]);
+        let suited =
+            equity::heads_up_nlh_equity_exact([c(12, 0), c(11, 0)], [c(10, 1), c(10, 2)], &[]);
         let mirrored =
             equity::heads_up_nlh_equity_exact([c(12, 3), c(11, 3)], [c(10, 1), c(10, 2)], &[]);
         assert!((suited - mirrored).abs() <= 1e-12, "{suited} {mirrored}");
@@ -1399,7 +1529,12 @@ mod tests {
         let mc = equity::heads_up_nlh_equity_mc(aa, kk, &[], 20_000, 7);
         let sigma = mc.ci95 / 1.96;
         assert_eq!(mc.samples, 20_000);
-        assert!((mc.equity - exact).abs() <= 4.0 * sigma, "{} {}", mc.equity, exact);
+        assert!(
+            (mc.equity - exact).abs() <= 4.0 * sigma,
+            "{} {}",
+            mc.equity,
+            exact
+        );
     }
 
     #[test]
@@ -1413,8 +1548,12 @@ mod tests {
         assert!(br::nlh_flop_balanced_exploitability_pct_pot() <= 1.0);
         assert!(
             (br::nlh_flop_balanced_exploitability_pct_pot()
-                - br::flop_bucket_exploitability_pct_pot(&br::balanced_flop_buckets(), 100.0, 66.0))
-                .abs()
+                - br::flop_bucket_exploitability_pct_pot(
+                    &br::balanced_flop_buckets(),
+                    100.0,
+                    66.0
+                ))
+            .abs()
                 <= 1e-9
         );
         let flop_weight: f64 = br::balanced_flop_buckets().iter().map(|b| b.weight).sum();
@@ -1432,6 +1571,42 @@ mod tests {
     }
 
     #[test]
+    fn bucket_quality_improves_with_more_clusters() {
+        let points: Vec<bucket::EquityFeature> = (0..18)
+            .map(|i| {
+                let base = if i < 6 {
+                    0.18
+                } else if i < 12 {
+                    0.52
+                } else {
+                    0.82
+                };
+                let drift = (i % 6) as f64 * 0.004;
+                [
+                    base,
+                    base + drift,
+                    base + 0.01,
+                    base + 0.02,
+                    base + 0.03,
+                    base + 0.04,
+                    base + 0.05,
+                    base + 0.06,
+                    base + 0.015,
+                    (base + 0.015) * (base + 0.015),
+                ]
+            })
+            .collect();
+        let two = bucket::kmeans_features(&points, 2, 16, 7);
+        let three = bucket::kmeans_features(&points, 3, 16, 7);
+        assert_eq!(three, bucket::kmeans_features(&points, 3, 16, 7));
+        assert!(
+            bucket::within_cluster_variance(&points, &three)
+                <= bucket::within_cluster_variance(&points, &two)
+        );
+        assert!(bucket::within_cluster_variance(&points, &three) < 0.002);
+    }
+
+    #[test]
     fn native_solve_uses_shared_river_strategy_rows() {
         super::init(None);
         let handle =
@@ -1442,7 +1617,10 @@ mod tests {
         let first = br::best_response_combo(br::DEFAULT_RIVER_SPECS[0].1, 100.0, 66.0);
         assert_eq!(native.combos[0], br::DEFAULT_RIVER_SPECS[0].0);
         assert_eq!(native.combos.len(), br::DEFAULT_RIVER_SPECS.len());
-        assert_eq!(&native.strategy[0..3], &[first.fold, first.call, first.raise]);
+        assert_eq!(
+            &native.strategy[0..3],
+            &[first.fold, first.call, first.raise]
+        );
         assert!(native.action_evs[2] >= native.action_evs[1]);
         assert!(native.metrics[(native.combos.len() - 1) * 3] >= 0.0);
         assert_eq!(native.metrics[native.combos.len() * 3], 2.5);
@@ -1491,8 +1669,7 @@ mod tests {
         super::init(None);
         let empty = super::solve(r#"{"pot":100.0,"bet":66.0,"stack":250.0}"#).unwrap();
         let boarded =
-            super::solve(r#"{"pot":100.0,"bet":66.0,"stack":250.0,"board":"Ah Kd 7c"}"#)
-                .unwrap();
+            super::solve(r#"{"pot":100.0,"bet":66.0,"stack":250.0,"board":"Ah Kd 7c"}"#).unwrap();
         let empty_payload = super::serialize(empty).unwrap();
         let board_payload = super::serialize(boarded).unwrap();
         let empty_native: super::NativeSolve = serde_json::from_slice(&empty_payload).unwrap();
