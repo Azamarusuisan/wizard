@@ -52,6 +52,8 @@ test("settings clears cached data", async ({ page }) => {
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await page.getByLabel("Deck colors").selectOption("two");
   await expect(page.locator("html")).toHaveAttribute("data-deck", "two");
+  await page.getByLabel("Precision").selectOption("precise");
+  await expect(page.getByLabel("Precision")).toHaveValue("precise");
   await expect(page.locator(".card").filter({ hasText: /^Solves/ })).toBeVisible();
   await page.getByRole("button", { name: "Clear all data" }).click();
   await expect(page.locator('[aria-label="Solves: 0"]')).toBeVisible();

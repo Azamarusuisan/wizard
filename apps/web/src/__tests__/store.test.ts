@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 describe("app settings store", () => {
-  it("persists language theme and deck settings", async () => {
+  it("persists language theme deck and precision settings", async () => {
     const values = new Map<string, string>();
     Object.defineProperty(window, "localStorage", {
       configurable: true,
@@ -14,8 +14,10 @@ describe("app settings store", () => {
     useAppStore.getState().setLang("en");
     useAppStore.getState().setTheme("light");
     useAppStore.getState().setDeckColors("two");
+    useAppStore.getState().setPrecision("precise");
     expect(values.get("gto-lab.lang")).toBe("en");
     expect(values.get("gto-lab.theme")).toBe("light");
     expect(values.get("gto-lab.deckColors")).toBe("two");
+    expect(values.get("gto-lab.precision")).toBe("precise");
   });
 });

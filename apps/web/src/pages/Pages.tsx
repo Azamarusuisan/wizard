@@ -202,6 +202,8 @@ export function Settings() {
   const setTheme = useAppStore((s) => s.setTheme);
   const deckColors = useAppStore((s) => s.deckColors);
   const setDeckColors = useAppStore((s) => s.setDeckColors);
+  const precision = useAppStore((s) => s.precision);
+  const setPrecision = useAppStore((s) => s.setPrecision);
   const refresh = () => void cacheStats().then(setStats);
   useEffect(refresh, []);
   return (
@@ -210,7 +212,7 @@ export function Settings() {
       <div className="grid cols-3">
         <label className="field">Theme<select value={theme} onChange={(e) => setTheme(e.target.value as "dark" | "light")}><option value="dark">Dark</option><option value="light">Light</option></select></label>
         <label className="field">Deck colors<select value={deckColors} onChange={(e) => setDeckColors(e.target.value as "four" | "two")}><option value="four">Four color</option><option value="two">Two color</option></select></label>
-        <label className="field">Precision<select><option>Balanced</option><option>Fast</option><option>Precise</option></select></label>
+        <label className="field">Precision<select value={precision} onChange={(e) => setPrecision(e.target.value as "fast" | "balanced" | "precise")}><option value="balanced">Balanced</option><option value="fast">Fast</option><option value="precise">Precise</option></select></label>
       </div>
       <div className="card grid">
         <h2 className="title">Data</h2>
