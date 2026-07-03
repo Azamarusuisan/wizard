@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { HAND_CATEGORIES, deck, formatCard, parseCard, equity, parseNlhRange, parsePloRange, serializeRange, solveRiverSpot, type Game } from "@gto-lab/engine-wasm";
+import { EXACT_EQUITY_EVAL_THRESHOLD, HAND_CATEGORIES, deck, estimateEquityEvaluations, formatCard, parseCard, equity, parseNlhRange, parsePloRange, serializeRange, solveRiverSpot, type Game } from "@gto-lab/engine-wasm";
 import { CardView } from "../components/CardView";
 import { Metric } from "../components/Metric";
 import { StrategyTable } from "../components/StrategyTable";
@@ -189,10 +189,15 @@ export function EquityLab() {
   const setPlayer = (index: number, value: string) => setPlayers((xs) => xs.map((x, i) => i === index ? value : x));
   const calc = useMemo(() => {
     try {
+      const parsedPlayers = players.map((p) => ({ cards: parse(p) }));
+      const parsedBoard = parse(board);
+      const parsedDead = parse(dead);
+      const estimate = estimateEquityEvaluations(parsedPlayers, parsedBoard, game, parsedDead);
+      const autoExact = estimate <= EXACT_EQUITY_EVAL_THRESHOLD;
       const samples = mode === "exact" ? 0 : mode === "mc" ? Math.max(1, iterations) : board.trim() ? 0 : Math.max(1, iterations);
-      return { rows: equity(players.map((p) => ({ cards: parse(p) })), parse(board), game, samples, 11, parse(dead)), error: "" };
+      return { rows: equity(parsedPlayers, parsedBoard, game, samples, 11, parsedDead), error: "", estimate, autoExact };
     } catch (err) {
-      return { rows: [], error: err instanceof Error ? err.message : "invalid equity input" };
+      return { rows: [], error: err instanceof Error ? err.message : "invalid equity input", estimate: 0, autoExact: false };
     }
   }, [players, board, dead, game, mode, iterations]);
   const cards = useMemo(() => {
@@ -214,6 +219,7 @@ export function EquityLab() {
         <button className="btn" disabled={players.length <= 2} onClick={() => setPlayers((xs) => xs.slice(0, -1))}>Remove player</button>
       </div>
       {calc.error ? <p className="error" role="alert">{calc.error}</p> : null}
+      {!calc.error ? <p className="muted">Auto: {calc.autoExact ? "Exact" : "MC"} by {calc.estimate.toLocaleString()} estimated evaluations.</p> : null}
       <div className="grid cols-3">
         {calc.rows.map((r, i) => <Metric key={i} label={`Player ${i + 1}`} value={`Eq ${(r.equity * 100).toFixed(2)}% / W ${(r.win * 100).toFixed(2)}% / T ${(r.tie * 100).toFixed(2)}% / CI ± ${(r.ci95 * 100).toFixed(2)}`} />)}
       </div>

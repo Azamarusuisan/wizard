@@ -53,6 +53,7 @@ test("equity lab shows AA vs KK", async ({ page }) => {
   await expect(page.locator('[aria-label^="Player 1:"]')).toContainText(/Eq 8[0-3]\./);
   await expect(page.locator('[aria-label^="Player 1:"]')).toContainText("W");
   await expect(page.locator('[aria-label^="Player 1:"]')).toContainText("T");
+  await expect(page.getByText(/Auto: Exact|Auto: MC/)).toBeVisible();
   await expect(page.getByLabel("Player 1 hand distribution")).toContainText("Pair");
   await page.getByLabel("Mode").selectOption("mc");
   await page.getByLabel("Iterations").fill("1000");

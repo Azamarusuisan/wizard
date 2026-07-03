@@ -50,6 +50,7 @@
 - TypeScript engine API now exposes `estimateEquityEvaluations()` and `equityAuto()` with the spec threshold of 20,000,000 evaluations; package tests cover exact vs MC switching without forcing the UI into slow preflop exact enumeration.
 - Rust equity now exposes `EXACT_EQUITY_EVAL_THRESHOLD`, heads-up NLH evaluation estimates, and an auto exact/MC switch with release tests.
 - Equity Lab now exposes Auto/Exact/MC mode and iteration controls; Playwright covers manual MC.
+- Equity Lab now displays the auto-mode exact/MC decision and estimated evaluation count from the shared TypeScript estimator while preserving the current non-blocking preflop MC default.
 - Equity Lab displays equity, win, tie, CI, and Player 1 hand-category distribution; Playwright asserts win/tie and distribution labels are present.
 - Language, theme, deck-color, and precision settings are persisted to localStorage through the Zustand store. The top bar toggles language and theme, Settings theme/deck selects update `html[data-theme]` and `html[data-deck]`, and precision select preserves `fast`/`balanced`/`precise`; unit and Playwright tests cover this.
 - NLH range parser now expands standard plus/span syntax such as `AJo+`, `TT-77:0.25`, and `76s-54s`; package tests cover the spec examples.
@@ -65,7 +66,7 @@
 - IndexedDB solve cache keys are canonical JSON SHA-256 via WebCrypto in the web layer.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `default_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~316 ns/eval, default river rows ~2.57 us. The evaluator still needs a faster table/perfect-hash path to reach the original 50M eval/s target.
-- Last verified: `bash scripts/verify.sh` exited 0 after adding Rust heads-up NLH equity auto-switch estimation and tests.
+- Last verified: `bash scripts/verify.sh` exited 0 after wiring Equity Lab auto-mode decision display to the shared estimator.
 
 ## Important Caveat
 
