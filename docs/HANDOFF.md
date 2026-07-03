@@ -21,6 +21,7 @@
 - Native and TS fallback combo EV/EQR now use strategy-weighted action EV rather than always using call EV.
 - Solve rows now carry fold/call/raise action EVs through native WASM, TS fallback, and IndexedDB cache.
 - Strategy table now displays fold/call/raise action EV columns alongside aggregate EV/EQR.
+- Trainer now scores the selected action from solve-row action EVs and displays EV loss, grade, and GTO raise frequency.
 - Solver spot payload now carries optional effective stack, and native/TS fallback/UI compute SPR as `stack / pot` instead of using a fixed display value.
 - Native and TS solve entry points now reject non-positive pot/stack and negative bet before metric calculation.
 - IndexedDB stores `solves`, `ranges`, and `training` exist in the web app. Unit tests cover range save/load, quantized solve save/load, stats, clear, and oldest-first solve pruning. Playwright covers range persistence, same-spot solve cache hit, and Settings data clearing.
