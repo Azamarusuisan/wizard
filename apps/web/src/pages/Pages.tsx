@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { parseCard, equity, parseNlhRange, parsePloRange, serializeRange, solveRiverSpot } from "@gto-lab/engine-wasm";
 import { CardView } from "../components/CardView";
@@ -56,6 +56,8 @@ export function SolverStudio() {
   const [stack, setStack] = useState(420);
   const [progress, setProgress] = useState<{ iteration: number; value: number }[]>([]);
   const [cached, setCached] = useState(false);
+  const [running, setRunning] = useState(false);
+  const cancelRef = useRef<AbortController | null>(null);
   const result = useAppStore((s) => s.result);
   const setResult = useAppStore((s) => s.setResult);
   const shown = result ?? solveRiverSpot(pot, bet, stack);
@@ -69,13 +71,24 @@ export function SolverStudio() {
         <label className="field">Stack<input type="number" min="1" value={stack} onChange={(e) => setStack(Number(e.target.value))} /></label>
         <label className="field">Board<input defaultValue="Ah Kd 7c" /></label>
         <button className="btn primary" onClick={() => {
+          const controller = new AbortController();
+          cancelRef.current = controller;
+          setRunning(true);
           setProgress([]);
           setCached(false);
-          void runSolve({ pot, bet, stack }, (p) => setProgress((xs) => [...xs, p])).then((run) => {
+          void runSolve({ pot, bet, stack }, (p) => setProgress((xs) => [...xs, p]), controller.signal).then((run) => {
             setCached(run.cached);
             setResult(run.result);
+          }).catch((err: unknown) => {
+            if (!(err instanceof DOMException && err.name === "AbortError")) throw err;
+          }).finally(() => {
+            if (cancelRef.current === controller) {
+              cancelRef.current = null;
+              setRunning(false);
+            }
           });
         }}>Start solve</button>
+        <button className="btn" disabled={!running} onClick={() => cancelRef.current?.abort()}>Cancel</button>
         {cached ? <span className="badge">cached</span> : null}
       </section>
       <section className="card">
