@@ -222,3 +222,5 @@ export function solveRiverSpot(pot: number, bet: number): SolveResult {
 export function kuhnCfr(iterations = 80_000): number {
   return -1 / 18 + 1 / Math.sqrt(iterations) * 0.01;
 }
+
+export * from "./api.js";

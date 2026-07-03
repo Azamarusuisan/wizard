@@ -11,6 +11,7 @@
 - IndexedDB stores `solves`, `ranges`, and `training` exist in the web app. Unit tests cover range save/load, quantized solve save/load, stats, clear, and oldest-first solve pruning. Playwright covers range persistence, same-spot solve cache hit, and Settings data clearing.
 - CI workflow exists for Node and Rust.
 - Production code grep for `TODO|FIXME|未実装|placeholder` is clean.
+- `packages/engine-wasm` now exposes an `EngineAPI` facade (`init`, `solve`, `pollProgress`, `getStrategy`, `getHandMetrics`, `cancel`, `serialize`, `result`). The web worker calls this interface, so replacing `LocalEngine` with the generated WASM backend is localized.
 
 ## Important Caveat
 
@@ -27,5 +28,5 @@ bash scripts/verify.sh
 ## Next Implementation Work
 
 1. Replace `cfr::leduc_exploitability`, `br::nlh_river_exploitability_pct_pot`, and `br::nlh_flop_balanced_exploitability_pct_pot` with real CFR/BR code.
-2. Move the web solver path from the TypeScript facade to the Rust/WASM EngineAPI.
+2. Replace `LocalEngine` with the generated Rust/WASM backend and add native handle/progress exports.
 3. Add `docs/COMPLETION_REPORT.md` only when the spec-vs-implementation table can honestly be all green.
