@@ -20,6 +20,7 @@
 - Native WASM solve payload now reuses the shared river best-response row builder instead of duplicating strategy formulas in the handle serializer path.
 - Native and TS fallback river solve rows now use named default row specs instead of independent ad-hoc combo/equity arrays.
 - Rust river gate/bench row generation now goes through the same default concrete combo expansion used by native solve instead of six standalone representative equities.
+- NLH river row generation now uses a small regret-matching CFR average strategy per combo over fold/call/raise EVs in both Rust native solve and TypeScript fallback, replacing immediate pure best-response rows. This is still not a full two-player public tree CFR.
 - Native and TS fallback solve progress now measures BR exploitability on interpolated strategy rows instead of emitting a synthetic linear curve.
 - Native and TS fallback combo EV/EQR now use strategy-weighted action EV rather than always using call EV.
 - Native and TS fallback tests now explicitly assert `SPR = stack / pot`, `MDF = P / (P+B)`, bluff breakeven alpha `= B / (P+B)`, and pot odds `= B / (P+2B)`.
@@ -66,7 +67,7 @@
 - IndexedDB solve cache keys are canonical JSON SHA-256 via WebCrypto in the web layer.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `default_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~316 ns/eval, default river rows ~2.57 us. The evaluator still needs a faster table/perfect-hash path to reach the original 50M eval/s target.
-- Last verified: `bash scripts/verify.sh` exited 0 after wiring Equity Lab auto-mode decision display to the shared estimator.
+- Last verified: `bash scripts/verify.sh` exited 0 after replacing immediate NLH river best-response rows with per-combo CFR average strategies.
 
 ## Important Caveat
 

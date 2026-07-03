@@ -303,9 +303,7 @@ export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2, boar
   const rows = defaultRiverCombos(board).map(({ combo, fallback, holes }) => {
     const eq = comboEquity(holes, fallback, board);
     const { callEv, raiseEv } = actionEvs(eq, pot, bet, rakePct, rakeCap);
-    const raise = raiseEv >= callEv && raiseEv >= 0 ? 1 : 0;
-    const call = !raise && callEv >= 0 ? 1 : 0;
-    const fold = raise || call ? 0 : 1;
+    const { fold, call, raise } = cfrStrategy(eq, pot, bet, rakePct, rakeCap, 2_048);
     const ev = (call * callEv + raise * raiseEv) / 100;
     return { combo, fold, call, raise, foldEv: 0, callEv: callEv / 100, raiseEv: raiseEv / 100, equity: eq, ev, eqr: ev / Math.max(0.0001, eq * pot / 100) };
   });
@@ -407,6 +405,29 @@ function bestResponseStrategy(equityValue: number, pot: number, bet: number, rak
   if (raiseEv >= callEv && raiseEv >= 0) return { fold: 0, call: 0, raise: 1 };
   if (callEv >= 0) return { fold: 0, call: 1, raise: 0 };
   return { fold: 1, call: 0, raise: 0 };
+}
+
+function cfrStrategy(equityValue: number, pot: number, bet: number, rakePct: number, rakeCap: number, iterations: number): { fold: number; call: number; raise: number } {
+  const { callEv, raiseEv } = actionEvs(equityValue, pot, bet, rakePct, rakeCap);
+  const utils = [0, callEv, raiseEv];
+  const regrets = [0, 0, 0];
+  const sum = [0, 0, 0];
+  for (let i = 0; i < Math.max(1, iterations); i++) {
+    const strategy = regretMatching(regrets);
+    const nodeEv = strategy[0]! * utils[0]! + strategy[1]! * utils[1]! + strategy[2]! * utils[2]!;
+    for (let a = 0; a < 3; a++) {
+      regrets[a]! += utils[a]! - nodeEv;
+      sum[a]! += strategy[a]!;
+    }
+  }
+  const total = sum[0]! + sum[1]! + sum[2]!;
+  return { fold: sum[0]! / total, call: sum[1]! / total, raise: sum[2]! / total };
+}
+
+function regretMatching(regrets: number[]): number[] {
+  const positives = regrets.map((r) => Math.max(0, r));
+  const total = positives.reduce((sum, value) => sum + value, 0);
+  return total > 0 ? positives.map((value) => value / total) : [1 / 3, 1 / 3, 1 / 3];
 }
 
 function actionEvs(equityValue: number, pot: number, bet: number, rakePct: number, rakeCap: number): { callEv: number; raiseEv: number } {

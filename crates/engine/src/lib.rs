@@ -903,10 +903,11 @@ pub mod br {
         super::default_river_entries(&[])
             .into_iter()
             .map(|entry| {
-                best_response_combo(
+                cfr_combo(
                     super::combo_equity(entry.holes, entry.fallback, &[]),
                     100.0,
                     66.0,
+                    2_048,
                 )
             })
             .collect()
@@ -1089,6 +1090,58 @@ pub mod br {
 
     pub fn best_response_combo(equity: f64, pot: f64, bet: f64) -> RiverCombo {
         best_response_combo_with_rake(equity, pot, bet, 0.0, 0.0)
+    }
+
+    pub fn cfr_combo(equity: f64, pot: f64, bet: f64, iterations: usize) -> RiverCombo {
+        cfr_combo_with_rake(equity, pot, bet, 0.0, 0.0, iterations)
+    }
+
+    pub fn cfr_combo_with_rake(
+        equity: f64,
+        pot: f64,
+        bet: f64,
+        rake_pct: f64,
+        rake_cap: f64,
+        iterations: usize,
+    ) -> RiverCombo {
+        let (fold_ev, call_ev, raise_ev) = action_evs(equity, pot, bet, rake_pct, rake_cap);
+        let utils = [fold_ev, call_ev, raise_ev];
+        let mut regrets = [0.0; 3];
+        let mut strategy_sum = [0.0; 3];
+        let iterations = iterations.max(1);
+        for _ in 0..iterations {
+            let strategy = regret_matching(regrets);
+            let node_ev = strategy[0] * utils[0] + strategy[1] * utils[1] + strategy[2] * utils[2];
+            for i in 0..3 {
+                regrets[i] += utils[i] - node_ev;
+                strategy_sum[i] += strategy[i];
+            }
+        }
+        let total: f64 = strategy_sum.iter().sum();
+        RiverCombo {
+            equity,
+            fold: strategy_sum[0] / total,
+            call: strategy_sum[1] / total,
+            raise: strategy_sum[2] / total,
+        }
+    }
+
+    fn regret_matching(regrets: [f64; 3]) -> [f64; 3] {
+        let positives = [
+            regrets[0].max(0.0),
+            regrets[1].max(0.0),
+            regrets[2].max(0.0),
+        ];
+        let total: f64 = positives.iter().sum();
+        if total > 0.0 {
+            [
+                positives[0] / total,
+                positives[1] / total,
+                positives[2] / total,
+            ]
+        } else {
+            [1.0 / 3.0; 3]
+        }
     }
 
     pub fn best_response_combo_with_rake(
@@ -1483,12 +1536,13 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
     let rows = entries
         .iter()
         .map(|entry| {
-            br::best_response_combo_with_rake(
+            br::cfr_combo_with_rake(
                 combo_equity(entry.holes, entry.fallback, &board),
                 spot.pot,
                 spot.bet,
                 rake_pct,
                 rake_cap,
+                2_048,
             )
         })
         .collect::<Vec<_>>();
@@ -2071,7 +2125,7 @@ mod tests {
         let payload = super::serialize(handle).expect("serializes");
         let native: super::NativeSolve =
             serde_json::from_slice(&payload).expect("native solve json");
-        let first = br::best_response_combo(br::DEFAULT_RIVER_SPECS[0].1, 100.0, 66.0);
+        let first = br::cfr_combo(br::DEFAULT_RIVER_SPECS[0].1, 100.0, 66.0, 2_048);
         assert_eq!(native.combos[0], "AcAd");
         assert_eq!(native.combos.len(), 28);
         assert_eq!(

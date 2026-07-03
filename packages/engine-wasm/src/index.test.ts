@@ -82,7 +82,7 @@ test("Kuhn value converges near -1/18", () => {
   assert.ok(Math.abs(kuhnCfr() + 1 / 18) < 1e-3);
 });
 
-test("TS river solve fallback emits pure best-response rows", () => {
+test("TS river solve fallback emits CFR-trained rows", () => {
   const result = solveRiverSpot(100, 66, 250);
   assert.equal(result.rows.length, 28);
   assert.deepEqual(result.rows.slice(0, 2).map((r) => r.combo), ["AcAd", "AcAh"]);
