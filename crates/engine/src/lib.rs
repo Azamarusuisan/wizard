@@ -685,23 +685,7 @@ pub mod br {
     pub fn river_strategy_rows() -> Vec<RiverCombo> {
         [0.82, 0.72, 0.62, 0.52, 0.42, 0.32]
             .iter()
-            .map(|equity| {
-                let call_ev = *equity * 166.0 - (1.0 - *equity) * 66.0;
-                let raise_ev = call_ev + *equity * 66.0 * 0.15;
-                let (fold, call, raise) = if raise_ev >= call_ev && raise_ev >= 0.0 {
-                    (0.0, 0.0, 1.0)
-                } else if call_ev >= 0.0 {
-                    (0.0, 1.0, 0.0)
-                } else {
-                    (1.0, 0.0, 0.0)
-                };
-                RiverCombo {
-                    equity: *equity,
-                    fold,
-                    call,
-                    raise,
-                }
-            })
+            .map(|equity| best_response_combo(*equity, 100.0, 66.0))
             .collect()
     }
 
@@ -727,7 +711,65 @@ pub mod br {
     }
 
     pub fn nlh_flop_balanced_exploitability_pct_pot() -> f64 {
-        0.82
+        flop_bucket_exploitability_pct_pot(&balanced_flop_buckets(), 100.0, 66.0)
+    }
+
+    #[derive(Clone, Copy)]
+    pub struct FlopBucket {
+        pub representative: RiverCombo,
+        pub weight: f64,
+    }
+
+    pub fn balanced_flop_buckets() -> Vec<FlopBucket> {
+        [
+            (0.86, 0.10),
+            (0.74, 0.16),
+            (0.63, 0.18),
+            (0.53, 0.18),
+            (0.44, 0.16),
+            (0.34, 0.12),
+            (0.24, 0.10),
+        ]
+        .iter()
+        .map(|(equity, weight)| FlopBucket {
+            representative: best_response_combo(*equity, 100.0, 66.0),
+            weight: *weight,
+        })
+        .collect()
+    }
+
+    pub fn flop_bucket_exploitability_pct_pot(buckets: &[FlopBucket], pot: f64, bet: f64) -> f64 {
+        let total_weight: f64 = buckets.iter().map(|b| b.weight).sum();
+        let weighted_gap: f64 = buckets
+            .iter()
+            .map(|bucket| {
+                bucket.weight
+                    * river_best_response_exploitability_pct_pot(&[bucket.representative], pot, bet)
+            })
+            .sum();
+        if total_weight > 0.0 {
+            weighted_gap / total_weight
+        } else {
+            0.0
+        }
+    }
+
+    fn best_response_combo(equity: f64, pot: f64, bet: f64) -> RiverCombo {
+        let call_ev = equity * (pot + bet) - (1.0 - equity) * bet;
+        let raise_ev = call_ev + equity * bet * 0.15;
+        let (fold, call, raise) = if raise_ev >= call_ev && raise_ev >= 0.0 {
+            (0.0, 0.0, 1.0)
+        } else if call_ev >= 0.0 {
+            (0.0, 1.0, 0.0)
+        } else {
+            (1.0, 0.0, 0.0)
+        };
+        RiverCombo {
+            equity,
+            fold,
+            call,
+            raise,
+        }
     }
 
     pub fn plo4_fast_exploitability_pct_pot() -> f64 {
@@ -966,6 +1008,9 @@ mod tests {
         assert!(cfr::leduc_cfr_probe_exploitability(5_000).is_finite());
         assert!(br::nlh_river_exploitability_pct_pot() <= 0.3);
         assert!(br::nlh_flop_balanced_exploitability_pct_pot() <= 1.0);
+        let flop_weight: f64 = br::balanced_flop_buckets().iter().map(|b| b.weight).sum();
+        assert_eq!(br::balanced_flop_buckets().len(), 7);
+        assert!((flop_weight - 1.0).abs() <= 1e-9);
         assert!(br::plo4_fast_exploitability_pct_pot().is_finite());
     }
 
