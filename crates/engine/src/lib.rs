@@ -222,7 +222,7 @@ pub mod iso {
 }
 
 pub mod equity {
-    use crate::eval::{evaluate_nlh7, Card};
+    use crate::eval::{evaluate_nlh7, evaluate_plo, Card};
 
     pub struct EquityMc {
         pub equity: f64,
@@ -289,6 +289,39 @@ pub mod equity {
             samples,
             ci95: 1.96 * ((equity * (1.0 - equity)) / samples as f64).sqrt(),
         }
+    }
+
+    pub fn plo4_vs_random_equity_mc(hero: [Card; 4], samples: usize, seed: u64) -> EquityMc {
+        let dead = hero.to_vec();
+        assert_eq!(unique_len(&dead), hero.len());
+        let deck: Vec<Card> = (0..52).filter(|c| !dead.contains(c)).collect();
+        let mut rng = Lcg(seed);
+        let mut wins = 0.0;
+        for _ in 0..samples {
+            let drawn = sample_runout(&deck, 9, &mut rng);
+            let villain = [drawn[0], drawn[1], drawn[2], drawn[3]];
+            let board = [drawn[4], drawn[5], drawn[6], drawn[7], drawn[8]];
+            let hero_rank = evaluate_plo(&hero, &board);
+            let villain_rank = evaluate_plo(&villain, &board);
+            if hero_rank > villain_rank {
+                wins += 1.0;
+            } else if hero_rank == villain_rank {
+                wins += 0.5;
+            }
+        }
+        let equity = wins / samples as f64;
+        EquityMc {
+            equity,
+            samples,
+            ci95: 1.96 * ((equity * (1.0 - equity)) / samples as f64).sqrt(),
+        }
+    }
+
+    fn unique_len(cards: &[Card]) -> usize {
+        let mut sorted = cards.to_vec();
+        sorted.sort_unstable();
+        sorted.dedup();
+        sorted.len()
     }
 
     struct Lcg(u64);
@@ -1174,6 +1207,15 @@ mod tests {
         let one_heart = [c(8, 2), c(7, 0), c(6, 1), c(5, 3)];
         let two_hearts = [c(8, 2), c(7, 2), c(6, 1), c(5, 3)];
         assert!(eval::evaluate_plo(&two_hearts, &board) > eval::evaluate_plo(&one_heart, &board));
+    }
+
+    #[test]
+    fn plo4_double_suited_aa_monotonicity() {
+        let aa_kq_ds = [c(12, 0), c(12, 1), c(11, 0), c(10, 1)];
+        let aa_kq_rainbow = [c(12, 0), c(12, 1), c(11, 2), c(10, 3)];
+        let ds = equity::plo4_vs_random_equity_mc(aa_kq_ds, 30_000, 19);
+        let rainbow = equity::plo4_vs_random_equity_mc(aa_kq_rainbow, 30_000, 19);
+        assert!(ds.equity > rainbow.equity, "{} {}", ds.equity, rainbow.equity);
     }
 
     #[test]
