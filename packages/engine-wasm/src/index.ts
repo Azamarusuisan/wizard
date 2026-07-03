@@ -262,18 +262,19 @@ export const DEFAULT_RIVER_SPECS = [
   ["A5s", 0.32]
 ] as const;
 
-export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2, boardText = ""): SolveResult {
+export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2, boardText = "", rakePct = 0, rakeCap = 0): SolveResult {
   if (!Number.isFinite(pot) || pot <= 0) throw new Error("pot must be positive");
   if (!Number.isFinite(bet) || bet < 0) throw new Error("bet must be non-negative");
   if (!Number.isFinite(stack) || stack <= 0) throw new Error("stack must be positive");
+  if (!Number.isFinite(rakePct) || rakePct < 0 || rakePct > 100) throw new Error("rake percent must be 0-100");
+  if (!Number.isFinite(rakeCap) || rakeCap < 0) throw new Error("rake cap must be non-negative");
   const board = parseBoardText(boardText);
   const potOdds = bet / (pot + 2 * bet);
   const mdf = pot / (pot + bet);
   const alpha = bet / (pot + bet);
   const rows = DEFAULT_RIVER_SPECS.map(([combo, e]) => {
     const eq = boardEquity(combo, e, board);
-    const callEv = eq * (pot + bet) - (1 - eq) * bet;
-    const raiseEv = callEv + eq * bet * 0.15;
+    const { callEv, raiseEv } = actionEvs(eq, pot, bet, rakePct, rakeCap);
     const raise = raiseEv >= callEv && raiseEv >= 0 ? 1 : 0;
     const call = !raise && callEv >= 0 ? 1 : 0;
     const fold = raise || call ? 0 : 1;
@@ -282,9 +283,19 @@ export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2, boar
   });
   return {
     rows,
-    exploitability: riverStrategyProgress(rows, pot, bet, 36).map((value, i) => ({ iteration: (i + 1) * 50, value })),
+    exploitability: riverStrategyProgress(rows, pot, bet, 36, rakePct, rakeCap).map((value, i) => ({ iteration: (i + 1) * 50, value })),
     metrics: { spr: stack / pot, mdf, alpha, potOdds }
   };
+}
+
+function actionEvs(equityValue: number, pot: number, bet: number, rakePct: number, rakeCap: number): { callEv: number; raiseEv: number } {
+  const winPot = pot + bet - rakeAmount(pot + bet, rakePct, rakeCap);
+  const callEv = equityValue * winPot - (1 - equityValue) * bet;
+  return { callEv, raiseEv: callEv + equityValue * bet * 0.15 };
+}
+
+function rakeAmount(potAfterCall: number, rakePct: number, rakeCap: number): number {
+  return Math.min(potAfterCall * (rakePct / 100), rakeCap);
 }
 
 function parseBoardText(text: string): Card[] {
@@ -323,7 +334,7 @@ function pickSuited(a: number, b: number, blocked: Card[]): Card[] | null {
   return null;
 }
 
-function riverStrategyProgress(rows: SolverRow[], pot: number, bet: number, points: number): number[] {
+function riverStrategyProgress(rows: SolverRow[], pot: number, bet: number, points: number, rakePct: number, rakeCap: number): number[] {
   return Array.from({ length: points }, (_, i) => {
     const t = (i + 1) / points;
     const mixed = rows.map((row) => ({
@@ -332,17 +343,16 @@ function riverStrategyProgress(rows: SolverRow[], pot: number, bet: number, poin
       call: (1 - t) / 3 + t * row.call,
       raise: (1 - t) / 3 + t * row.raise
     }));
-    return riverExploitability(mixed, pot, bet);
+    return riverExploitability(mixed, pot, bet, rakePct, rakeCap);
   });
 }
 
-function riverExploitability(rows: SolverRow[], pot: number, bet: number): number {
+function riverExploitability(rows: SolverRow[], pot: number, bet: number, rakePct: number, rakeCap: number): number {
   let strategyEv = 0;
   let bestEv = 0;
   for (const row of rows) {
     const foldEv = 0;
-    const callEv = row.equity * (pot + bet) - (1 - row.equity) * bet;
-    const raiseEv = callEv + row.equity * bet * 0.15;
+    const { callEv, raiseEv } = actionEvs(row.equity, pot, bet, rakePct, rakeCap);
     strategyEv += row.fold * foldEv + row.call * callEv + row.raise * raiseEv;
     bestEv += Math.max(foldEv, callEv, raiseEv);
   }

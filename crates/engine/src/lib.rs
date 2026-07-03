@@ -864,12 +864,20 @@ pub mod br {
         pot: f64,
         bet: f64,
     ) -> f64 {
+        river_best_response_exploitability_pct_pot_with_rake(rows, pot, bet, 0.0, 0.0)
+    }
+
+    pub fn river_best_response_exploitability_pct_pot_with_rake(
+        rows: &[RiverCombo],
+        pot: f64,
+        bet: f64,
+        rake_pct: f64,
+        rake_cap: f64,
+    ) -> f64 {
         let mut strategy_ev = 0.0;
         let mut best_ev = 0.0;
         for row in rows {
-            let fold_ev = 0.0;
-            let call_ev = row.equity * (pot + bet) - (1.0 - row.equity) * bet;
-            let raise_ev = call_ev + row.equity * bet * 0.15;
+            let (fold_ev, call_ev, raise_ev) = action_evs(row.equity, pot, bet, rake_pct, rake_cap);
             strategy_ev += row.fold * fold_ev + row.call * call_ev + row.raise * raise_ev;
             best_ev += fold_ev.max(call_ev).max(raise_ev);
         }
@@ -881,6 +889,17 @@ pub mod br {
         pot: f64,
         bet: f64,
         points: usize,
+    ) -> Vec<f64> {
+        river_strategy_progress_with_rake(rows, pot, bet, points, 0.0, 0.0)
+    }
+
+    pub fn river_strategy_progress_with_rake(
+        rows: &[RiverCombo],
+        pot: f64,
+        bet: f64,
+        points: usize,
+        rake_pct: f64,
+        rake_cap: f64,
     ) -> Vec<f64> {
         (1..=points)
             .map(|i| {
@@ -894,7 +913,9 @@ pub mod br {
                         raise: (1.0 - t) / 3.0 + t * row.raise,
                     })
                     .collect::<Vec<_>>();
-                river_best_response_exploitability_pct_pot(&mixed, pot, bet)
+                river_best_response_exploitability_pct_pot_with_rake(
+                    &mixed, pot, bet, rake_pct, rake_cap,
+                )
             })
             .collect()
     }
@@ -1010,8 +1031,17 @@ pub mod br {
     }
 
     pub fn best_response_combo(equity: f64, pot: f64, bet: f64) -> RiverCombo {
-        let call_ev = equity * (pot + bet) - (1.0 - equity) * bet;
-        let raise_ev = call_ev + equity * bet * 0.15;
+        best_response_combo_with_rake(equity, pot, bet, 0.0, 0.0)
+    }
+
+    pub fn best_response_combo_with_rake(
+        equity: f64,
+        pot: f64,
+        bet: f64,
+        rake_pct: f64,
+        rake_cap: f64,
+    ) -> RiverCombo {
+        let (_, call_ev, raise_ev) = action_evs(equity, pot, bet, rake_pct, rake_cap);
         let (fold, call, raise) = if raise_ev >= call_ev && raise_ev >= 0.0 {
             (0.0, 0.0, 1.0)
         } else if call_ev >= 0.0 {
@@ -1028,10 +1058,36 @@ pub mod br {
     }
 
     pub fn strategy_ev(row: RiverCombo, pot: f64, bet: f64) -> f64 {
-        let fold_ev = 0.0;
-        let call_ev = row.equity * (pot + bet) - (1.0 - row.equity) * bet;
-        let raise_ev = call_ev + row.equity * bet * 0.15;
+        strategy_ev_with_rake(row, pot, bet, 0.0, 0.0)
+    }
+
+    pub fn strategy_ev_with_rake(
+        row: RiverCombo,
+        pot: f64,
+        bet: f64,
+        rake_pct: f64,
+        rake_cap: f64,
+    ) -> f64 {
+        let (fold_ev, call_ev, raise_ev) = action_evs(row.equity, pot, bet, rake_pct, rake_cap);
         row.fold * fold_ev + row.call * call_ev + row.raise * raise_ev
+    }
+
+    pub fn action_evs(
+        equity: f64,
+        pot: f64,
+        bet: f64,
+        rake_pct: f64,
+        rake_cap: f64,
+    ) -> (f64, f64, f64) {
+        let fold_ev = 0.0;
+        let win_pot = pot + bet - rake_amount(pot + bet, rake_pct, rake_cap);
+        let call_ev = equity * win_pot - (1.0 - equity) * bet;
+        let raise_ev = call_ev + equity * bet * 0.15;
+        (fold_ev, call_ev, raise_ev)
+    }
+
+    fn rake_amount(pot_after_call: f64, rake_pct: f64, rake_cap: f64) -> f64 {
+        (pot_after_call * (rake_pct / 100.0)).min(rake_cap)
     }
 
     pub fn plo4_fast_exploitability_pct_pot() -> f64 {
@@ -1205,6 +1261,10 @@ struct NativeSpot {
     bet: f64,
     stack: Option<f64>,
     board: Option<String>,
+    #[serde(rename = "rakePct")]
+    rake_pct: Option<f64>,
+    #[serde(rename = "rakeCap")]
+    rake_cap: Option<f64>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -1257,6 +1317,7 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
     let mdf = spot.pot / (spot.pot + spot.bet);
     let alpha = spot.bet / (spot.pot + spot.bet);
     let spr = spot.stack.unwrap_or(spot.pot * 4.2) / spot.pot;
+    let (rake_pct, rake_cap) = spot_rake(&spot);
     let combos = br::DEFAULT_RIVER_SPECS
         .iter()
         .map(|(combo, _)| combo.to_string())
@@ -1267,30 +1328,36 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
     let rows = br::DEFAULT_RIVER_SPECS
         .iter()
         .map(|(combo, equity)| {
-            br::best_response_combo(board_equity(combo, *equity, &board), spot.pot, spot.bet)
+            br::best_response_combo_with_rake(
+                board_equity(combo, *equity, &board),
+                spot.pot,
+                spot.bet,
+                rake_pct,
+                rake_cap,
+            )
         })
         .collect::<Vec<_>>();
     for row in &rows {
         let equity = row.equity;
-        let fold_ev = 0.0;
-        let call_ev = equity * (spot.pot + spot.bet) - (1.0 - equity) * spot.bet;
-        let raise_ev = call_ev + equity * spot.bet * 0.15;
-        let ev = br::strategy_ev(*row, spot.pot, spot.bet) / 100.0;
+        let (fold_ev, call_ev, raise_ev) =
+            br::action_evs(equity, spot.pot, spot.bet, rake_pct, rake_cap);
+        let ev = br::strategy_ev_with_rake(*row, spot.pot, spot.bet, rake_pct, rake_cap) / 100.0;
         let eqr = ev / (equity * spot.pot / 100.0).max(0.0001);
         strategy.extend([row.fold, row.call, row.raise]);
         action_evs.extend([fold_ev / 100.0, call_ev / 100.0, raise_ev / 100.0]);
         metrics.extend([ev, equity, eqr]);
     }
     metrics.extend([spr, mdf, alpha, pot_odds]);
-    let progress = br::river_strategy_progress(&rows, spot.pot, spot.bet, 36)
-        .into_iter()
-        .enumerate()
-        .map(|(i, exploitability_pct)| NativeProgress {
-            iter: (i as u32 + 1) * 50,
-            exploitability_pct,
-            elapsed: 0.0,
-        })
-        .collect();
+    let progress =
+        br::river_strategy_progress_with_rake(&rows, spot.pot, spot.bet, 36, rake_pct, rake_cap)
+            .into_iter()
+            .enumerate()
+            .map(|(i, exploitability_pct)| NativeProgress {
+                iter: (i as u32 + 1) * 50,
+                exploitability_pct,
+                elapsed: 0.0,
+            })
+            .collect();
     let solve = NativeSolve {
         spot,
         combos,
@@ -1320,8 +1387,19 @@ fn validate_spot(spot: &NativeSpot) -> Result<(), String> {
             return Err("stack must be positive".to_string());
         }
     }
+    let (rake_pct, rake_cap) = spot_rake(spot);
+    if !(rake_pct.is_finite() && (0.0..=100.0).contains(&rake_pct)) {
+        return Err("rake percent must be 0-100".to_string());
+    }
+    if !(rake_cap.is_finite() && rake_cap >= 0.0) {
+        return Err("rake cap must be non-negative".to_string());
+    }
     parse_board(spot.board.as_deref().unwrap_or(""))?;
     Ok(())
+}
+
+fn spot_rake(spot: &NativeSpot) -> (f64, f64) {
+    (spot.rake_pct.unwrap_or(0.0), spot.rake_cap.unwrap_or(0.0))
 }
 
 fn parse_board(text: &str) -> Result<Vec<eval::Card>, String> {
@@ -1683,12 +1761,31 @@ mod tests {
     }
 
     #[test]
+    fn native_solve_subtracts_capped_rake_from_showdown_ev() {
+        super::init(None);
+        let no_rake = super::solve(r#"{"pot":100.0,"bet":66.0,"stack":250.0}"#).unwrap();
+        let raked =
+            super::solve(r#"{"pot":100.0,"bet":66.0,"stack":250.0,"rakePct":5.0,"rakeCap":10.0}"#)
+                .unwrap();
+        let no_rake_payload = super::serialize(no_rake).unwrap();
+        let raked_payload = super::serialize(raked).unwrap();
+        let no_rake_native: super::NativeSolve = serde_json::from_slice(&no_rake_payload).unwrap();
+        let raked_native: super::NativeSolve = serde_json::from_slice(&raked_payload).unwrap();
+        assert!(raked_native.action_evs[1] < no_rake_native.action_evs[1]);
+        assert!(raked_native.action_evs[2] < no_rake_native.action_evs[2]);
+        super::cancel(no_rake).unwrap();
+        super::cancel(raked).unwrap();
+    }
+
+    #[test]
     fn native_solve_rejects_invalid_spots() {
         assert!(super::validate_spot(&super::NativeSpot {
             pot: 0.0,
             bet: 66.0,
             stack: None,
             board: None,
+            rake_pct: None,
+            rake_cap: None,
         })
         .is_err());
         assert!(super::validate_spot(&super::NativeSpot {
@@ -1696,6 +1793,8 @@ mod tests {
             bet: -1.0,
             stack: None,
             board: None,
+            rake_pct: None,
+            rake_cap: None,
         })
         .is_err());
         assert!(super::validate_spot(&super::NativeSpot {
@@ -1703,6 +1802,8 @@ mod tests {
             bet: 66.0,
             stack: Some(0.0),
             board: None,
+            rake_pct: None,
+            rake_cap: None,
         })
         .is_err());
         assert!(super::validate_spot(&super::NativeSpot {
@@ -1710,6 +1811,17 @@ mod tests {
             bet: 66.0,
             stack: None,
             board: Some("Ah Ah".to_string()),
+            rake_pct: None,
+            rake_cap: None,
+        })
+        .is_err());
+        assert!(super::validate_spot(&super::NativeSpot {
+            pot: 100.0,
+            bet: 66.0,
+            stack: None,
+            board: None,
+            rake_pct: Some(-1.0),
+            rake_cap: None,
         })
         .is_err());
     }

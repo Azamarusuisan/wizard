@@ -1,4 +1,4 @@
-export type SolverSpot = { pot: number; bet: number; stack: number; board: string };
+export type SolverSpot = { pot: number; bet: number; stack: number; board: string; rakePct: number; rakeCap: number };
 
 export function encodeSpot(spot: SolverSpot): string {
   const json = JSON.stringify(spot);
@@ -15,7 +15,10 @@ export function decodeSpot(value: string | null): SolverSpot | null {
     const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
     const raw = JSON.parse(new TextDecoder().decode(bytes)) as Partial<SolverSpot>;
     if (!validNumber(raw.pot) || !validNumber(raw.bet) || !validNumber(raw.stack) || typeof raw.board !== "string") return null;
-    return { pot: raw.pot, bet: raw.bet, stack: raw.stack, board: raw.board };
+    const rakePct = raw.rakePct ?? 0;
+    const rakeCap = raw.rakeCap ?? 0;
+    if (!validNumber(rakePct) || !validNumber(rakeCap)) return null;
+    return { pot: raw.pot, bet: raw.bet, stack: raw.stack, board: raw.board, rakePct, rakeCap };
   } catch {
     return null;
   }

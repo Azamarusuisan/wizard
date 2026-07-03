@@ -7,6 +7,8 @@ test("solver runs and displays strategy metrics", async ({ page }) => {
   await expect(page.getByRole("alert")).toContainText("duplicate");
   await expect(page.getByRole("button", { name: "Start solve" })).toBeDisabled();
   await page.getByLabel("Board").fill("Ah Kd 7c");
+  await page.getByLabel("Rake %").fill("5");
+  await page.getByLabel("Rake cap").fill("10");
   await page.getByRole("button", { name: "Start solve" }).click();
   await expect(page.getByRole("button", { name: "Cancel" })).toBeEnabled();
   await expect(page.getByRole("table", { name: "strategy table" })).toContainText("AA");

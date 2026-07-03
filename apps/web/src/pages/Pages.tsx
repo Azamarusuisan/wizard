@@ -56,6 +56,8 @@ export function SolverStudio() {
   const [pot, setPot] = useState(shared?.pot ?? 100);
   const [bet, setBet] = useState(shared?.bet ?? 66);
   const [stack, setStack] = useState(shared?.stack ?? 420);
+  const [rakePct, setRakePct] = useState(shared?.rakePct ?? 0);
+  const [rakeCap, setRakeCap] = useState(shared?.rakeCap ?? 0);
   const [board, setBoard] = useState(shared?.board ?? "Ah Kd 7c");
   const [progress, setProgress] = useState<{ iteration: number; value: number }[]>([]);
   const [cached, setCached] = useState(false);
@@ -65,11 +67,11 @@ export function SolverStudio() {
   const setResult = useAppStore((s) => s.setResult);
   const preview = useMemo(() => {
     try {
-      return { result: solveRiverSpot(pot, bet, stack, board), error: "" };
+      return { result: solveRiverSpot(pot, bet, stack, board, rakePct, rakeCap), error: "" };
     } catch (err) {
       return { result: null, error: err instanceof Error ? err.message : "invalid spot" };
     }
-  }, [pot, bet, stack, board]);
+  }, [pot, bet, stack, board, rakePct, rakeCap]);
   const shown = preview.error ? null : result ?? preview.result;
   return (
     <div className="split">
@@ -79,6 +81,8 @@ export function SolverStudio() {
         <label className="field">Pot<input type="number" min="1" value={pot} onChange={(e) => setPot(Number(e.target.value))} /></label>
         <label className="field">Bet<input type="number" min="0" value={bet} onChange={(e) => setBet(Number(e.target.value))} /></label>
         <label className="field">Stack<input type="number" min="1" value={stack} onChange={(e) => setStack(Number(e.target.value))} /></label>
+        <label className="field">Rake %<input type="number" min="0" max="100" step="0.1" value={rakePct} onChange={(e) => setRakePct(Number(e.target.value))} /></label>
+        <label className="field">Rake cap<input type="number" min="0" step="0.1" value={rakeCap} onChange={(e) => setRakeCap(Number(e.target.value))} /></label>
         <label className="field">Board<input value={board} onChange={(e) => setBoard(e.target.value)} /></label>
         {preview.error ? <p className="error" role="alert">{preview.error}</p> : null}
         <button className="btn primary" disabled={!!preview.error || running} onClick={() => {
@@ -88,8 +92,9 @@ export function SolverStudio() {
           setRunning(true);
           setProgress([]);
           setCached(false);
-          history.replaceState(null, "", `/solver?spot=${encodeSpot({ pot, bet, stack, board })}`);
-          void runSolve({ pot, bet, stack, board }, (p) => setProgress((xs) => [...xs, p]), controller.signal).then((run) => {
+          const payload = { pot, bet, stack, board, rakePct, rakeCap };
+          history.replaceState(null, "", `/solver?spot=${encodeSpot(payload)}`);
+          void runSolve(payload, (p) => setProgress((xs) => [...xs, p]), controller.signal).then((run) => {
             setCached(run.cached);
             setResult(run.result);
           }).catch((err: unknown) => {
