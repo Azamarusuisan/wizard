@@ -1140,6 +1140,19 @@ mod tests {
     }
 
     #[test]
+    fn equity_additional_benchmark_gates() {
+        let aks = [c(12, 0), c(11, 0)];
+        let qq = [c(10, 1), c(10, 2)];
+        let e = equity::heads_up_nlh_equity_exact(aks, qq, &[]);
+        assert!((0.45..=0.47).contains(&e), "{e}");
+
+        let suited = equity::heads_up_nlh_equity_exact([c(12, 0), c(11, 0)], [c(10, 1), c(10, 2)], &[]);
+        let mirrored =
+            equity::heads_up_nlh_equity_exact([c(12, 3), c(11, 3)], [c(10, 1), c(10, 2)], &[]);
+        assert!((suited - mirrored).abs() <= 1e-12, "{suited} {mirrored}");
+    }
+
+    #[test]
     fn solver_gates_report_values_under_thresholds() {
         assert!((cfr::kuhn_value(100_000) + 1.0 / 18.0).abs() <= 1e-3);
         assert_eq!(cfr::leduc_fold_payoff_examples(), (1.0, -1.0));
