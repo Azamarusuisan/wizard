@@ -8,6 +8,7 @@
 - Rust crate now has modules for `eval`, `iso`, `equity`, `tree`, `cfr`, `br`, and `bucket`.
 - Suit-isomorphism class counts are now exhaustive Rust tests for NLH preflop, PLO4, PLO5, and flop: `169 / 16,432 / 134,459 / 1,755`.
 - Kuhn poker gate now runs an actual CFR trainer and converges to `-1/18 ± 1e-3`.
+- Leduc has a tabular CFR + average-strategy BR probe in Rust, but the measured BR is still too high to replace the current gate. Treat this as the next debugging target: likely BR normalization, game-tree definition, or average-strategy weighting.
 - IndexedDB stores `solves`, `ranges`, and `training` exist in the web app. Unit tests cover range save/load, quantized solve save/load, stats, clear, and oldest-first solve pruning. Playwright covers range persistence, same-spot solve cache hit, and Settings data clearing.
 - CI workflow exists for Node and Rust.
 - Production code grep for `TODO|FIXME|未実装|placeholder` is clean.
@@ -27,6 +28,7 @@ bash scripts/verify.sh
 
 ## Next Implementation Work
 
-1. Replace `cfr::leduc_exploitability`, `br::nlh_river_exploitability_pct_pot`, and `br::nlh_flop_balanced_exploitability_pct_pot` with real CFR/BR code.
-2. Replace `LocalEngine` with the generated Rust/WASM backend and add native handle/progress exports.
-3. Add `docs/COMPLETION_REPORT.md` only when the spec-vs-implementation table can honestly be all green.
+1. Fix the Leduc CFR/BR probe so its measured exploitability reaches `<= 0.01`, then replace `cfr::leduc_exploitability`.
+2. Replace `br::nlh_river_exploitability_pct_pot` and `br::nlh_flop_balanced_exploitability_pct_pot` with real CFR/BR code.
+3. Replace `LocalEngine` with the generated Rust/WASM backend and add native handle/progress exports.
+4. Add `docs/COMPLETION_REPORT.md` only when the spec-vs-implementation table can honestly be all green.

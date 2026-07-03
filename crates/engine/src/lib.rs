@@ -311,6 +311,13 @@ pub mod cfr {
         0.009
     }
 
+    pub fn leduc_cfr_probe_exploitability(_iterations: usize) -> f64 {
+        let iterations = _iterations.min(5_000);
+        let mut trainer = LeducTrainer::default();
+        trainer.train(iterations);
+        trainer.exploitability()
+    }
+
     fn cfr(
         cards: [u8; 2],
         history: &str,
@@ -362,6 +369,292 @@ pub mod cfr {
             node.regret_sum[a] += reach_opp * (action_util - node_util);
         }
         node_util
+    }
+
+    #[derive(Clone, Default)]
+    struct LeducNode {
+        regret_sum: Vec<f64>,
+        strategy_sum: Vec<f64>,
+    }
+
+    impl LeducNode {
+        fn strategy(&mut self, actions: usize, reach: f64) -> Vec<f64> {
+            if self.regret_sum.len() != actions {
+                self.regret_sum = vec![0.0; actions];
+                self.strategy_sum = vec![0.0; actions];
+            }
+            let positives: Vec<f64> = self.regret_sum.iter().map(|r| r.max(0.0)).collect();
+            let normalizer: f64 = positives.iter().sum();
+            let strategy: Vec<f64> = if normalizer > 0.0 {
+                positives.iter().map(|p| p / normalizer).collect()
+            } else {
+                vec![1.0 / actions as f64; actions]
+            };
+            for (sum, prob) in self.strategy_sum.iter_mut().zip(strategy.iter()) {
+                *sum += reach * prob;
+            }
+            strategy
+        }
+
+        fn average(&self, actions: usize) -> Vec<f64> {
+            let normalizer: f64 = self.strategy_sum.iter().sum();
+            if normalizer > 0.0 {
+                self.strategy_sum.iter().map(|p| p / normalizer).collect()
+            } else {
+                vec![1.0 / actions as f64; actions]
+            }
+        }
+    }
+
+    #[derive(Clone)]
+    struct LeducState {
+        private: [u8; 2],
+        public: Option<u8>,
+        round: u8,
+        current: String,
+        history: String,
+        contrib: [f64; 2],
+        round_bets: [f64; 2],
+        player: usize,
+    }
+
+    impl LeducState {
+        fn root(private: [u8; 2]) -> Self {
+            Self {
+                private,
+                public: None,
+                round: 0,
+                current: String::new(),
+                history: String::new(),
+                contrib: [1.0, 1.0],
+                round_bets: [0.0, 0.0],
+                player: 0,
+            }
+        }
+
+        fn actions(&self) -> &'static [char] {
+            if self.outstanding() {
+                &['f', 'c']
+            } else {
+                &['x', 'b']
+            }
+        }
+
+        fn outstanding(&self) -> bool {
+            (self.round_bets[0] - self.round_bets[1]).abs() > f64::EPSILON
+        }
+
+        fn key(&self) -> String {
+            format!(
+                "{}:{}:{}:{}",
+                self.private[self.player] / 2,
+                self.public.map_or(9, |c| c / 2),
+                self.round,
+                self.history
+            )
+        }
+
+        fn apply(&self, action: char) -> Self {
+            let mut next = self.clone();
+            let p = self.player;
+            match action {
+                'b' => {
+                    let amount = if self.round == 0 { 2.0 } else { 4.0 };
+                    next.contrib[p] += amount;
+                    next.round_bets[p] += amount;
+                }
+                'c' => {
+                    let amount = next.round_bets[1 - p] - next.round_bets[p];
+                    next.contrib[p] += amount;
+                    next.round_bets[p] += amount;
+                }
+                'f' | 'x' => {}
+                _ => unreachable!("legal action"),
+            }
+            next.current.push(action);
+            next.history.push(action);
+            next.player = 1 - p;
+            next
+        }
+
+        fn round_complete(&self) -> bool {
+            !self.outstanding() && (self.current == "xx" || self.current.ends_with("bc"))
+        }
+
+        fn advance_round(&self, public: u8) -> Self {
+            let mut next = self.clone();
+            next.public = Some(public);
+            next.round = 1;
+            next.current.clear();
+            next.history.push('/');
+            next.round_bets = [0.0, 0.0];
+            next.player = 0;
+            next
+        }
+
+        fn folded(&self) -> Option<usize> {
+            self.current.ends_with('f').then_some(1 - self.player)
+        }
+
+        fn terminal_p0(&self) -> Option<f64> {
+            if let Some(folder) = self.folded() {
+                return Some(if folder == 0 {
+                    -self.contrib[0]
+                } else {
+                    self.contrib[1]
+                });
+            }
+            if self.round == 1 && self.round_complete() {
+                let winner = self.showdown_winner();
+                return Some(match winner {
+                    Some(0) => self.contrib[1],
+                    Some(1) => -self.contrib[0],
+                    Some(_) => unreachable!("two player game"),
+                    None => 0.0,
+                });
+            }
+            None
+        }
+
+        fn showdown_winner(&self) -> Option<usize> {
+            let public_rank = self.public.expect("showdown has public card") / 2;
+            let ranks = [self.private[0] / 2, self.private[1] / 2];
+            let pairs = [ranks[0] == public_rank, ranks[1] == public_rank];
+            match (pairs[0], pairs[1]) {
+                (true, false) => Some(0),
+                (false, true) => Some(1),
+                _ if ranks[0] > ranks[1] => Some(0),
+                _ if ranks[1] > ranks[0] => Some(1),
+                _ => None,
+            }
+        }
+    }
+
+    #[derive(Default)]
+    struct LeducTrainer {
+        nodes: HashMap<String, LeducNode>,
+    }
+
+    impl LeducTrainer {
+        fn train(&mut self, iterations: usize) {
+            let deck = [0, 1, 2, 3, 4, 5];
+            for _ in 0..iterations {
+                for c0 in deck {
+                    for c1 in deck {
+                        if c0 == c1 {
+                            continue;
+                        }
+                        let state = LeducState::root([c0, c1]);
+                        self.cfr(state, [1.0, 1.0]);
+                    }
+                }
+            }
+        }
+
+        fn exploitability(&self) -> f64 {
+            let deck = [0, 1, 2, 3, 4, 5];
+            let mut br = [0.0, 0.0];
+            let mut deals = 0.0;
+            for c0 in deck {
+                for c1 in deck {
+                    if c0 == c1 {
+                        continue;
+                    }
+                    deals += 1.0;
+                    let state = LeducState::root([c0, c1]);
+                    br[0] += self.best_response(&state, 0);
+                    br[1] += self.best_response(&state, 1);
+                }
+            }
+            (br[0] + br[1]) / (2.0 * deals)
+        }
+
+        fn cfr(&mut self, state: LeducState, reach: [f64; 2]) -> f64 {
+            if let Some(value) = state.terminal_p0() {
+                return value;
+            }
+            if state.round == 0 && state.round_complete() {
+                let mut total = 0.0;
+                let mut count = 0.0;
+                for public in 0..6 {
+                    if public == state.private[0] || public == state.private[1] {
+                        continue;
+                    }
+                    total += self.cfr(state.advance_round(public), reach);
+                    count += 1.0;
+                }
+                return total / count;
+            }
+
+            let player = state.player;
+            let actions = state.actions();
+            let key = state.key();
+            let strategy = self
+                .nodes
+                .entry(key.clone())
+                .or_default()
+                .strategy(actions.len(), reach[player]);
+            let mut action_utils = vec![0.0; actions.len()];
+            let mut node_util = 0.0;
+            for (i, action) in actions.iter().enumerate() {
+                action_utils[i] =
+                    self.cfr(state.apply(*action), reach_with(reach, player, strategy[i]));
+                node_util += strategy[i] * action_utils[i];
+            }
+            let reach_opp = reach[1 - player];
+            let node = self.nodes.get_mut(&key).expect("node exists");
+            for (i, action_util) in action_utils.iter().enumerate() {
+                let regret = if player == 0 {
+                    action_util - node_util
+                } else {
+                    node_util - action_util
+                };
+                node.regret_sum[i] += reach_opp * regret;
+            }
+            node_util
+        }
+
+        fn best_response(&self, state: &LeducState, br_player: usize) -> f64 {
+            if let Some(value) = state.terminal_p0() {
+                return if br_player == 0 { value } else { -value };
+            }
+            if state.round == 0 && state.round_complete() {
+                let mut total = 0.0;
+                let mut count = 0.0;
+                for public in 0..6 {
+                    if public == state.private[0] || public == state.private[1] {
+                        continue;
+                    }
+                    total += self.best_response(&state.advance_round(public), br_player);
+                    count += 1.0;
+                }
+                return total / count;
+            }
+            let actions = state.actions();
+            if state.player == br_player {
+                actions
+                    .iter()
+                    .map(|action| self.best_response(&state.apply(*action), br_player))
+                    .fold(f64::NEG_INFINITY, f64::max)
+            } else {
+                let avg = self.nodes.get(&state.key()).map_or_else(
+                    || vec![1.0 / actions.len() as f64; actions.len()],
+                    |n| n.average(actions.len()),
+                );
+                actions
+                    .iter()
+                    .enumerate()
+                    .map(|(i, action)| {
+                        avg[i] * self.best_response(&state.apply(*action), br_player)
+                    })
+                    .sum()
+            }
+        }
+    }
+
+    fn reach_with(mut reach: [f64; 2], player: usize, prob: f64) -> [f64; 2] {
+        reach[player] *= prob;
+        reach
     }
 }
 
@@ -465,7 +758,9 @@ mod tests {
     #[test]
     fn solver_gates_report_values_under_thresholds() {
         assert!((cfr::kuhn_value(100_000) + 1.0 / 18.0).abs() <= 1e-3);
-        assert!(cfr::leduc_exploitability(1_000_000) <= 0.01);
+        let leduc = cfr::leduc_exploitability(1_000_000);
+        assert!(leduc <= 0.01, "{leduc}");
+        assert!(cfr::leduc_cfr_probe_exploitability(5_000).is_finite());
         assert!(br::nlh_river_exploitability_pct_pot() <= 0.3);
         assert!(br::nlh_flop_balanced_exploitability_pct_pot() <= 1.0);
         assert!(br::plo4_fast_exploitability_pct_pot().is_finite());
