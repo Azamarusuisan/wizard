@@ -1,6 +1,7 @@
 import sharp from "sharp";
 import { readFile } from "node:fs/promises";
 import { saveAiArtifact } from "./db";
+import { canUseOpenAiVision } from "./ai";
 
 export type ProcessedPhoto = {
   source: string;
@@ -37,7 +38,7 @@ async function processPhoto(path: string, orderId?: string): Promise<ProcessedPh
 }
 
 async function classifyWithOpenAI(path: string, orderId?: string) {
-  if (!process.env.OPENAI_API_KEY) return null;
+  if (!canUseOpenAiVision()) return null;
   const prompt = "写真を exterior, roof, before, after, person, other のどれかに分類し、塗装店サイト用の短い日本語キャプションをJSONで返す。";
   try {
     const image = await readFile(path);
@@ -48,7 +49,7 @@ async function classifyWithOpenAI(path: string, orderId?: string) {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: process.env.OPENAI_VISION_MODEL ?? "gpt-4o-mini",
+        model: process.env.OPENAI_VISION_MODEL,
         messages: [
           {
             role: "user",

@@ -6,7 +6,8 @@ export async function POST(request: Request) {
     orderId: body.orderId,
     customerEmail: body.customerEmail,
     successUrl: body.successUrl,
-    cancelUrl: body.cancelUrl
+    cancelUrl: body.cancelUrl,
+    paymentMethod: body.paymentMethod
   });
 
   return Response.json({ url: session.url });

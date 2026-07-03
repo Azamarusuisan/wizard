@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import type { SiteInput } from "./input";
 import type { ProcessedPhoto } from "./images";
 import { saveAiArtifact } from "./db";
+import { warnOnce } from "./warnings";
 
 export const BANNED_WORDS = ["絶対", "最安", "地域No.1", "必ず", "100%", "日本一"];
 
@@ -13,7 +14,7 @@ export async function generateSiteConfig(input: SiteInput, photos: ProcessedPhot
     JSON.stringify({ input, photoCaptions: photos.map((photo) => photo.caption) })
   ].join("\n");
 
-  const generated = process.env.ANTHROPIC_API_KEY ? await callClaude(prompt, orderId) : null;
+  const generated = canUseClaude() ? await callClaude(prompt, orderId) : null;
   const config = generated ? cleanConfig(generated, input, photos) : fallbackConfig(input, photos);
   assertNoBannedWords(config);
   await saveAiArtifact({ orderId, kind: "site.config", provider: generated ? "claude" : "fallback", prompt, output: config });
@@ -22,7 +23,7 @@ export async function generateSiteConfig(input: SiteInput, photos: ProcessedPhot
 
 export async function reviewScreenshotNotes(screenshots: string[], orderId?: string) {
   const prompt = "素人っぽく見える点、レイアウト破綻、読みにくい点だけを短く指摘する。";
-  if (!process.env.OPENAI_API_KEY) {
+  if (!canUseOpenAiVision()) {
     const output: string[] = [];
     await saveAiArtifact({ orderId, kind: "screenshot.review", provider: "fallback", prompt, output });
     return output;
@@ -39,7 +40,7 @@ export async function reviewScreenshotNotes(screenshots: string[], orderId?: str
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: process.env.OPENAI_VISION_MODEL ?? "gpt-4o-mini",
+        model: process.env.OPENAI_VISION_MODEL,
         messages: [{ role: "user", content: [{ type: "text", text: `${prompt} JSONで {"notes": ["..."]} と返す。` }, ...content] }],
         response_format: { type: "json_object" }
       })
@@ -56,7 +57,7 @@ export async function reviewScreenshotNotes(screenshots: string[], orderId?: str
 }
 
 export async function reviseConfigFromQa(config: SiteConfig, notes: string[], orderId?: string) {
-  if (!notes.length || !process.env.ANTHROPIC_API_KEY) return config;
+  if (!notes.length || !canUseClaude()) return config;
   const prompt = [
     "次の指摘を直すため、site.config.jsonだけを修正してJSONで返す。",
     "大幅な構成追加はしない。電話導線と読みやすさを優先する。",
@@ -79,7 +80,7 @@ async function callClaude(prompt: string, orderId?: string) {
       "anthropic-version": "2023-06-01"
     },
     body: JSON.stringify({
-      model: process.env.ANTHROPIC_MODEL ?? "claude-3-5-sonnet-latest",
+      model: process.env.ANTHROPIC_MODEL,
       max_tokens: 2000,
       messages: [{ role: "user", content: prompt }]
     })
@@ -92,6 +93,20 @@ async function callClaude(prompt: string, orderId?: string) {
   const json = await response.json();
   const text = json.content?.[0]?.text ?? "{}";
   return JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] ?? "{}");
+}
+
+function canUseClaude() {
+  if (!process.env.ANTHROPIC_API_KEY) return false;
+  if (process.env.ANTHROPIC_MODEL) return true;
+  warnOnce("anthropic-model", "ANTHROPIC_MODEL is unset; using fallback site generation.");
+  return false;
+}
+
+export function canUseOpenAiVision() {
+  if (!process.env.OPENAI_API_KEY) return false;
+  if (process.env.OPENAI_VISION_MODEL) return true;
+  warnOnce("openai-vision-model", "OPENAI_VISION_MODEL is unset; using fallback image/screenshot review.");
+  return false;
 }
 
 function fallbackConfig(input: SiteInput, photos: ProcessedPhoto[]): SiteConfig {

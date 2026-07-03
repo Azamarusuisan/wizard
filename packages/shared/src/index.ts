@@ -17,6 +17,9 @@ export const ORDER_STATUS = {
 
 export type OrderStatus = (typeof ORDER_STATUS)[keyof typeof ORDER_STATUS];
 
+export const PAYMENT_METHODS = ["card", "konbini", "bank_transfer"] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+
 export type OwnerAlert = {
   subject: string;
   message: string;
@@ -45,4 +48,5 @@ export type SiteConfig = {
   flow: string[];
   greeting: string;
   company: { address: string; hours: string; closed: string };
+  previewBanner?: { leadId?: string; message: string; applyUrl: string };
 };

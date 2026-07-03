@@ -1,11 +1,25 @@
 import { assertNoBannedWords } from "./ai";
 import { generateSite } from "./generate";
 import { normalizeSiteInput } from "./input";
+import { checkoutSessionParams } from "./stripe";
+
+process.env.NEXT_PUBLIC_APP_URL ||= "http://localhost:3000";
+process.env.STRIPE_SETUP_PRICE_ID ||= "price_setup";
+process.env.STRIPE_MONTHLY_PRICE_ID ||= "price_monthly";
 
 const empty = normalizeSiteInput({});
 if (!empty.businessName || empty.photos.length !== 0) throw new Error("input normalization failed");
 
 assertNoBannedWords({ text: "ていねいに対応します" });
+
+const card = checkoutSessionParams({ orderId: "order-1", paymentMethod: "card" });
+if (card.mode !== "subscription" || card.payment_method_types.includes("konbini")) throw new Error("card checkout branch failed");
+
+const konbini = checkoutSessionParams({ orderId: "order-2", paymentMethod: "konbini" });
+if (konbini.mode !== "payment" || konbini.payment_method_types[0] !== "konbini") throw new Error("konbini checkout branch failed");
+
+const bank = checkoutSessionParams({ orderId: "order-3", paymentMethod: "bank_transfer" });
+if (bank.mode !== "payment" || bank.payment_method_types[0] !== "customer_balance") throw new Error("bank transfer checkout branch failed");
 
 const result = await generateSite({ businessName: "", photos: [] });
 if (!result.previewUrl.includes("preview.craftsite.jp")) throw new Error("preview fallback failed");

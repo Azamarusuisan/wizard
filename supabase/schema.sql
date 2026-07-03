@@ -2,14 +2,19 @@ create extension if not exists pgcrypto;
 
 create table leads (
   id uuid primary key default gen_random_uuid(),
+  place_id text unique,
+  slug text unique,
   business_name text not null,
   address text,
   phone text,
+  website text,
   source text,
   review_summary text,
   places_photo_url text,
+  raw jsonb not null default '{}'::jsonb,
   excluded boolean not null default false,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 create table orders (
@@ -19,6 +24,7 @@ create table orders (
   customer_email text,
   phone text,
   status text not null default 'draft',
+  payment_method text,
   stripe_checkout_session_id text,
   stripe_subscription_id text,
   created_at timestamptz not null default now(),
