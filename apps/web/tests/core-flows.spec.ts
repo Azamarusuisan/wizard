@@ -32,6 +32,8 @@ test("solver runs and displays strategy metrics", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Cancel" })).toBeDisabled();
   await page.getByRole("button", { name: "Start solve" }).click();
   await expect(page.getByText("cached")).toBeVisible();
+  await page.reload();
+  await expect(page.getByLabel("Bet tree")).toContainText("flop 33,66,125,all-in");
 });
 
 test("equity lab shows AA vs KK", async ({ page }) => {

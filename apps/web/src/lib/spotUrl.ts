@@ -1,4 +1,4 @@
-export type SolverSpot = { game: "NLH" | "PLO4" | "PLO5"; pot: number; bet: number; stack: number; board: string; rakePct: number; rakeCap: number };
+export type SolverSpot = { game: "NLH" | "PLO4" | "PLO5"; pot: number; bet: number; stack: number; board: string; rakePct: number; rakeCap: number; betTree?: string };
 
 export function encodeSpot(spot: SolverSpot): string {
   const json = JSON.stringify(spot);
@@ -19,7 +19,7 @@ export function decodeSpot(value: string | null): SolverSpot | null {
     const rakeCap = raw.rakeCap ?? 0;
     const game = raw.game ?? "NLH";
     if (!validNumber(rakePct) || !validNumber(rakeCap) || !validGame(game)) return null;
-    return { game, pot: raw.pot, bet: raw.bet, stack: raw.stack, board: raw.board, rakePct, rakeCap };
+    return { game, pot: raw.pot, bet: raw.bet, stack: raw.stack, board: raw.board, rakePct, rakeCap, betTree: typeof raw.betTree === "string" ? raw.betTree : undefined };
   } catch {
     return null;
   }

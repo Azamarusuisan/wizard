@@ -70,7 +70,7 @@ export function SolverStudio() {
   const [rakePct, setRakePct] = useState(shared?.rakePct ?? 0);
   const [rakeCap, setRakeCap] = useState(shared?.rakeCap ?? 0);
   const [board, setBoard] = useState(shared?.board ?? "Ah Kd 7c");
-  const [betTree, setBetTree] = useState(DEFAULT_BET_TREE);
+  const [betTree, setBetTree] = useState(shared?.betTree ?? DEFAULT_BET_TREE);
   const [progress, setProgress] = useState<{ iteration: number; value: number }[]>([]);
   const [cached, setCached] = useState(false);
   const [running, setRunning] = useState(false);
@@ -78,7 +78,7 @@ export function SolverStudio() {
   const cancelRef = useRef<AbortController | null>(null);
   const result = useAppStore((s) => s.result);
   const setResult = useAppStore((s) => s.setResult);
-  const currentKey = JSON.stringify({ game, pot, bet, stack, board, rakePct, rakeCap });
+  const currentKey = JSON.stringify({ game, pot, bet, stack, board, rakePct, rakeCap, betTree });
   const preview = useMemo(() => {
     try {
       validateSolverInputs(game, pot, bet, stack, board, rakePct, rakeCap);
@@ -112,7 +112,7 @@ export function SolverStudio() {
           setRunning(true);
           setProgress([]);
           setCached(false);
-          const payload = { game, pot, bet, stack, board, rakePct, rakeCap };
+          const payload = { game, pot, bet, stack, board, rakePct, rakeCap, betTree };
           const payloadKey = JSON.stringify(payload);
           history.replaceState(null, "", `/solver?spot=${encodeSpot(payload)}`);
           void runSolve(payload, (p) => setProgress((xs) => [...xs, p]), controller.signal).then((run) => {

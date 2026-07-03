@@ -3,7 +3,7 @@ import { decodeSpot, encodeSpot } from "../lib/spotUrl";
 
 describe("solver spot URL codec", () => {
   it("round trips base64url spot configs", () => {
-    const spot = { game: "PLO4" as const, pot: 101, bet: 50, stack: 300, board: "Ah Kd 7c", rakePct: 5, rakeCap: 10 };
+    const spot = { game: "PLO4" as const, pot: 101, bet: 50, stack: 300, board: "Ah Kd 7c", rakePct: 5, rakeCap: 10, betTree: "flop 50,all-in" };
     expect(decodeSpot(encodeSpot(spot))).toEqual(spot);
   });
 
