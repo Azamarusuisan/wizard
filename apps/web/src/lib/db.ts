@@ -14,6 +14,9 @@ type SolveRecord = {
     fold: Uint16Array;
     call: Uint16Array;
     raise: Uint16Array;
+    foldEv?: Float32Array;
+    callEv?: Float32Array;
+    raiseEv?: Float32Array;
     equity: Uint16Array;
     ev: Float32Array;
     eqr: Float32Array;
@@ -127,6 +130,9 @@ function packSolve(result: SolveResult): SolveRecord["blob"] {
     fold: packProb(result.rows.map((r) => r.fold)),
     call: packProb(result.rows.map((r) => r.call)),
     raise: packProb(result.rows.map((r) => r.raise)),
+    foldEv: Float32Array.from(result.rows.map((r) => r.foldEv)),
+    callEv: Float32Array.from(result.rows.map((r) => r.callEv)),
+    raiseEv: Float32Array.from(result.rows.map((r) => r.raiseEv)),
     equity: packProb(result.rows.map((r) => r.equity)),
     ev: Float32Array.from(result.rows.map((r) => r.ev)),
     eqr: Float32Array.from(result.rows.map((r) => r.eqr)),
@@ -145,6 +151,9 @@ function unpackSolve(blob: SolveRecord["blob"]): SolveResult {
     fold: fold[i]!,
     call: call[i]!,
     raise: raise[i]!,
+    foldEv: blob.foldEv?.[i] ?? 0,
+    callEv: blob.callEv?.[i] ?? 0,
+    raiseEv: blob.raiseEv?.[i] ?? 0,
     equity: equity[i]!,
     ev: blob.ev[i]!,
     eqr: blob.eqr[i]!
@@ -165,7 +174,7 @@ function countStore(store: StoreName): Promise<number> {
 
 function solveRecordBytes(rec: SolveRecord): number {
   const blob = rec.blob;
-  return JSON.stringify(rec.meta).length + blob.combos.join("").length + blob.fold.byteLength + blob.call.byteLength + blob.raise.byteLength + blob.equity.byteLength + blob.ev.byteLength + blob.eqr.byteLength + blob.exploitability.length * 16 + 64;
+  return JSON.stringify(rec.meta).length + blob.combos.join("").length + blob.fold.byteLength + blob.call.byteLength + blob.raise.byteLength + (blob.foldEv?.byteLength ?? 0) + (blob.callEv?.byteLength ?? 0) + (blob.raiseEv?.byteLength ?? 0) + blob.equity.byteLength + blob.ev.byteLength + blob.eqr.byteLength + blob.exploitability.length * 16 + 64;
 }
 
 function txDone(req: IDBRequest<any>): Promise<void> {

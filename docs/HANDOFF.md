@@ -19,6 +19,7 @@
 - Native and TS fallback river solve rows now use named default row specs instead of independent ad-hoc combo/equity arrays.
 - Native and TS fallback solve progress now measures BR exploitability on interpolated strategy rows instead of emitting a synthetic linear curve.
 - Native and TS fallback combo EV/EQR now use strategy-weighted action EV rather than always using call EV.
+- Solve rows now carry fold/call/raise action EVs through native WASM, TS fallback, and IndexedDB cache.
 - Solver spot payload now carries optional effective stack, and native/TS fallback/UI compute SPR as `stack / pot` instead of using a fixed display value.
 - Native and TS solve entry points now reject non-positive pot/stack and negative bet before metric calculation.
 - IndexedDB stores `solves`, `ranges`, and `training` exist in the web app. Unit tests cover range save/load, quantized solve save/load, stats, clear, and oldest-first solve pruning. Playwright covers range persistence, same-spot solve cache hit, and Settings data clearing.

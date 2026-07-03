@@ -11,5 +11,6 @@ test("EngineAPI prefers generated wasm package when present", async () => {
   const handle = await engine.solve(JSON.stringify({ pot: 100, bet: 66 }));
   const result = await engine.result(handle);
   assert.equal(result.rows[0]?.combo, "AA");
+  assert.ok(result.rows[0]!.raiseEv >= result.rows[0]!.callEv);
   assert.ok(result.exploitability.length > 0);
 });

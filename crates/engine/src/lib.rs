@@ -1072,6 +1072,7 @@ struct NativeSolve {
     combos: Vec<String>,
     progress: Vec<NativeProgress>,
     strategy: Vec<f64>,
+    action_evs: Vec<f64>,
     metrics: Vec<f64>,
 }
 
@@ -1111,6 +1112,7 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
         .map(|(combo, _)| combo.to_string())
         .collect::<Vec<_>>();
     let mut strategy = Vec::with_capacity(br::DEFAULT_RIVER_SPECS.len() * 3);
+    let mut action_evs = Vec::with_capacity(br::DEFAULT_RIVER_SPECS.len() * 3);
     let mut metrics = Vec::with_capacity(br::DEFAULT_RIVER_SPECS.len() * 3 + 4);
     let rows = br::DEFAULT_RIVER_SPECS
         .iter()
@@ -1118,9 +1120,13 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
         .collect::<Vec<_>>();
     for row in &rows {
         let equity = row.equity;
+        let fold_ev = 0.0;
+        let call_ev = equity * (spot.pot + spot.bet) - (1.0 - equity) * spot.bet;
+        let raise_ev = call_ev + equity * spot.bet * 0.15;
         let ev = br::strategy_ev(*row, spot.pot, spot.bet) / 100.0;
         let eqr = ev / (equity * spot.pot / 100.0).max(0.0001);
         strategy.extend([row.fold, row.call, row.raise]);
+        action_evs.extend([fold_ev / 100.0, call_ev / 100.0, raise_ev / 100.0]);
         metrics.extend([ev, equity, eqr]);
     }
     metrics.extend([spr, mdf, alpha, pot_odds]);
@@ -1138,6 +1144,7 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
         combos,
         progress,
         strategy,
+        action_evs,
         metrics,
     };
     let mut guard = engine()
@@ -1359,6 +1366,7 @@ mod tests {
         assert_eq!(native.combos[0], br::DEFAULT_RIVER_SPECS[0].0);
         assert_eq!(native.combos.len(), br::DEFAULT_RIVER_SPECS.len());
         assert_eq!(&native.strategy[0..3], &[first.fold, first.call, first.raise]);
+        assert!(native.action_evs[2] >= native.action_evs[1]);
         assert!(native.metrics[(native.combos.len() - 1) * 3] >= 0.0);
         assert_eq!(native.metrics[native.combos.len() * 3], 2.5);
         assert!(

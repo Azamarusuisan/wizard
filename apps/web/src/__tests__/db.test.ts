@@ -16,6 +16,7 @@ describe("IndexedDB cache", () => {
     const restored = await loadSolve({ pot: 100, bet: 66 });
     expect(restored?.rows[0]?.combo).toBe(result.rows[0]?.combo);
     expect(restored?.rows[0]?.fold).toBeCloseTo(result.rows[0]!.fold, 4);
+    expect(restored?.rows[0]?.raiseEv).toBeCloseTo(result.rows[0]!.raiseEv, 6);
     expect(restored?.metrics.mdf).toBeCloseTo(result.metrics.mdf, 6);
   });
 

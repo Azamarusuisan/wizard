@@ -34,6 +34,7 @@ type NativeSolve = {
   combos: string[];
   progress: { iter: number; exploitability_pct: number; elapsed: number }[];
   strategy: number[];
+  action_evs?: number[];
   metrics: number[];
 };
 
@@ -196,6 +197,9 @@ function nativeToResult(native: NativeSolve): SolveResult {
       fold: native.strategy[i * 3] ?? 0,
       call: native.strategy[i * 3 + 1] ?? 0,
       raise: native.strategy[i * 3 + 2] ?? 0,
+      foldEv: native.action_evs?.[i * 3] ?? 0,
+      callEv: native.action_evs?.[i * 3 + 1] ?? 0,
+      raiseEv: native.action_evs?.[i * 3 + 2] ?? 0,
       ev: metrics.ev[i] ?? 0,
       equity: metrics.equity[i] ?? 0,
       eqr: metrics.eqr[i] ?? 0
