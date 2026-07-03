@@ -224,6 +224,12 @@ pub mod iso {
 pub mod equity {
     use crate::eval::{evaluate_nlh7, Card};
 
+    pub struct EquityMc {
+        pub equity: f64,
+        pub samples: usize,
+        pub ci95: f64,
+    }
+
     pub fn heads_up_nlh_equity_exact(a: [Card; 2], b: [Card; 2], board: &[Card]) -> f64 {
         let mut dead = vec![a[0], a[1], b[0], b[1]];
         dead.extend_from_slice(board);
@@ -247,6 +253,61 @@ pub mod equity {
             }
         });
         wins / total
+    }
+
+    pub fn heads_up_nlh_equity_mc(
+        a: [Card; 2],
+        b: [Card; 2],
+        board: &[Card],
+        samples: usize,
+        seed: u64,
+    ) -> EquityMc {
+        let mut dead = vec![a[0], a[1], b[0], b[1]];
+        dead.extend_from_slice(board);
+        dead.sort_unstable();
+        dead.dedup();
+        assert_eq!(dead.len(), 4 + board.len());
+        let deck: Vec<Card> = (0..52).filter(|c| !dead.contains(c)).collect();
+        let missing = 5 - board.len();
+        let mut rng = Lcg(seed);
+        let mut wins = 0.0;
+        for _ in 0..samples {
+            let runout = sample_runout(&deck, missing, &mut rng);
+            let mut full = board.to_vec();
+            full.extend_from_slice(&runout);
+            let ra = evaluate_nlh7(&[a[0], a[1], full[0], full[1], full[2], full[3], full[4]]);
+            let rb = evaluate_nlh7(&[b[0], b[1], full[0], full[1], full[2], full[3], full[4]]);
+            if ra > rb {
+                wins += 1.0;
+            } else if ra == rb {
+                wins += 0.5;
+            }
+        }
+        let equity = wins / samples as f64;
+        EquityMc {
+            equity,
+            samples,
+            ci95: 1.96 * ((equity * (1.0 - equity)) / samples as f64).sqrt(),
+        }
+    }
+
+    struct Lcg(u64);
+
+    impl Lcg {
+        fn next(&mut self) -> usize {
+            self.0 = self.0.wrapping_mul(6364136223846793005).wrapping_add(1);
+            (self.0 >> 32) as usize
+        }
+    }
+
+    fn sample_runout(deck: &[Card], k: usize, rng: &mut Lcg) -> Vec<Card> {
+        let mut cards = deck.to_vec();
+        for i in 0..k {
+            let j = i + rng.next() % (cards.len() - i);
+            cards.swap(i, j);
+        }
+        cards.truncate(k);
+        cards
     }
 
     fn enumerate<F: FnMut(&[Card])>(
@@ -1150,6 +1211,17 @@ mod tests {
         let mirrored =
             equity::heads_up_nlh_equity_exact([c(12, 3), c(11, 3)], [c(10, 1), c(10, 2)], &[]);
         assert!((suited - mirrored).abs() <= 1e-12, "{suited} {mirrored}");
+    }
+
+    #[test]
+    fn equity_mc_matches_exact_with_seeded_confidence() {
+        let aa = [c(12, 0), c(12, 2)];
+        let kk = [c(11, 1), c(11, 3)];
+        let exact = equity::heads_up_nlh_equity_exact(aa, kk, &[]);
+        let mc = equity::heads_up_nlh_equity_mc(aa, kk, &[], 20_000, 7);
+        let sigma = mc.ci95 / 1.96;
+        assert_eq!(mc.samples, 20_000);
+        assert!((mc.equity - exact).abs() <= 4.0 * sigma, "{} {}", mc.equity, exact);
     }
 
     #[test]
