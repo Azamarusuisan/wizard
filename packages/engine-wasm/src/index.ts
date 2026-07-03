@@ -230,8 +230,16 @@ export function parsePloRange(text: string): RangeCombo[] {
     const [left, pct] = term.split("@");
     if (!left) throw new Error(`bad PLO term: ${term}`);
     const weight = pct === undefined ? 1 : Number(pct) / 100;
+    if (!Number.isFinite(weight) || weight < 0 || weight > 1) throw new Error(`bad PLO weight: ${term}`);
+    validatePloLabel(left);
     return { label: left, weight };
   });
+}
+
+function validatePloLabel(label: string): void {
+  const [pattern, suitedness] = label.split(":");
+  if (!pattern || !/^[2-9TJQKA*]{4,5}$/.test(pattern)) throw new Error(`bad PLO pattern: ${label}`);
+  if (suitedness !== undefined && !["ds", "ss", "r"].includes(suitedness)) throw new Error(`bad PLO suitedness: ${label}`);
 }
 
 export function potLimitMaxRaise(pot: number, betToCall: number): number {

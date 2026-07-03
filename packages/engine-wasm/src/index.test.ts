@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { DEFAULT_RIVER_SPECS, evaluateNlh7, evaluatePlo, equity, kuhnCfr, parseCard, parseNlhRange, potLimitMaxRaise, serializeRange, solveRiverSpot } from "./index.js";
+import { DEFAULT_RIVER_SPECS, evaluateNlh7, evaluatePlo, equity, kuhnCfr, parseCard, parseNlhRange, parsePloRange, potLimitMaxRaise, serializeRange, solveRiverSpot } from "./index.js";
 
 const cs = (s: string) => s.split(/\s+/).map(parseCard);
 
@@ -29,6 +29,14 @@ test("NLH range parser expands plus and span syntax", () => {
   const parsed = parseNlhRange("AJo+, TT-77:0.25, 76s-54s");
   assert.deepEqual(parsed.map((r) => r.label), ["AJo", "AQo", "AKo", "TT", "99", "88", "77", "76s", "65s", "54s"]);
   assert.deepEqual(parsed.slice(3, 7).map((r) => r.weight), [0.25, 0.25, 0.25, 0.25]);
+});
+
+test("PLO range parser validates pattern suitedness and percent", () => {
+  const parsed = parsePloRange("AA**:ds@100, AA**:ss@60, JT98:ds@75");
+  assert.deepEqual(parsed.map((r) => r.label), ["AA**:ds", "AA**:ss", "JT98:ds"]);
+  assert.deepEqual(parsed.map((r) => r.weight), [1, 0.6, 0.75]);
+  assert.throws(() => parsePloRange("AA**:bad@50"), /suitedness/);
+  assert.throws(() => parsePloRange("AA**:ds@120"), /weight/);
 });
 
 test("pot limit max raise known formula", () => {
