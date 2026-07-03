@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { HAND_CATEGORIES, parseCard, equity, parseNlhRange, parsePloRange, serializeRange, solveRiverSpot, type Game } from "@gto-lab/engine-wasm";
+import { HAND_CATEGORIES, deck, formatCard, parseCard, equity, parseNlhRange, parsePloRange, serializeRange, solveRiverSpot, type Game } from "@gto-lab/engine-wasm";
 import { CardView } from "../components/CardView";
 import { Metric } from "../components/Metric";
 import { StrategyTable } from "../components/StrategyTable";
@@ -100,6 +100,11 @@ export function SolverStudio() {
         <label className="field">Rake %<input type="number" min="0" max="100" step="0.1" value={rakePct} onChange={(e) => setRakePct(Number(e.target.value))} /></label>
         <label className="field">Rake cap<input type="number" min="0" step="0.1" value={rakeCap} onChange={(e) => setRakeCap(Number(e.target.value))} /></label>
         <label className="field">Board<input value={board} onChange={(e) => setBoard(e.target.value)} /></label>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button className="btn" onClick={() => setBoard(randomFlop())}>Random flop</button>
+          <button className="btn" onClick={() => setBoard("As Ks 7s")}>Monotone</button>
+          <button className="btn" onClick={() => setBoard("Ah Ad 7c")}>Paired</button>
+        </div>
         <label className="field">Bet tree<textarea rows={3} value={betTree} onChange={(e) => setBetTree(e.target.value)} /></label>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {flopBetSizes(betTree).map((size) => <button className="btn" key={size} onClick={() => setBet(size === "all-in" ? stack : Math.round(pot * Number(size) / 100))}>{size === "all-in" ? "All-in" : `${size}% pot`}</button>)}
@@ -155,6 +160,10 @@ export function SolverStudio() {
 function flopBetSizes(text: string): string[] {
   const flop = text.split(";").find((part) => part.trim().toLowerCase().startsWith("flop")) ?? "";
   return flop.replace(/^flop/i, "").split(",").map((x) => x.trim()).filter((x) => x === "all-in" || (x !== "" && Number.isFinite(Number(x)) && Number(x) > 0));
+}
+
+function randomFlop(): string {
+  return [...deck()].sort(() => Math.random() - 0.5).slice(0, 3).map(formatCard).join(" ");
 }
 
 function validateSolverInputs(game: Game, pot: number, bet: number, stack: number, board: string, rakePct: number, rakeCap: number, betTree: string): void {

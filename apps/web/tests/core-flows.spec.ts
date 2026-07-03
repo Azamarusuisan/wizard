@@ -7,6 +7,13 @@ test("solver runs and displays strategy metrics", async ({ page }) => {
   await expect(page.getByRole("alert")).toContainText("duplicate");
   await expect(page.getByRole("button", { name: "Start solve" })).toBeDisabled();
   await page.getByLabel("Board").fill("Ah Kd 7c");
+  await page.getByRole("button", { name: "Monotone" }).click();
+  await expect(page.getByLabel("Board")).toHaveValue("As Ks 7s");
+  await page.getByRole("button", { name: "Paired" }).click();
+  await expect(page.getByLabel("Board")).toHaveValue("Ah Ad 7c");
+  await page.getByRole("button", { name: "Random flop" }).click();
+  await expect(page.getByLabel("Board")).toHaveValue(/^[2-9TJQKA][cdhs] [2-9TJQKA][cdhs] [2-9TJQKA][cdhs]$/);
+  await page.getByLabel("Board").fill("Ah Kd 7c");
   await expect(page.getByLabel("Bet tree")).toContainText("flop 33,66,125,all-in");
   await page.getByLabel("Bet tree").fill("turn 66");
   await expect(page.getByRole("alert")).toContainText("bet tree");
