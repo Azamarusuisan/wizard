@@ -5,6 +5,7 @@ const DB_VERSION = 1;
 const STORES = ["solves", "ranges", "training"] as const;
 
 type StoreName = (typeof STORES)[number];
+export type CacheStats = Record<StoreName, number>;
 type SolveRecord = {
   key: string;
   meta: { createdAt: number; spot: unknown };
@@ -20,6 +21,8 @@ type SolveRecord = {
     metrics: SolveResult["metrics"];
   };
 };
+
+const DEFAULT_SOLVE_CACHE_BYTES = 500 * 1024 * 1024;
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -65,6 +68,30 @@ export async function clearStore(store: StoreName): Promise<void> {
   await txDone(db.transaction(store, "readwrite").objectStore(store).clear());
 }
 
+export async function clearAllData(): Promise<void> {
+  await Promise.all(STORES.map((store) => clearStore(store)));
+}
+
+export async function cacheStats(): Promise<CacheStats> {
+  const entries = await Promise.all(STORES.map(async (store) => [store, await countStore(store)] as const));
+  return Object.fromEntries(entries) as CacheStats;
+}
+
+export async function pruneSolveCache(maxBytes = DEFAULT_SOLVE_CACHE_BYTES): Promise<void> {
+  const db = await openGtoDb();
+  const tx = db.transaction("solves", "readwrite");
+  const store = tx.objectStore("solves");
+  const records = await reqResult<SolveRecord[]>(store.getAll());
+  let total = records.reduce((sum, rec) => sum + solveRecordBytes(rec), 0);
+  const oldest = records.sort((a, b) => a.meta.createdAt - b.meta.createdAt);
+  for (const rec of oldest) {
+    if (total <= maxBytes) break;
+    total -= solveRecordBytes(rec);
+    store.delete(rec.key);
+  }
+  await txComplete(tx);
+}
+
 export async function saveRange(name: string, text: string): Promise<void> {
   await putRecord("ranges", { key: name, text, updatedAt: Date.now(), version: 1 });
 }
@@ -76,6 +103,7 @@ export async function loadRange(name: string): Promise<string | null> {
 export async function saveSolve(spot: unknown, result: SolveResult): Promise<string> {
   const key = await cacheKey(spot);
   await putRecord<SolveRecord>("solves", { key, meta: { createdAt: Date.now(), spot }, blob: packSolve(result) });
+  await pruneSolveCache();
   return key;
 }
 
@@ -131,6 +159,15 @@ function reqResult<T>(req: IDBRequest<T>): Promise<T> {
   });
 }
 
+function countStore(store: StoreName): Promise<number> {
+  return openGtoDb().then((db) => reqResult<number>(db.transaction(store).objectStore(store).count()));
+}
+
+function solveRecordBytes(rec: SolveRecord): number {
+  const blob = rec.blob;
+  return JSON.stringify(rec.meta).length + blob.combos.join("").length + blob.fold.byteLength + blob.call.byteLength + blob.raise.byteLength + blob.equity.byteLength + blob.ev.byteLength + blob.eqr.byteLength + blob.exploitability.length * 16 + 64;
+}
+
 function txDone(req: IDBRequest<any>): Promise<void> {
   return new Promise((resolve, reject) => {
     const tx = req.transaction;
@@ -139,6 +176,13 @@ function txDone(req: IDBRequest<any>): Promise<void> {
       req.onsuccess = () => resolve();
       return;
     }
+    tx.onerror = () => reject(tx.error);
+    tx.oncomplete = () => resolve();
+  });
+}
+
+function txComplete(tx: IDBTransaction): Promise<void> {
+  return new Promise((resolve, reject) => {
     tx.onerror = () => reject(tx.error);
     tx.oncomplete = () => resolve();
   });

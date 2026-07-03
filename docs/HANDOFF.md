@@ -8,7 +8,7 @@
 - Rust crate now has modules for `eval`, `iso`, `equity`, `tree`, `cfr`, `br`, and `bucket`.
 - Suit-isomorphism class counts are now exhaustive Rust tests for NLH preflop, PLO4, PLO5, and flop: `169 / 16,432 / 134,459 / 1,755`.
 - Kuhn poker gate now runs an actual CFR trainer and converges to `-1/18 ± 1e-3`.
-- IndexedDB stores `solves`, `ranges`, and `training` exist in the web app. Unit tests cover range save/load and quantized solve save/load. Playwright covers range persistence and same-spot solve cache hit.
+- IndexedDB stores `solves`, `ranges`, and `training` exist in the web app. Unit tests cover range save/load, quantized solve save/load, stats, clear, and oldest-first solve pruning. Playwright covers range persistence, same-spot solve cache hit, and Settings data clearing.
 - CI workflow exists for Node and Rust.
 - Production code grep for `TODO|FIXME|未実装|placeholder` is clean.
 
@@ -28,5 +28,4 @@ bash scripts/verify.sh
 
 1. Replace `cfr::leduc_exploitability`, `br::nlh_river_exploitability_pct_pot`, and `br::nlh_flop_balanced_exploitability_pct_pot` with real CFR/BR code.
 2. Move the web solver path from the TypeScript facade to the Rust/WASM EngineAPI.
-3. Add settings UI for individual/all cache deletion and LRU capacity enforcement.
-4. Add `docs/COMPLETION_REPORT.md` only when the spec-vs-implementation table can honestly be all green.
+3. Add `docs/COMPLETION_REPORT.md` only when the spec-vs-implementation table can honestly be all green.

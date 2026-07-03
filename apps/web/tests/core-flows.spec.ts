@@ -35,3 +35,12 @@ test("COOP COEP headers are set", async ({ request }) => {
   expect(res.headers()["cross-origin-opener-policy"]).toBe("same-origin");
   expect(res.headers()["cross-origin-embedder-policy"]).toBe("require-corp");
 });
+
+test("settings clears cached data", async ({ page }) => {
+  await page.goto("/solver");
+  await page.getByRole("button", { name: "Start solve" }).click();
+  await page.goto("/settings");
+  await expect(page.locator(".card").filter({ hasText: /^Solves/ })).toBeVisible();
+  await page.getByRole("button", { name: "Clear all data" }).click();
+  await expect(page.locator('[aria-label="Solves: 0"]')).toBeVisible();
+});

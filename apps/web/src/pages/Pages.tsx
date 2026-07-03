@@ -4,7 +4,7 @@ import { parseCard, equity, parseNlhRange, parsePloRange, serializeRange, solveR
 import { CardView } from "../components/CardView";
 import { Metric } from "../components/Metric";
 import { StrategyTable } from "../components/StrategyTable";
-import { loadRange, saveRange } from "../lib/db";
+import { cacheStats, clearAllData, clearStore, loadRange, saveRange, type CacheStats } from "../lib/db";
 import { runSolve } from "../lib/solverClient";
 import { useAppStore } from "../state/store";
 
@@ -152,6 +152,9 @@ export function RangeEditor() {
 }
 
 export function Settings() {
+  const [stats, setStats] = useState<CacheStats | null>(null);
+  const refresh = () => void cacheStats().then(setStats);
+  useEffect(refresh, []);
   return (
     <div className="grid">
       <h1 className="title">Settings</h1>
@@ -159,6 +162,20 @@ export function Settings() {
         <label className="field">Theme<select><option>Dark</option><option>Light</option></select></label>
         <label className="field">Deck colors<select><option>Four color</option><option>Two color</option></select></label>
         <label className="field">Precision<select><option>Balanced</option><option>Fast</option><option>Precise</option></select></label>
+      </div>
+      <div className="card grid">
+        <h2 className="title">Data</h2>
+        <p className="muted">Solve cache capacity is 500MB with oldest solves removed first.</p>
+        <div className="grid cols-3">
+          <Metric label="Solves" value={stats?.solves ?? 0} />
+          <Metric label="Ranges" value={stats?.ranges ?? 0} />
+          <Metric label="Training" value={stats?.training ?? 0} />
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button className="btn" onClick={() => void clearStore("solves").then(refresh)}>Clear solves</button>
+          <button className="btn" onClick={() => void clearStore("ranges").then(refresh)}>Clear ranges</button>
+          <button className="btn" onClick={() => void clearAllData().then(refresh)}>Clear all data</button>
+        </div>
       </div>
     </div>
   );
