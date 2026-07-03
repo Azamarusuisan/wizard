@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 import { describe, expect, it } from "vitest";
-import { cacheStats, clearAllData, loadRange, loadSolve, pruneSolveCache, saveRange, saveSolve } from "../lib/db";
+import { cacheKey, cacheStats, clearAllData, getRecord, loadRange, loadSolve, pruneSolveCache, saveRange, saveSolve } from "../lib/db";
 import { solveRiverSpot } from "@gto-lab/engine-wasm";
 
 describe("IndexedDB cache", () => {
@@ -13,6 +13,8 @@ describe("IndexedDB cache", () => {
     const spot = { bet: 66, pot: 100 };
     const result = solveRiverSpot(100, 66);
     await saveSolve(spot, result);
+    const stored = await getRecord<{ meta: { version: number } }>("solves", await cacheKey(spot));
+    expect(stored?.meta.version).toBe(1);
     const restored = await loadSolve({ pot: 100, bet: 66 });
     expect(restored?.rows[0]?.combo).toBe(result.rows[0]?.combo);
     expect(restored?.rows[0]?.fold).toBeCloseTo(result.rows[0]!.fold, 4);

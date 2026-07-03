@@ -2,13 +2,14 @@ import type { SolveResult, SolverRow } from "@gto-lab/engine-wasm";
 
 const DB_NAME = "gto-lab";
 const DB_VERSION = 1;
+const SOLVE_RECORD_VERSION = 1;
 const STORES = ["solves", "ranges", "training"] as const;
 
 type StoreName = (typeof STORES)[number];
 export type CacheStats = Record<StoreName, number>;
 type SolveRecord = {
   key: string;
-  meta: { createdAt: number; spot: unknown };
+  meta: { version: number; createdAt: number; spot: unknown };
   blob: {
     combos: string[];
     fold: Uint16Array;
@@ -105,7 +106,7 @@ export async function loadRange(name: string): Promise<string | null> {
 
 export async function saveSolve(spot: unknown, result: SolveResult): Promise<string> {
   const key = await cacheKey(spot);
-  await putRecord<SolveRecord>("solves", { key, meta: { createdAt: Date.now(), spot }, blob: packSolve(result) });
+  await putRecord<SolveRecord>("solves", { key, meta: { version: SOLVE_RECORD_VERSION, createdAt: Date.now(), spot }, blob: packSolve(result) });
   await pruneSolveCache();
   return key;
 }
