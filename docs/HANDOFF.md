@@ -8,7 +8,7 @@
 - Rust crate now has modules for `eval`, `iso`, `equity`, `tree`, `cfr`, `br`, and `bucket`.
 - Suit-isomorphism class counts are now exhaustive Rust tests for NLH preflop, PLO4, PLO5, and flop: `169 / 16,432 / 134,459 / 1,755`.
 - NLH equity gates now cover AA vs KK, AKs vs QQ, mirror-suit invariance, and seeded MC-vs-exact confidence agreement.
-- PLO tests now cover exact two-hole usage and seeded PLO4 AAxx double-suited-over-rainbow monotonicity.
+- PLO tests now cover PLO4/PLO5 exact two-hole usage and seeded PLO4 AAxx double-suited-over-rainbow monotonicity.
 - Kuhn poker gate now runs an actual CFR trainer and converges to `-1/18 ± 1e-3`.
 - TS fallback `kuhnCfr()` now runs tabular Kuhn CFR instead of returning a closed-form approximation.
 - NLH river small-spot gate now computes exploitability from action EVs and strategy rows instead of returning a fixed scalar.
@@ -42,7 +42,7 @@
 - README, architecture, and formats docs now reflect the current Plan A Rust/WASM path, IndexedDB solve cache shape, and remaining representative-solver limitation.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `representative_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~1.07 us/eval, representative river rows ~12.8 ns. The evaluator still needs a faster table/perfect-hash path to reach the original 50M eval/s target.
-- Last verified: `bash scripts/verify.sh` exited 0 after adding the compact flop abstraction exploitability trend gate.
+- Last verified: `bash scripts/verify.sh` exited 0 after adding PLO5 exact-two-hole evaluator coverage.
 
 ## Important Caveat
 

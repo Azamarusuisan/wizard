@@ -1490,6 +1490,13 @@ mod tests {
         let one_heart = [c(8, 2), c(7, 0), c(6, 1), c(5, 3)];
         let two_hearts = [c(8, 2), c(7, 2), c(6, 1), c(5, 3)];
         assert!(eval::evaluate_plo(&two_hearts, &board) > eval::evaluate_plo(&one_heart, &board));
+
+        let plo5_one_heart = [c(8, 2), c(7, 0), c(6, 1), c(5, 3), c(4, 0)];
+        let plo5_two_hearts = [c(8, 2), c(7, 2), c(6, 1), c(5, 3), c(4, 0)];
+        assert!(
+            eval::evaluate_plo(&plo5_two_hearts, &board)
+                > eval::evaluate_plo(&plo5_one_heart, &board)
+        );
     }
 
     #[test]
