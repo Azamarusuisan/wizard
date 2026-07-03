@@ -10,3 +10,4 @@ export * from "./qa";
 export * from "./screenshots";
 export * from "./static-server";
 export * from "./db";
+export * from "./leads";

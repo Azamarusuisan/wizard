@@ -10,7 +10,10 @@
     "phase3:dummy": "tsx scripts/run-phase-3-dummies.ts",
     "phase3:serve": "tsx scripts/serve-phase-3-dummies.ts",
     "phase3:gate": "node scripts/check-phase-3-findings.mjs",
-    "phase3:gate:test": "node scripts/check-phase-3-findings.test.mjs"
+    "phase3:gate:test": "node scripts/check-phase-3-findings.test.mjs",
+    "leads:fetch": "tsx scripts/leads-fetch.ts",
+    "leads:export": "tsx scripts/leads-export.ts",
+    "leads:import": "tsx scripts/leads-import.ts"
   },
   "devDependencies": {
     "@types/node": "^26.1.0",

@@ -14,7 +14,7 @@ export type CheckoutInput = {
   paymentMethod?: PaymentMethod;
 };
 
-export function checkoutSessionParams(input: CheckoutInput) {
+export function checkoutSessionParams(input: CheckoutInput): Stripe.Checkout.SessionCreateParams {
   const baseUrl = requiredEnv("NEXT_PUBLIC_APP_URL");
   const paymentMethod = input.paymentMethod ?? "card";
   const common = {
@@ -46,7 +46,7 @@ export function checkoutSessionParams(input: CheckoutInput) {
     customer_creation: "always" as const,
     line_items: [{ price: requiredEnv("STRIPE_SETUP_PRICE_ID"), quantity: 1 }],
     payment_method_types: [paymentMethod === "konbini" ? "konbini" : "customer_balance"],
-    payment_method_options: paymentMethod === "bank_transfer" ? { customer_balance: { funding_type: "bank_transfer" as const } } : undefined
+    ...(paymentMethod === "bank_transfer" ? { payment_method_options: { customer_balance: { funding_type: "bank_transfer" as const } } } : {})
   };
 }
 

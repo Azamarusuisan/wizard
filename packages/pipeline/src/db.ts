@@ -51,6 +51,39 @@ export async function recordEvent(input: {
   if (error) throw error;
 }
 
+export async function saveLeads(leads: Array<{
+  placeId?: string;
+  slug: string;
+  businessName: string;
+  address: string;
+  phone: string;
+  website?: string;
+  source: string;
+  reviewSummary?: string;
+  placesPhotoUrl?: string;
+  excluded: boolean;
+  raw?: unknown;
+}>) {
+  const db = supabase();
+  if (!db) return;
+  const rows = leads.map((lead) => ({
+    place_id: lead.placeId,
+    slug: lead.slug,
+    business_name: lead.businessName,
+    address: lead.address,
+    phone: lead.phone,
+    website: lead.website,
+    source: lead.source,
+    review_summary: lead.reviewSummary,
+    places_photo_url: lead.placesPhotoUrl,
+    excluded: lead.excluded,
+    raw: lead.raw ?? {},
+    updated_at: new Date().toISOString()
+  }));
+  const { error } = await db.from("leads").upsert(rows, { onConflict: "place_id" });
+  if (error) throw error;
+}
+
 export async function saveAiArtifact(input: {
   orderId?: string;
   siteId?: string;

@@ -50,3 +50,18 @@ export type SiteConfig = {
   company: { address: string; hours: string; closed: string };
   previewBanner?: { leadId?: string; message: string; applyUrl: string };
 };
+
+export type Lead = {
+  id?: string;
+  placeId?: string;
+  slug: string;
+  businessName: string;
+  address: string;
+  phone: string;
+  website?: string;
+  source: string;
+  reviewSummary?: string;
+  placesPhotoUrl?: string;
+  excluded: boolean;
+  raw?: unknown;
+};

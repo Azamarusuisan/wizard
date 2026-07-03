@@ -1,6 +1,7 @@
 import { assertNoBannedWords } from "./ai";
 import { generateSite } from "./generate";
 import { normalizeSiteInput } from "./input";
+import { fixtureLeads, unsolicitedPreviewConfig } from "./leads";
 import { checkoutSessionParams } from "./stripe";
 
 process.env.NEXT_PUBLIC_APP_URL ||= "http://localhost:3000";
@@ -20,6 +21,11 @@ if (konbini.mode !== "payment" || konbini.payment_method_types[0] !== "konbini")
 
 const bank = checkoutSessionParams({ orderId: "order-3", paymentMethod: "bank_transfer" });
 if (bank.mode !== "payment" || bank.payment_method_types[0] !== "customer_balance") throw new Error("bank transfer checkout branch failed");
+
+const preview = unsolicitedPreviewConfig(fixtureLeads[0]);
+if (!preview.previewBanner?.message.includes(fixtureLeads[0].businessName) || preview.cases[0].image !== "/stock/painting-placeholder.svg") {
+  throw new Error("unsolicited preview config failed");
+}
 
 const result = await generateSite({ businessName: "", photos: [] });
 if (!result.previewUrl.includes("preview.craftsite.jp")) throw new Error("preview fallback failed");

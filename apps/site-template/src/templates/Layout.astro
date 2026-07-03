@@ -16,6 +16,8 @@ const { config } = Astro.props;
 const theme = themes[config.theme] ?? themes.honestNavy;
 const template = config.template ?? "classic";
 const description = `${config.businessName}は${config.area}で外壁・屋根塗装を承ります。`;
+const eventBase = "https://craftsite.jp/api/events";
+const eventQuery = config.previewBanner?.leadId ? `?leadId=${encodeURIComponent(config.previewBanner.leadId)}` : "?";
 const localBusiness = {
   "@context": "https://schema.org",
   "@type": "LocalBusiness",
@@ -38,6 +40,16 @@ const localBusiness = {
     <script type="application/ld+json" set:html={JSON.stringify(localBusiness)} />
   </head>
   <body>
+    {config.previewBanner ? (
+      <div class="preview-banner">
+        <strong>{config.previewBanner.message}</strong>
+        <nav>
+          <a href={`tel:${config.phone}`} data-event="phone_tap">電話</a>
+          <a href={config.lineUrl} data-event="line_tap">LINE</a>
+          <a href={config.previewBanner.applyUrl}>申込</a>
+        </nav>
+      </div>
+    ) : null}
     <Header config={config} />
     <main class:list={[template]}>
       {template === "caseFirst" ? (
@@ -77,6 +89,14 @@ const localBusiness = {
       )}
     </main>
     <Footer config={config} />
+    {config.previewBanner ? (
+      <script is:inline define:vars={{ eventBase, eventQuery }}>
+        fetch(`${eventBase}${eventQuery}&name=qr_view`).catch(() => {});
+        document.querySelectorAll("[data-event]").forEach((link) => {
+          link.addEventListener("click", () => fetch(`${eventBase}${eventQuery}&name=${link.dataset.event}`).catch(() => {}));
+        });
+      </script>
+    ) : null}
   </body>
 </html>
 
@@ -103,6 +123,29 @@ const localBusiness = {
     padding: 14px clamp(16px, 4vw, 48px);
     background: white;
     border-bottom: 4px solid var(--primary);
+  }
+  .preview-banner {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px clamp(16px, 4vw, 48px);
+    background: #fff7d6;
+    border-bottom: 1px solid #e0b500;
+    color: #1b1b1b;
+    font-size: 16px;
+  }
+  .preview-banner nav { display: flex; gap: 8px; flex-wrap: wrap; }
+  .preview-banner a {
+    padding: 8px 12px;
+    border-radius: 6px;
+    background: var(--primary);
+    color: white;
+    text-decoration: none;
+    font-weight: 800;
   }
   .brand { font-weight: 800; text-decoration: none; }
   .phone { color: var(--primary); font-size: clamp(20px, 3vw, 30px); font-weight: 900; }
@@ -173,6 +216,7 @@ const localBusiness = {
   }
   .sticky-contact a:first-child { background: var(--accent); color: #111; }
   @media (max-width: 640px) {
+    .preview-banner { align-items: flex-start; flex-direction: column; }
     .site-header { align-items: flex-start; flex-direction: column; }
     .before-after, .company { grid-template-columns: 1fr; }
     .company dt { border-bottom: 0; }
