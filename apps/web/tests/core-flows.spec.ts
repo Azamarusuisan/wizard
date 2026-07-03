@@ -5,6 +5,8 @@ test("solver runs and displays strategy metrics", async ({ page }) => {
   await page.getByRole("button", { name: "Start solve" }).click();
   await expect(page.getByRole("table", { name: "strategy table" })).toContainText("AA");
   await expect(page.getByText("MDF")).toBeVisible();
+  await page.getByRole("button", { name: "Start solve" }).click();
+  await expect(page.getByText("cached")).toBeVisible();
 });
 
 test("equity lab shows AA vs KK", async ({ page }) => {
@@ -21,7 +23,11 @@ test("trainer displays decision controls", async ({ page }) => {
 
 test("range editor round trips text", async ({ page }) => {
   await page.goto("/editor");
-  await expect(page.locator("p.num", { hasText: "AA, KQs, A5s:0.5" })).toBeVisible();
+  await page.getByRole("textbox").fill("QQ, JTs:0.25");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("saved")).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("textbox")).toHaveValue("QQ, JTs:0.25");
 });
 
 test("COOP COEP headers are set", async ({ request }) => {

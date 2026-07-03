@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { parseCard, equity, parseNlhRange, parsePloRange, serializeRange, solveRiverSpot } from "@gto-lab/engine-wasm";
 import { CardView } from "../components/CardView";
 import { Metric } from "../components/Metric";
 import { StrategyTable } from "../components/StrategyTable";
+import { loadRange, saveRange } from "../lib/db";
 import { runSolve } from "../lib/solverClient";
 import { useAppStore } from "../state/store";
 
@@ -53,6 +54,7 @@ export function SolverStudio() {
   const [pot, setPot] = useState(100);
   const [bet, setBet] = useState(66);
   const [progress, setProgress] = useState<{ iteration: number; value: number }[]>([]);
+  const [cached, setCached] = useState(false);
   const result = useAppStore((s) => s.result);
   const setResult = useAppStore((s) => s.setResult);
   const shown = result ?? solveRiverSpot(pot, bet);
@@ -64,7 +66,15 @@ export function SolverStudio() {
         <label className="field">Pot<input type="number" value={pot} onChange={(e) => setPot(Number(e.target.value))} /></label>
         <label className="field">Bet<input type="number" value={bet} onChange={(e) => setBet(Number(e.target.value))} /></label>
         <label className="field">Board<input defaultValue="Ah Kd 7c" /></label>
-        <button className="btn primary" onClick={() => { setProgress([]); void runSolve({ pot, bet }, (p) => setProgress((xs) => [...xs, p])).then(setResult); }}>Start solve</button>
+        <button className="btn primary" onClick={() => {
+          setProgress([]);
+          setCached(false);
+          void runSolve({ pot, bet }, (p) => setProgress((xs) => [...xs, p])).then((run) => {
+            setCached(run.cached);
+            setResult(run.result);
+          });
+        }}>Start solve</button>
+        {cached ? <span className="badge">cached</span> : null}
       </section>
       <section className="card">
         <h2 className="title">Strategy</h2>
@@ -121,6 +131,12 @@ export function Trainer() {
 
 export function RangeEditor() {
   const [text, setText] = useState("AA, KQs, A5s:0.5");
+  const [status, setStatus] = useState("ready");
+  useEffect(() => {
+    void loadRange("default").then((saved) => {
+      if (saved) setText(saved);
+    });
+  }, []);
   const parsed = useMemo(() => {
     try { return serializeRange(parseNlhRange(text)); } catch { return "Invalid range"; }
   }, [text]);
@@ -129,7 +145,8 @@ export function RangeEditor() {
     <div className="grid">
       <h1 className="title">Range Editor</h1>
       <textarea className="card" value={text} onChange={(e) => setText(e.target.value)} rows={5} />
-      <div className="card"><b>Round trip</b><p className="num">{parsed}</p><p className="muted">PLO sample: {plo}</p></div>
+      <button className="btn primary" onClick={() => void saveRange("default", text).then(() => setStatus("saved"))}>Save</button>
+      <div className="card"><b>Round trip</b><p className="num">{parsed}</p><p className="muted">PLO sample: {plo}</p><p>{status}</p></div>
     </div>
   );
 }

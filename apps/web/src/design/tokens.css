@@ -43,6 +43,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 .btn { border: 1px solid var(--line); background: var(--layer-2); color: var(--text); border-radius: 7px; padding: 9px 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
 .btn.primary { border-color: transparent; background: linear-gradient(135deg, #4f46e5, #0891b2); }
+.badge { display: inline-flex; width: fit-content; border: 1px solid rgba(63,182,139,.35); color: #8ee6c5; background: rgba(63,182,139,.12); border-radius: 999px; padding: 4px 8px; font-size: 12px; }
 .field { display: grid; gap: 6px; color: var(--muted); font-size: 12px; }
 .field input, .field select, .field textarea { width: 100%; background: #090e18; color: var(--text); border: 1px solid var(--line); border-radius: 7px; padding: 9px 10px; }
 .matrix { display: grid; grid-template-columns: repeat(13, minmax(42px, 1fr)); gap: 4px; }
