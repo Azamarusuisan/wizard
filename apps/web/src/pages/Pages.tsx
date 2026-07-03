@@ -127,15 +127,16 @@ export function EquityLab() {
   const [game, setGame] = useState<Game>("NLH");
   const [players, setPlayers] = useState(["As Ah", "Kc Kd"]);
   const [board, setBoard] = useState("");
+  const [dead, setDead] = useState("");
   const parse = (s: string) => s.trim().split(/\s+/).filter(Boolean).map(parseCard);
   const setPlayer = (index: number, value: string) => setPlayers((xs) => xs.map((x, i) => i === index ? value : x));
   const calc = useMemo(() => {
     try {
-      return { rows: equity(players.map((p) => ({ cards: parse(p) })), parse(board), game, board.trim() ? 0 : 20000, 11), error: "" };
+      return { rows: equity(players.map((p) => ({ cards: parse(p) })), parse(board), game, board.trim() ? 0 : 20000, 11, parse(dead)), error: "" };
     } catch (err) {
       return { rows: [], error: err instanceof Error ? err.message : "invalid equity input" };
     }
-  }, [players, board, game]);
+  }, [players, board, dead, game]);
   const cards = useMemo(() => {
     try { return parse(players.join(" ")); } catch { return []; }
   }, [players]);
@@ -146,6 +147,7 @@ export function EquityLab() {
         <label className="field">Game<select value={game} onChange={(e) => setGame(e.target.value as Game)}><option>NLH</option><option>PLO4</option><option>PLO5</option></select></label>
         {players.map((player, i) => <label className="field" key={i}>Player {i + 1}<input value={player} onChange={(e) => setPlayer(i, e.target.value)} /></label>)}
         <label className="field">Board<input value={board} onChange={(e) => setBoard(e.target.value)} aria-label="Board cards example Ah Kd 7c" /></label>
+        <label className="field">Dead<input value={dead} onChange={(e) => setDead(e.target.value)} aria-label="Dead cards example Ac Td" /></label>
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         <button className="btn" disabled={players.length >= 6} onClick={() => setPlayers((xs) => [...xs, "Qs Qh"])}>Add player</button>

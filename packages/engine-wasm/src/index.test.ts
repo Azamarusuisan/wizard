@@ -35,6 +35,13 @@ test("PLO equity validates game-specific hole counts", () => {
   assert.throws(() => equity([{ cards: cs("As Ah Kc Qd Js") }, { cards: cs("Ts 9h 8d 7c 6s") }], board, "PLO4"), /PLO4/);
 });
 
+test("equity excludes dead cards", () => {
+  assert.throws(() => equity([{ cards: cs("As Ah") }, { cards: cs("Kc Kd") }], [], "NLH", 10, 3, cs("As")), /duplicate/);
+  const withoutDead = equity([{ cards: cs("As Ah") }, { cards: cs("Kc Kd") }], cs("2c 3d 4h 5s"), "NLH", 0, 3)[0]!.equity;
+  const withDead = equity([{ cards: cs("As Ah") }, { cards: cs("Kc Kd") }], cs("2c 3d 4h 5s"), "NLH", 0, 3, cs("Ac"))[0]!.equity;
+  assert.notEqual(withDead, withoutDead);
+});
+
 test("range parser round trips", () => {
   const parsed = parseNlhRange("AA, A5s:0.5");
   assert.equal(serializeRange(parsed), "AA, A5s:0.5");
