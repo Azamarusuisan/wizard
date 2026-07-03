@@ -125,28 +125,31 @@ export function SolverStudio() {
 
 export function EquityLab() {
   const [game, setGame] = useState<Game>("NLH");
-  const [p1, setP1] = useState("As Ah");
-  const [p2, setP2] = useState("Kc Kd");
+  const [players, setPlayers] = useState(["As Ah", "Kc Kd"]);
   const [board, setBoard] = useState("");
   const parse = (s: string) => s.trim().split(/\s+/).filter(Boolean).map(parseCard);
+  const setPlayer = (index: number, value: string) => setPlayers((xs) => xs.map((x, i) => i === index ? value : x));
   const calc = useMemo(() => {
     try {
-      return { rows: equity([{ cards: parse(p1) }, { cards: parse(p2) }], parse(board), game, board.trim() ? 0 : 20000, 11), error: "" };
+      return { rows: equity(players.map((p) => ({ cards: parse(p) })), parse(board), game, board.trim() ? 0 : 20000, 11), error: "" };
     } catch (err) {
       return { rows: [], error: err instanceof Error ? err.message : "invalid equity input" };
     }
-  }, [p1, p2, board, game]);
+  }, [players, board, game]);
   const cards = useMemo(() => {
-    try { return parse(`${p1} ${p2}`); } catch { return []; }
-  }, [p1, p2]);
+    try { return parse(players.join(" ")); } catch { return []; }
+  }, [players]);
   return (
     <div className="grid">
       <h1 className="title">Equity Lab</h1>
       <div className="grid cols-3">
         <label className="field">Game<select value={game} onChange={(e) => setGame(e.target.value as Game)}><option>NLH</option><option>PLO4</option><option>PLO5</option></select></label>
-        <label className="field">Player 1<input value={p1} onChange={(e) => setP1(e.target.value)} /></label>
-        <label className="field">Player 2<input value={p2} onChange={(e) => setP2(e.target.value)} /></label>
+        {players.map((player, i) => <label className="field" key={i}>Player {i + 1}<input value={player} onChange={(e) => setPlayer(i, e.target.value)} /></label>)}
         <label className="field">Board<input value={board} onChange={(e) => setBoard(e.target.value)} aria-label="Board cards example Ah Kd 7c" /></label>
+      </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <button className="btn" disabled={players.length >= 6} onClick={() => setPlayers((xs) => [...xs, "Qs Qh"])}>Add player</button>
+        <button className="btn" disabled={players.length <= 2} onClick={() => setPlayers((xs) => xs.slice(0, -1))}>Remove player</button>
       </div>
       {calc.error ? <p className="error" role="alert">{calc.error}</p> : null}
       <div className="grid cols-3">

@@ -25,11 +25,14 @@ test("equity lab shows AA vs KK", async ({ page }) => {
   await page.goto("/equity");
   await expect(page.locator(".card").filter({ hasText: "Player 1" })).toBeVisible();
   await expect(page.getByText(/8[0-3]\./)).toBeVisible();
+  await page.getByLabel("Board cards example Ah Kd 7c").fill("2c 3d 4h 5s 9c");
+  await page.getByRole("button", { name: "Add player" }).click();
+  await expect(page.locator('[aria-label^="Player 3:"]')).toBeVisible();
+  await page.getByRole("button", { name: "Remove player" }).click();
   await page.getByLabel("Game").selectOption("PLO5");
   await expect(page.getByRole("alert")).toContainText("PLO5");
   await page.getByLabel("Player 1").fill("As Ah Kc Qd Js");
   await page.getByLabel("Player 2").fill("Ts 9h 8d 7c 6s");
-  await page.getByLabel("Board cards example Ah Kd 7c").fill("2c 3d 4h 5s 9c");
   await expect(page.getByRole("alert")).toHaveCount(0);
   await expect(page.locator('[aria-label^="Player 2:"]')).toBeVisible();
 });
