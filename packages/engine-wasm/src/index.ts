@@ -121,6 +121,7 @@ export function evaluatePlo(holes: Card[], board: Card[]): number {
 export type PlayerInput = { cards: Card[]; weight?: number };
 export type EquityResult = { equity: number; win: number; tie: number; samples: number; ci95: number; handDistribution: number[] };
 export const HAND_CATEGORIES = ["High card", "Pair", "Two pair", "Trips", "Straight", "Flush", "Full house", "Quads", "Straight flush"] as const;
+export const EXACT_EQUITY_EVAL_THRESHOLD = 20_000_000;
 
 function mulberry32(seed: number): () => number {
   let t = seed >>> 0;
@@ -133,13 +134,8 @@ function mulberry32(seed: number): () => number {
 }
 
 export function equity(players: PlayerInput[], board: Card[], game: Game = "NLH", samples = 0, seed = 1, deadCards: Card[] = []): EquityResult[] {
-  for (const player of players) {
-    if (game === "NLH" && player.cards.length !== 2) throw new Error("NLH players need 2 cards");
-    if (game === "PLO4" && player.cards.length !== 4) throw new Error("PLO4 players need 4 cards");
-    if (game === "PLO5" && player.cards.length !== 5) throw new Error("PLO5 players need 5 cards");
-  }
+  validateEquityInput(players, board, game, deadCards);
   const dead = [...board, ...deadCards, ...players.flatMap((p) => p.cards)];
-  if (new Set(dead).size !== dead.length) throw new Error("duplicate cards");
   const missing = 5 - board.length;
   const runouts = samples > 0 ? null : combinations(deck(dead), missing);
   const rng = mulberry32(seed);
@@ -165,6 +161,35 @@ export function equity(players: PlayerInput[], board: Card[], game: Game = "NLH"
     const p = r.equity / Math.max(1, r.samples);
     return { equity: p, win: r.win / r.samples, tie: r.tie / r.samples, samples: r.samples, ci95: 1.96 * Math.sqrt((p * (1 - p)) / Math.max(1, r.samples)), handDistribution: r.handDistribution.map((x) => x / Math.max(1, r.samples)) };
   });
+}
+
+export function equityAuto(players: PlayerInput[], board: Card[], game: Game = "NLH", mcSamples = 20_000, seed = 1, deadCards: Card[] = [], exactThreshold = EXACT_EQUITY_EVAL_THRESHOLD): EquityResult[] {
+  const samples = estimateEquityEvaluations(players, board, game, deadCards) <= exactThreshold ? 0 : Math.max(1, mcSamples);
+  return equity(players, board, game, samples, seed, deadCards);
+}
+
+export function estimateEquityEvaluations(players: PlayerInput[], board: Card[], game: Game = "NLH", deadCards: Card[] = []): number {
+  validateEquityInput(players, board, game, deadCards);
+  const dead = [...board, ...deadCards, ...players.flatMap((p) => p.cards)];
+  return choose(deck(dead).length, 5 - board.length) * players.length;
+}
+
+function validateEquityInput(players: PlayerInput[], board: Card[], game: Game, deadCards: Card[]): void {
+  for (const player of players) {
+    if (game === "NLH" && player.cards.length !== 2) throw new Error("NLH players need 2 cards");
+    if (game === "PLO4" && player.cards.length !== 4) throw new Error("PLO4 players need 4 cards");
+    if (game === "PLO5" && player.cards.length !== 5) throw new Error("PLO5 players need 5 cards");
+  }
+  const dead = [...board, ...deadCards, ...players.flatMap((p) => p.cards)];
+  if (new Set(dead).size !== dead.length) throw new Error("duplicate cards");
+  if (board.length > 5) throw new Error("board has too many cards");
+}
+
+function choose(n: number, k: number): number {
+  if (k < 0 || k > n) return 0;
+  let out = 1;
+  for (let i = 1; i <= k; i++) out = out * (n - k + i) / i;
+  return out;
 }
 
 function sample<T>(items: T[], k: number, rng: () => number): T[] {

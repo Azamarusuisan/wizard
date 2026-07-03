@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { evaluateNlh7, evaluatePlo, equity, kuhnCfr, parseCard, parseNlhRange, parsePloRange, plo4FastExploitabilityPctPot, plo5FastExploitabilityPctPot, potLimitMaxRaise, serializeRange, solveRiverSpot } from "./index.js";
+import { evaluateNlh7, evaluatePlo, equity, equityAuto, estimateEquityEvaluations, kuhnCfr, parseCard, parseNlhRange, parsePloRange, plo4FastExploitabilityPctPot, plo5FastExploitabilityPctPot, potLimitMaxRaise, serializeRange, solveRiverSpot } from "./index.js";
 
 const cs = (s: string) => s.split(/\s+/).map(parseCard);
 
@@ -46,6 +46,13 @@ test("equity excludes dead cards", () => {
   const withoutDead = equity([{ cards: cs("As Ah") }, { cards: cs("Kc Kd") }], cs("2c 3d 4h 5s"), "NLH", 0, 3)[0]!.equity;
   const withDead = equity([{ cards: cs("As Ah") }, { cards: cs("Kc Kd") }], cs("2c 3d 4h 5s"), "NLH", 0, 3, cs("Ac"))[0]!.equity;
   assert.notEqual(withDead, withoutDead);
+});
+
+test("equity auto switches by evaluation estimate", () => {
+  const players = [{ cards: cs("As Ah") }, { cards: cs("Kc Kd") }];
+  assert.equal(estimateEquityEvaluations(players, cs("2c 3d 4h 5s"), "NLH"), 88);
+  assert.equal(equityAuto(players, cs("2c 3d 4h 5s"), "NLH", 1000, 3)[0]!.samples, 44);
+  assert.equal(equityAuto(players, [], "NLH", 123, 3, [], 1)[0]!.samples, 123);
 });
 
 test("range parser round trips", () => {
