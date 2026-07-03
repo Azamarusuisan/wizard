@@ -221,7 +221,7 @@ export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2): Sol
     const raise = raiseEv >= callEv && raiseEv >= 0 ? 1 : 0;
     const call = !raise && callEv >= 0 ? 1 : 0;
     const fold = raise || call ? 0 : 1;
-    const ev = callEv / 100;
+    const ev = (call * callEv + raise * raiseEv) / 100;
     return { combo, fold, call, raise, equity: e, ev, eqr: ev / Math.max(0.0001, e * pot / 100) };
   });
   return {

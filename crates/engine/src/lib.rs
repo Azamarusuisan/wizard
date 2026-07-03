@@ -1010,6 +1010,13 @@ pub mod br {
         }
     }
 
+    pub fn strategy_ev(row: RiverCombo, pot: f64, bet: f64) -> f64 {
+        let fold_ev = 0.0;
+        let call_ev = row.equity * (pot + bet) - (1.0 - row.equity) * bet;
+        let raise_ev = call_ev + row.equity * bet * 0.15;
+        row.fold * fold_ev + row.call * call_ev + row.raise * raise_ev
+    }
+
     pub fn plo4_fast_exploitability_pct_pot() -> f64 {
         let samples = [
             (0.61, 0.12, [0.08, 0.54, 0.38]),
@@ -1111,7 +1118,7 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
         .collect::<Vec<_>>();
     for row in &rows {
         let equity = row.equity;
-        let ev = (equity * (spot.pot + spot.bet) - (1.0 - equity) * spot.bet) / 100.0;
+        let ev = br::strategy_ev(*row, spot.pot, spot.bet) / 100.0;
         let eqr = ev / (equity * spot.pot / 100.0).max(0.0001);
         strategy.extend([row.fold, row.call, row.raise]);
         metrics.extend([ev, equity, eqr]);
@@ -1352,6 +1359,7 @@ mod tests {
         assert_eq!(native.combos[0], br::DEFAULT_RIVER_SPECS[0].0);
         assert_eq!(native.combos.len(), br::DEFAULT_RIVER_SPECS.len());
         assert_eq!(&native.strategy[0..3], &[first.fold, first.call, first.raise]);
+        assert!(native.metrics[(native.combos.len() - 1) * 3] >= 0.0);
         assert_eq!(native.metrics[native.combos.len() * 3], 2.5);
         assert!(
             native.progress.first().unwrap().exploitability_pct
