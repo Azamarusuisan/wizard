@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { DEFAULT_RIVER_SPECS, evaluateNlh7, evaluatePlo, equity, kuhnCfr, parseCard, parseNlhRange, parsePloRange, potLimitMaxRaise, serializeRange, solveRiverSpot } from "./index.js";
+import { evaluateNlh7, evaluatePlo, equity, kuhnCfr, parseCard, parseNlhRange, parsePloRange, potLimitMaxRaise, serializeRange, solveRiverSpot } from "./index.js";
 
 const cs = (s: string) => s.split(/\s+/).map(parseCard);
 
@@ -71,7 +71,8 @@ test("Kuhn value converges near -1/18", () => {
 
 test("TS river solve fallback emits pure best-response rows", () => {
   const result = solveRiverSpot(100, 66, 250);
-  assert.deepEqual(result.rows.map((r) => r.combo), DEFAULT_RIVER_SPECS.map(([combo]) => combo));
+  assert.equal(result.rows.length, 28);
+  assert.deepEqual(result.rows.slice(0, 2).map((r) => r.combo), ["AcAd", "AcAh"]);
   assert.deepEqual(
     result.rows.map((r) => r.fold + r.call + r.raise),
     result.rows.map(() => 1)
@@ -91,10 +92,11 @@ test("TS river solve fallback rejects invalid spots", () => {
   assert.throws(() => solveRiverSpot(100, 66, 250, "", -1, 0), /rake/);
 });
 
-test("TS river solve fallback uses board in representative equities", () => {
+test("TS river solve fallback uses board in concrete combo equities", () => {
   const empty = solveRiverSpot(100, 66, 250);
   const boarded = solveRiverSpot(100, 66, 250, "Ah Kd 7c");
   assert.notEqual(empty.rows[0]!.equity, boarded.rows[0]!.equity);
+  assert.ok(!boarded.rows.some((r) => r.combo.includes("Ah")));
 });
 
 test("TS river solve fallback subtracts capped rake from showdown EV", () => {

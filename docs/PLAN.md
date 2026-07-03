@@ -53,7 +53,7 @@ Verify:
 - `pnpm exec playwright test apps/web/tests/core-flows.spec.ts -g "solver runs"`
 
 Remaining:
-- Replace representative river output with real tree/CFR output.
+- Replace default-combo river output with real tree/CFR output.
 - Implement strict full-tree best response for production NLH postflop nodes.
 
 ## M4 NLH Full Postflop

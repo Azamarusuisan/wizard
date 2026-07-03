@@ -272,8 +272,8 @@ export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2, boar
   const potOdds = bet / (pot + 2 * bet);
   const mdf = pot / (pot + bet);
   const alpha = bet / (pot + bet);
-  const rows = DEFAULT_RIVER_SPECS.map(([combo, e]) => {
-    const eq = boardEquity(combo, e, board);
+  const rows = defaultRiverCombos(board).map(({ combo, fallback, holes }) => {
+    const eq = comboEquity(holes, fallback, board);
     const { callEv, raiseEv } = actionEvs(eq, pot, bet, rakePct, rakeCap);
     const raise = raiseEv >= callEv && raiseEv >= 0 ? 1 : 0;
     const call = !raise && callEv >= 0 ? 1 : 0;
@@ -305,33 +305,39 @@ function parseBoardText(text: string): Card[] {
   return board;
 }
 
-function boardEquity(label: string, fallback: number, board: Card[]): number {
-  if (!board.length) return fallback;
-  // ponytail: representative rows only; replace with full combo expansion when tree CFR lands.
-  const hero = representativeHoles(label, board);
-  if (!hero) return fallback;
-  const villain = deck([...board, ...hero]).slice(0, 2);
-  return equity([{ cards: hero }, { cards: villain }], board, "NLH", 0, 1)[0]!.equity;
+function defaultRiverCombos(board: Card[]): { combo: string; fallback: number; holes: Card[] }[] {
+  return DEFAULT_RIVER_SPECS.flatMap(([label, fallback]) => expandNlhCombo(label, board).map((holes) => ({ combo: holes.map(formatCard).join(""), fallback, holes })));
 }
 
-function representativeHoles(label: string, blocked: Card[]): Card[] | null {
+function expandNlhCombo(label: string, blocked: Card[]): Card[][] {
   const r0 = RANK_VALUE.get(label[0]!.toUpperCase());
   const r1 = RANK_VALUE.get(label[1]!.toUpperCase());
-  if (r0 === undefined || r1 === undefined) return null;
-  return r0 === r1 ? pickPair(r0, blocked) : pickSuited(r0, r1, blocked);
-}
-
-function pickPair(rank: number, blocked: Card[]): Card[] | null {
-  const cards = [0, 1, 2, 3].map((s) => card(rank, s as Suit)).filter((c) => !blocked.includes(c)).slice(0, 2);
-  return cards.length === 2 ? cards : null;
-}
-
-function pickSuited(a: number, b: number, blocked: Card[]): Card[] | null {
-  for (const suit of [0, 1, 2, 3] as Suit[]) {
-    const cards = [card(a, suit), card(b, suit)];
-    if (!cards.some((c) => blocked.includes(c))) return cards;
+  if (r0 === undefined || r1 === undefined) return [];
+  const blockedSet = new Set(blocked);
+  if (r0 === r1) {
+    const out: Card[][] = [];
+    for (let a = 0; a < 3; a++) for (let b = a + 1; b < 4; b++) {
+      const holes = [card(r0, a as Suit), card(r1, b as Suit)];
+      if (!holes.some((c) => blockedSet.has(c))) out.push(holes);
+    }
+    return out;
   }
-  return null;
+  const suited = label.endsWith("s");
+  const offsuit = label.endsWith("o");
+  const out: Card[][] = [];
+  for (let a = 0; a < 4; a++) for (let b = 0; b < 4; b++) {
+    if (suited && a !== b) continue;
+    if (offsuit && a === b) continue;
+    const holes = [card(r0, a as Suit), card(r1, b as Suit)];
+    if (!holes.some((c) => blockedSet.has(c))) out.push(holes);
+  }
+  return out;
+}
+
+function comboEquity(hero: Card[], fallback: number, board: Card[]): number {
+  if (!board.length) return fallback;
+  const villain = deck([...board, ...hero]).slice(0, 2);
+  return equity([{ cards: hero }, { cards: villain }], board, "NLH", 0, 1)[0]!.equity;
 }
 
 function riverStrategyProgress(rows: SolverRow[], pot: number, bet: number, points: number, rakePct: number, rakeCap: number): number[] {

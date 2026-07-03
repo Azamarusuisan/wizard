@@ -27,9 +27,9 @@
 - Solver worker/client/UI now expose a cancel path wired to `EngineAPI.cancel`.
 - Solver Studio guards against duplicate solve clicks while a run is active; Playwright waits for the cancel button lifecycle before asserting same-spot cache hits.
 - Solver spot payload now carries optional effective stack, and native/TS fallback/UI compute SPR as `stack / pot` instead of using a fixed display value.
-- Solver spot payload/cache key now carries optional board text from the Solver Studio input. Native and TS fallback river rows parse/validate board cards and recompute representative combo equities from exact NLH enumeration when board text is present. This is still representative-row solving, not full range/tree board-aware CFR.
+- Solver spot payload/cache key now carries optional board text from the Solver Studio input. Native and TS fallback river rows parse/validate board cards, expand the default NLH labels to concrete combos, and recompute board-aware combo equities from exact NLH enumeration when board text is present. This is still default-combo river solving, not full range/tree board-aware CFR.
 - Solver spot payload/cache key now carries rake percent and cap. Native WASM and TS fallback river action EVs subtract capped rake from the win pot; tests cover that rake lowers call/raise showdown EV.
-- Solver Studio displays an `abstracted` badge and explicitly says exploitability is measured on the representative-row abstraction. Playwright covers the disclosure.
+- Solver Studio displays an `abstracted` badge and explicitly says exploitability is measured on the default-combo abstraction. Playwright covers the disclosure.
 - Solver Studio catches invalid spot inputs before rendering strategy/metrics, displays the validation error, and disables solve. Playwright covers duplicate board-card input.
 - Solver Studio now reads/writes shareable spot configs through `?spot=<base64url-json>`. Unit tests cover the codec and Playwright verifies solve updates the URL.
 - Native and TS solve entry points now reject non-positive pot/stack and negative bet before metric calculation.
@@ -52,7 +52,7 @@
 - README, architecture, and formats docs now reflect the current Plan A Rust/WASM path, IndexedDB solve cache shape, and remaining representative-solver limitation.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `representative_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~1.07 us/eval, representative river rows ~12.8 ns. The evaluator still needs a faster table/perfect-hash path to reach the original 50M eval/s target.
-- Last verified: `bash scripts/verify.sh` exited 0 after adding Solver Studio rake inputs and capped-rake EV formulas.
+- Last verified: `bash scripts/verify.sh` exited 0 after expanding Solver Studio solve output to concrete default NLH combos.
 
 ## Important Caveat
 

@@ -11,12 +11,12 @@ test("solver runs and displays strategy metrics", async ({ page }) => {
   await page.getByLabel("Rake cap").fill("10");
   await page.getByRole("button", { name: "Start solve" }).click();
   await expect(page.getByRole("button", { name: "Cancel" })).toBeEnabled();
-  await expect(page.getByRole("table", { name: "strategy table" })).toContainText("AA");
+  await expect(page.getByRole("table", { name: "strategy table" })).toContainText("AcAd");
   await expect(page.getByRole("table", { name: "strategy table" })).toContainText("R EV");
   await expect(page.getByText("MDF")).toBeVisible();
   await expect(page.getByText("SPR")).toBeVisible();
   await expect(page.getByText("abstracted")).toBeVisible();
-  await expect(page.getByText(/representative-row abstraction/)).toBeVisible();
+  await expect(page.getByText(/default-combo abstraction/)).toBeVisible();
   await expect(page).toHaveURL(/spot=/);
   await expect(page.getByRole("button", { name: "Cancel" })).toBeDisabled();
   await page.getByRole("button", { name: "Start solve" }).click();

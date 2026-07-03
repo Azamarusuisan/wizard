@@ -140,7 +140,8 @@ class WasmPreferredEngine implements EngineAPI {
     const wasm = await this.loadWasm();
     if (!wasm) return await this.local.getHandMetrics(handle, nodeId);
     const raw = wasm.get_hand_metrics(handle, nodeId);
-    return splitMetrics(raw, FALLBACK_COMBOS.length);
+    const native = JSON.parse(new TextDecoder().decode(wasm.serialize(handle))) as NativeSolve;
+    return splitMetrics(raw, native.combos.length || FALLBACK_COMBOS.length);
   }
 
   async cancel(handle: EngineHandle): Promise<void> {

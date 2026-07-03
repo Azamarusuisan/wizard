@@ -1318,18 +1318,19 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
     let alpha = spot.bet / (spot.pot + spot.bet);
     let spr = spot.stack.unwrap_or(spot.pot * 4.2) / spot.pot;
     let (rake_pct, rake_cap) = spot_rake(&spot);
-    let combos = br::DEFAULT_RIVER_SPECS
+    let entries = default_river_entries(&board);
+    let combos = entries
         .iter()
-        .map(|(combo, _)| combo.to_string())
+        .map(|entry| entry.label.clone())
         .collect::<Vec<_>>();
-    let mut strategy = Vec::with_capacity(br::DEFAULT_RIVER_SPECS.len() * 3);
-    let mut action_evs = Vec::with_capacity(br::DEFAULT_RIVER_SPECS.len() * 3);
-    let mut metrics = Vec::with_capacity(br::DEFAULT_RIVER_SPECS.len() * 3 + 4);
-    let rows = br::DEFAULT_RIVER_SPECS
+    let mut strategy = Vec::with_capacity(entries.len() * 3);
+    let mut action_evs = Vec::with_capacity(entries.len() * 3);
+    let mut metrics = Vec::with_capacity(entries.len() * 3 + 4);
+    let rows = entries
         .iter()
-        .map(|(combo, equity)| {
+        .map(|entry| {
             br::best_response_combo_with_rake(
-                board_equity(combo, *equity, &board),
+                combo_equity(entry.holes, entry.fallback, &board),
                 spot.pot,
                 spot.bet,
                 rake_pct,
@@ -1428,44 +1429,89 @@ fn parse_board(text: &str) -> Result<Vec<eval::Card>, String> {
     Ok(cards)
 }
 
-fn board_equity(label: &str, fallback: f64, board: &[eval::Card]) -> f64 {
+struct RiverEntry {
+    label: String,
+    fallback: f64,
+    holes: [eval::Card; 2],
+}
+
+fn default_river_entries(board: &[eval::Card]) -> Vec<RiverEntry> {
+    br::DEFAULT_RIVER_SPECS
+        .iter()
+        .flat_map(|(label, fallback)| {
+            expand_nlh_combo(label, board)
+                .into_iter()
+                .map(|holes| RiverEntry {
+                    label: format!("{}{}", format_card(holes[0]), format_card(holes[1])),
+                    fallback: *fallback,
+                    holes,
+                })
+        })
+        .collect()
+}
+
+fn expand_nlh_combo(label: &str, blocked: &[eval::Card]) -> Vec<[eval::Card; 2]> {
+    let chars = label.as_bytes();
+    let ranks = "23456789TJQKA";
+    let Some(r0) = chars
+        .first()
+        .and_then(|c| ranks.find(c.to_ascii_uppercase() as char))
+        .map(|r| r as u8)
+    else {
+        return Vec::new();
+    };
+    let Some(r1) = chars
+        .get(1)
+        .and_then(|c| ranks.find(c.to_ascii_uppercase() as char))
+        .map(|r| r as u8)
+    else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    if r0 == r1 {
+        for a in 0..3 {
+            for b in a + 1..4 {
+                let holes = [eval::card(r0, a), eval::card(r1, b)];
+                if !blocked.contains(&holes[0]) && !blocked.contains(&holes[1]) {
+                    out.push(holes);
+                }
+            }
+        }
+        return out;
+    }
+    let suited = label.ends_with('s');
+    let offsuit = label.ends_with('o');
+    for a in 0..4 {
+        for b in 0..4 {
+            if suited && a != b {
+                continue;
+            }
+            if offsuit && a == b {
+                continue;
+            }
+            let holes = [eval::card(r0, a), eval::card(r1, b)];
+            if !blocked.contains(&holes[0]) && !blocked.contains(&holes[1]) {
+                out.push(holes);
+            }
+        }
+    }
+    out
+}
+
+fn format_card(card: eval::Card) -> String {
+    let rank = "23456789TJQKA".as_bytes()[eval::rank(card) as usize] as char;
+    let suit = "cdhs".as_bytes()[eval::suit(card) as usize] as char;
+    format!("{rank}{suit}")
+}
+
+fn combo_equity(hero: [eval::Card; 2], fallback: f64, board: &[eval::Card]) -> f64 {
     if board.is_empty() {
         return fallback;
     }
-    // ponytail: representative rows only; replace with full combo expansion when tree CFR lands.
-    let Some(hero) = representative_holes(label, board) else {
-        return fallback;
-    };
     let mut dead = board.to_vec();
     dead.extend(hero);
     let villain = pick_villain(&dead);
     equity::heads_up_nlh_equity_exact(hero, villain, board)
-}
-
-fn representative_holes(label: &str, blocked: &[eval::Card]) -> Option<[eval::Card; 2]> {
-    let chars = label.as_bytes();
-    let ranks = "23456789TJQKA";
-    let r0 = ranks.find(chars.first()?.to_ascii_uppercase() as char)? as u8;
-    let r1 = ranks.find(chars.get(1)?.to_ascii_uppercase() as char)? as u8;
-    if r0 == r1 {
-        return pick_pair(r0, blocked);
-    }
-    pick_suited(r0, r1, blocked)
-}
-
-fn pick_pair(rank: u8, blocked: &[eval::Card]) -> Option<[eval::Card; 2]> {
-    let cards: Vec<_> = (0..4)
-        .map(|s| eval::card(rank, s))
-        .filter(|c| !blocked.contains(c))
-        .take(2)
-        .collect();
-    (cards.len() == 2).then_some([cards[0], cards[1]])
-}
-
-fn pick_suited(a: u8, b: u8, blocked: &[eval::Card]) -> Option<[eval::Card; 2]> {
-    (0..4)
-        .map(|s| [eval::card(a, s), eval::card(b, s)])
-        .find(|cs| !blocked.contains(&cs[0]) && !blocked.contains(&cs[1]))
 }
 
 fn pick_villain(blocked: &[eval::Card]) -> [eval::Card; 2] {
@@ -1743,8 +1789,8 @@ mod tests {
         let native: super::NativeSolve =
             serde_json::from_slice(&payload).expect("native solve json");
         let first = br::best_response_combo(br::DEFAULT_RIVER_SPECS[0].1, 100.0, 66.0);
-        assert_eq!(native.combos[0], br::DEFAULT_RIVER_SPECS[0].0);
-        assert_eq!(native.combos.len(), br::DEFAULT_RIVER_SPECS.len());
+        assert_eq!(native.combos[0], "AcAd");
+        assert_eq!(native.combos.len(), 28);
         assert_eq!(
             &native.strategy[0..3],
             &[first.fold, first.call, first.raise]
@@ -1827,7 +1873,7 @@ mod tests {
     }
 
     #[test]
-    fn native_solve_board_changes_representative_equity() {
+    fn native_solve_board_changes_concrete_combo_equity() {
         super::init(None);
         let empty = super::solve(r#"{"pot":100.0,"bet":66.0,"stack":250.0}"#).unwrap();
         let boarded =
@@ -1837,6 +1883,10 @@ mod tests {
         let empty_native: super::NativeSolve = serde_json::from_slice(&empty_payload).unwrap();
         let board_native: super::NativeSolve = serde_json::from_slice(&board_payload).unwrap();
         assert_ne!(empty_native.metrics[1], board_native.metrics[1]);
+        assert!(board_native
+            .combos
+            .iter()
+            .all(|combo| !combo.contains("Ah")));
         super::cancel(empty).unwrap();
         super::cancel(boarded).unwrap();
     }
