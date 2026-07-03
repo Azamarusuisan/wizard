@@ -21,8 +21,8 @@ test("equity lab shows AA vs KK", async ({ page }) => {
 
 test("trainer displays decision controls", async ({ page }) => {
   await page.goto("/trainer");
-  await page.getByRole("button", { name: "Bet 66%" }).click();
   await expect(page.getByText("BTN vs BB")).toBeVisible();
+  await page.keyboard.press("B");
   await expect(page.getByText("EV loss")).toBeVisible();
   await expect(page.getByText("Perfect")).toBeVisible();
 });

@@ -21,7 +21,7 @@
 - Native and TS fallback combo EV/EQR now use strategy-weighted action EV rather than always using call EV.
 - Solve rows now carry fold/call/raise action EVs through native WASM, TS fallback, and IndexedDB cache.
 - Strategy table now displays fold/call/raise action EV columns alongside aggregate EV/EQR.
-- Trainer now scores the selected action from solve-row action EVs and displays EV loss, grade, and GTO raise frequency.
+- Trainer now scores the selected action from solve-row action EVs and displays EV loss, grade, and GTO raise frequency. Keyboard shortcuts are wired: `F`/`X` fold, `C` call, `B`/`R` bet/raise, with Playwright coverage.
 - Solver worker/client/UI now expose a cancel path wired to `EngineAPI.cancel`.
 - Solver spot payload now carries optional effective stack, and native/TS fallback/UI compute SPR as `stack / pot` instead of using a fixed display value.
 - Solver spot payload/cache key now carries optional board text from the Solver Studio input. Native and TS fallback river rows parse/validate board cards and recompute representative combo equities from exact NLH enumeration when board text is present. This is still representative-row solving, not full range/tree board-aware CFR.

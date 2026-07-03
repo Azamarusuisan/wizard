@@ -141,6 +141,17 @@ export function Trainer() {
   const row = spot.rows[0]!;
   const bestEv = Math.max(row.foldEv, row.callEv, row.raiseEv);
   const [choice, setChoice] = useState<"fold" | "call" | "raise" | null>(null);
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLSelectElement) return;
+      const key = event.key.toLowerCase();
+      if (key === "f" || key === "x") setChoice("fold");
+      if (key === "c") setChoice("call");
+      if (key === "b" || key === "r") setChoice("raise");
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
   const chosenEv = choice === "fold" ? row.foldEv : choice === "call" ? row.callEv : choice === "raise" ? row.raiseEv : null;
   const loss = chosenEv === null ? null : bestEv - chosenEv;
   const grade = loss === null ? "Choose an action" : loss <= 0.005 ? "Perfect" : loss <= 0.05 ? "Good" : loss <= 0.2 ? "Inaccuracy" : "Blunder";
