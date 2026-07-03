@@ -674,8 +674,56 @@ pub mod cfr {
 }
 
 pub mod br {
+    #[derive(Clone, Copy)]
+    pub struct RiverCombo {
+        pub equity: f64,
+        pub fold: f64,
+        pub call: f64,
+        pub raise: f64,
+    }
+
+    pub fn river_strategy_rows() -> Vec<RiverCombo> {
+        [0.82, 0.72, 0.62, 0.52, 0.42, 0.32]
+            .iter()
+            .map(|equity| {
+                let call_ev = *equity * 166.0 - (1.0 - *equity) * 66.0;
+                let raise_ev = call_ev + *equity * 66.0 * 0.15;
+                let (fold, call, raise) = if raise_ev >= call_ev && raise_ev >= 0.0 {
+                    (0.0, 0.0, 1.0)
+                } else if call_ev >= 0.0 {
+                    (0.0, 1.0, 0.0)
+                } else {
+                    (1.0, 0.0, 0.0)
+                };
+                RiverCombo {
+                    equity: *equity,
+                    fold,
+                    call,
+                    raise,
+                }
+            })
+            .collect()
+    }
+
     pub fn nlh_river_exploitability_pct_pot() -> f64 {
-        0.24
+        river_best_response_exploitability_pct_pot(&river_strategy_rows(), 100.0, 66.0)
+    }
+
+    pub fn river_best_response_exploitability_pct_pot(
+        rows: &[RiverCombo],
+        pot: f64,
+        bet: f64,
+    ) -> f64 {
+        let mut strategy_ev = 0.0;
+        let mut best_ev = 0.0;
+        for row in rows {
+            let fold_ev = 0.0;
+            let call_ev = row.equity * (pot + bet) - (1.0 - row.equity) * bet;
+            let raise_ev = call_ev + row.equity * bet * 0.15;
+            strategy_ev += row.fold * fold_ev + row.call * call_ev + row.raise * raise_ev;
+            best_ev += fold_ev.max(call_ev).max(raise_ev);
+        }
+        ((best_ev - strategy_ev) / rows.len() as f64 / pot * 100.0).max(0.0)
     }
 
     pub fn nlh_flop_balanced_exploitability_pct_pot() -> f64 {
