@@ -4,7 +4,7 @@ import { parseCard, equity, parseNlhRange, parsePloRange, serializeRange, solveR
 import { CardView } from "../components/CardView";
 import { Metric } from "../components/Metric";
 import { StrategyTable } from "../components/StrategyTable";
-import { cacheStats, clearAllData, clearStore, loadRange, saveRange, type CacheStats } from "../lib/db";
+import { cacheStats, clearAllData, clearStore, deleteSolve, listSolveRecords, loadRange, saveRange, type CacheStats, type SolveSummary } from "../lib/db";
 import { runSolve } from "../lib/solverClient";
 import { decodeSpot, encodeSpot } from "../lib/spotUrl";
 import { useAppStore } from "../state/store";
@@ -256,13 +256,17 @@ export function RangeEditor() {
 
 export function Settings() {
   const [stats, setStats] = useState<CacheStats | null>(null);
+  const [solves, setSolves] = useState<SolveSummary[]>([]);
   const theme = useAppStore((s) => s.theme);
   const setTheme = useAppStore((s) => s.setTheme);
   const deckColors = useAppStore((s) => s.deckColors);
   const setDeckColors = useAppStore((s) => s.setDeckColors);
   const precision = useAppStore((s) => s.precision);
   const setPrecision = useAppStore((s) => s.setPrecision);
-  const refresh = () => void cacheStats().then(setStats);
+  const refresh = () => void Promise.all([cacheStats(), listSolveRecords()]).then(([nextStats, nextSolves]) => {
+    setStats(nextStats);
+    setSolves(nextSolves);
+  });
   useEffect(refresh, []);
   return (
     <div className="grid">
@@ -285,9 +289,22 @@ export function Settings() {
           <button className="btn" onClick={() => void clearStore("ranges").then(refresh)}>Clear ranges</button>
           <button className="btn" onClick={() => void clearAllData().then(refresh)}>Clear all data</button>
         </div>
+        {solves.length ? <div className="grid" aria-label="Solve cache entries">
+          {solves.slice(0, 5).map((solve) => <div className="row" key={solve.key}>
+            <span className="num">{solve.key.slice(0, 12)}</span>
+            <span className="muted">{formatSpotSummary(solve.spot)}</span>
+            <button className="btn" onClick={() => void deleteSolve(solve.key).then(refresh)}>Delete solve</button>
+          </div>)}
+        </div> : null}
       </div>
     </div>
   );
+}
+
+function formatSpotSummary(spot: unknown): string {
+  if (!spot || typeof spot !== "object") return "spot";
+  const rec = spot as Record<string, unknown>;
+  return `${rec.game ?? "NLH"} ${rec.pot ?? "?"}/${rec.bet ?? "?"}`;
 }
 
 export function UiGallery() {

@@ -37,7 +37,7 @@
 - Solver Studio catches invalid spot inputs before rendering strategy/metrics, displays the validation error, and disables solve. Playwright covers duplicate board-card input.
 - Solver Studio now reads/writes shareable spot configs through `?spot=<base64url-json>`. Unit tests cover the codec and Playwright verifies solve updates the URL.
 - Native and TS solve entry points now reject non-positive pot/stack and negative bet before metric calculation.
-- IndexedDB stores `solves`, `ranges`, and `training` exist in the web app. Solve records now carry `meta.version = 1`. Unit tests cover range save/load, quantized solve save/load, record version, stats, clear, and oldest-first solve pruning. Playwright covers range persistence, same-spot solve cache hit, and Settings data clearing.
+- IndexedDB stores `solves`, `ranges`, and `training` exist in the web app. Solve records now carry `meta.version = 1`. Unit tests cover range save/load, quantized solve save/load, record version, stats, clear, individual solve delete, and oldest-first solve pruning. Playwright covers range persistence, same-spot solve cache hit, Settings individual solve delete, and Settings data clearing.
 - Equity Lab now has a game selector for NLH/PLO4/PLO5; Playwright covers a PLO5 exact-board equity path.
 - Equity Lab displays engine validation errors such as PLO5 hole-count mismatches instead of silently showing an empty result.
 - Equity Lab now supports adding/removing player slots from 2 to 6; Playwright covers a 3-way exact-board equity path.
@@ -57,7 +57,7 @@
 - IndexedDB solve cache keys are canonical JSON SHA-256 via WebCrypto in the web layer.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `default_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~1.07 us/eval, default river rows ~12.8 ns. The evaluator still needs a faster table/perfect-hash path to reach the original 50M eval/s target.
-- Last verified: `bash scripts/verify.sh` exited 0 after moving Rust river gate/bench rows to default concrete combo expansion.
+- Last verified: `bash scripts/verify.sh` exited 0 after adding Settings individual solve-cache deletion.
 
 ## Important Caveat
 

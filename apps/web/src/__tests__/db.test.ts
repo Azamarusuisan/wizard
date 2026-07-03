@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 import { describe, expect, it } from "vitest";
-import { cacheKey, cacheStats, clearAllData, getRecord, loadRange, loadSolve, pruneSolveCache, saveRange, saveSolve } from "../lib/db";
+import { cacheKey, cacheStats, clearAllData, deleteSolve, getRecord, listSolveRecords, loadRange, loadSolve, pruneSolveCache, saveRange, saveSolve } from "../lib/db";
 import { solveRiverSpot } from "@gto-lab/engine-wasm";
 
 describe("IndexedDB cache", () => {
@@ -25,7 +25,10 @@ describe("IndexedDB cache", () => {
   it("reports stats, clears stores, and prunes oldest solves", async () => {
     await clearAllData();
     const result = solveRiverSpot(100, 66);
-    await saveSolve({ pot: 100, bet: 66 }, result);
+    const key = await saveSolve({ pot: 100, bet: 66 }, result);
+    expect((await listSolveRecords())[0]?.key).toBe(key);
+    await deleteSolve(key);
+    expect((await cacheStats()).solves).toBe(0);
     await saveSolve({ pot: 101, bet: 66 }, result);
     await pruneSolveCache(1);
     expect((await cacheStats()).solves).toBe(0);

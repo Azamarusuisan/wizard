@@ -81,6 +81,7 @@ test("COOP COEP headers are set", async ({ request }) => {
 test("settings clears cached data", async ({ page }) => {
   await page.goto("/solver");
   await page.getByRole("button", { name: "Start solve" }).click();
+  await expect(page.getByRole("button", { name: "Cancel" })).toBeDisabled();
   await page.goto("/settings");
   await page.getByLabel("Theme").selectOption("light");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
@@ -89,6 +90,13 @@ test("settings clears cached data", async ({ page }) => {
   await page.getByLabel("Precision").selectOption("precise");
   await expect(page.getByLabel("Precision")).toHaveValue("precise");
   await expect(page.locator(".card").filter({ hasText: /^Solves/ })).toBeVisible();
+  await expect(page.getByLabel("Solve cache entries")).toBeVisible();
+  await page.getByRole("button", { name: "Delete solve" }).click();
+  await expect(page.locator('[aria-label="Solves: 0"]')).toBeVisible();
+  await page.goto("/solver");
+  await page.getByRole("button", { name: "Start solve" }).click();
+  await expect(page.getByRole("button", { name: "Cancel" })).toBeDisabled();
+  await page.goto("/settings");
   await page.getByRole("button", { name: "Clear all data" }).click();
   await expect(page.locator('[aria-label="Solves: 0"]')).toBeVisible();
 });

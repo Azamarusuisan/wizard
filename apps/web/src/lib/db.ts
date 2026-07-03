@@ -7,6 +7,7 @@ const STORES = ["solves", "ranges", "training"] as const;
 
 type StoreName = (typeof STORES)[number];
 export type CacheStats = Record<StoreName, number>;
+export type SolveSummary = { key: string; createdAt: number; spot: unknown };
 type SolveRecord = {
   key: string;
   meta: { version: number; createdAt: number; spot: unknown };
@@ -74,6 +75,19 @@ export async function clearStore(store: StoreName): Promise<void> {
 
 export async function clearAllData(): Promise<void> {
   await Promise.all(STORES.map((store) => clearStore(store)));
+}
+
+export async function deleteSolve(key: string): Promise<void> {
+  const db = await openGtoDb();
+  await txDone(db.transaction("solves", "readwrite").objectStore("solves").delete(key));
+}
+
+export async function listSolveRecords(): Promise<SolveSummary[]> {
+  const db = await openGtoDb();
+  const records = await reqResult<SolveRecord[]>(db.transaction("solves").objectStore("solves").getAll());
+  return records
+    .map((rec) => ({ key: rec.key, createdAt: rec.meta.createdAt, spot: rec.meta.spot }))
+    .sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export async function cacheStats(): Promise<CacheStats> {
