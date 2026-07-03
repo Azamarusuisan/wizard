@@ -742,6 +742,8 @@ pub mod cfr {
 }
 
 pub mod br {
+    use crate::{equity, eval::card};
+
     #[derive(Clone, Copy)]
     pub struct RiverCombo {
         pub equity: f64,
@@ -790,18 +792,23 @@ pub mod br {
 
     pub fn balanced_flop_buckets() -> Vec<FlopBucket> {
         [
-            (0.86, 0.10),
-            (0.74, 0.16),
-            (0.63, 0.18),
-            (0.53, 0.18),
-            (0.44, 0.16),
-            (0.34, 0.12),
-            (0.24, 0.10),
+            ([card(5, 0), card(5, 3)], 0.10),
+            ([card(12, 1), card(11, 0)], 0.16),
+            ([card(12, 3), card(8, 0)], 0.18),
+            ([card(10, 0), card(9, 1)], 0.18),
+            ([card(6, 0), card(6, 3)], 0.16),
+            ([card(4, 0), card(3, 1)], 0.12),
+            ([card(9, 0), card(3, 3)], 0.10),
         ]
         .iter()
-        .map(|(equity, weight)| FlopBucket {
-            representative: best_response_combo(*equity, 100.0, 66.0),
-            weight: *weight,
+        .map(|(hero, weight)| {
+            let board = [card(12, 0), card(5, 1), card(0, 2)];
+            let villain = [card(11, 2), card(10, 3)];
+            let e = equity::heads_up_nlh_equity_exact(*hero, villain, &board);
+            FlopBucket {
+                representative: best_response_combo(e, 100.0, 66.0),
+                weight: *weight,
+            }
         })
         .collect()
     }

@@ -9,7 +9,7 @@
 - Suit-isomorphism class counts are now exhaustive Rust tests for NLH preflop, PLO4, PLO5, and flop: `169 / 16,432 / 134,459 / 1,755`.
 - Kuhn poker gate now runs an actual CFR trainer and converges to `-1/18 ± 1e-3`.
 - NLH river small-spot gate now computes exploitability from action EVs and strategy rows instead of returning a fixed scalar.
-- NLH flop Balanced gate now computes weighted bucket exploitability from representative bucket strategy rows rather than returning a fixed scalar. It is still a shallow abstraction, not the final full flop CFR/BR implementation.
+- NLH flop Balanced gate now computes weighted bucket exploitability from exact-equity representative flop hands rather than returning a fixed scalar. It is still a shallow abstraction, not the final full flop CFR/BR implementation.
 - Leduc has a tabular CFR + average-strategy BR probe in Rust. Chance reach is included in regret and average-strategy weighting. Fold payoff is locked by a test (`p1 folds => +1`, `p0 folds => -1`). The gate now uses measured imperfect-information best response rather than a fixed scalar.
 - PLO4 Fast exploitability no longer returns a fixed scalar; it computes a weighted representative bucket BR gap. It is still a small sampled proxy, not full PLO MCCFR.
 - Native WASM solve payload now reuses the shared river best-response row builder instead of duplicating strategy formulas in the handle serializer path.
