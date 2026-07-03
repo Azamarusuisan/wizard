@@ -312,7 +312,7 @@ pub mod cfr {
     }
 
     pub fn leduc_cfr_probe_exploitability(_iterations: usize) -> f64 {
-        let iterations = _iterations.min(20_000);
+        let iterations = _iterations.min(5_000);
         let mut trainer = LeducTrainer::default();
         trainer.train(iterations);
         trainer.exploitability()
@@ -659,6 +659,15 @@ pub mod cfr {
         reach[player] *= prob;
         reach
     }
+
+    pub fn leduc_fold_payoff_examples() -> (f64, f64) {
+        let p1_folds = LeducState::root([0, 2]).apply('b').apply('f');
+        let p0_folds = LeducState::root([0, 2]).apply('x').apply('b').apply('f');
+        (
+            p1_folds.terminal_p0().expect("terminal fold"),
+            p0_folds.terminal_p0().expect("terminal fold"),
+        )
+    }
 }
 
 pub mod br {
@@ -761,6 +770,7 @@ mod tests {
     #[test]
     fn solver_gates_report_values_under_thresholds() {
         assert!((cfr::kuhn_value(100_000) + 1.0 / 18.0).abs() <= 1e-3);
+        assert_eq!(cfr::leduc_fold_payoff_examples(), (1.0, -1.0));
         let leduc = cfr::leduc_exploitability(1_000_000);
         assert!(leduc <= 0.01, "{leduc}");
         assert!(cfr::leduc_cfr_probe_exploitability(5_000).is_finite());
