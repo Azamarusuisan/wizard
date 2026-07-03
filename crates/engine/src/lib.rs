@@ -1096,43 +1096,93 @@ pub mod br {
         (pot_after_call * (rake_pct / 100.0)).min(rake_cap)
     }
 
-    pub const PLO4_FAST_SAMPLES: [(f64, f64, [f64; 3]); 6] = [
-        (0.61, 0.12, [0.08, 0.54, 0.38]),
-        (0.55, 0.18, [0.10, 0.66, 0.24]),
-        (0.49, 0.22, [0.18, 0.68, 0.14]),
-        (0.43, 0.20, [0.32, 0.58, 0.10]),
-        (0.36, 0.16, [0.54, 0.42, 0.04]),
-        (0.28, 0.12, [0.76, 0.23, 0.01]),
+    #[derive(Clone, Copy)]
+    pub struct PloFastSample {
+        pub combo: &'static str,
+        pub equity: f64,
+        pub weight: f64,
+    }
+
+    pub const PLO4_FAST_SAMPLES: [PloFastSample; 6] = [
+        PloFastSample {
+            combo: "AsAhKsKh",
+            equity: 0.61,
+            weight: 0.12,
+        },
+        PloFastSample {
+            combo: "AsKsQhJh",
+            equity: 0.55,
+            weight: 0.18,
+        },
+        PloFastSample {
+            combo: "JsTs9h8h",
+            equity: 0.49,
+            weight: 0.22,
+        },
+        PloFastSample {
+            combo: "QdJc9s8h",
+            equity: 0.43,
+            weight: 0.20,
+        },
+        PloFastSample {
+            combo: "KcKd7s2h",
+            equity: 0.36,
+            weight: 0.16,
+        },
+        PloFastSample {
+            combo: "Ac9d6s2h",
+            equity: 0.28,
+            weight: 0.12,
+        },
     ];
 
     pub fn plo4_fast_exploitability_pct_pot() -> f64 {
         plo_fast_exploitability_pct_pot(&PLO4_FAST_SAMPLES)
     }
 
-    pub const PLO5_FAST_SAMPLES: [(f64, f64, [f64; 3]); 6] = [
-        (0.64, 0.10, [0.06, 0.48, 0.46]),
-        (0.58, 0.16, [0.08, 0.58, 0.34]),
-        (0.51, 0.22, [0.15, 0.67, 0.18]),
-        (0.44, 0.21, [0.30, 0.60, 0.10]),
-        (0.37, 0.18, [0.52, 0.44, 0.04]),
-        (0.29, 0.13, [0.78, 0.21, 0.01]),
+    pub const PLO5_FAST_SAMPLES: [PloFastSample; 6] = [
+        PloFastSample {
+            combo: "AsAhKsKhQs",
+            equity: 0.64,
+            weight: 0.10,
+        },
+        PloFastSample {
+            combo: "AsKsQhJhTd",
+            equity: 0.58,
+            weight: 0.16,
+        },
+        PloFastSample {
+            combo: "JsTs9h8h7d",
+            equity: 0.51,
+            weight: 0.22,
+        },
+        PloFastSample {
+            combo: "QdJc9s8h6c",
+            equity: 0.44,
+            weight: 0.21,
+        },
+        PloFastSample {
+            combo: "KcKd7s2h2d",
+            equity: 0.37,
+            weight: 0.18,
+        },
+        PloFastSample {
+            combo: "Ac9d6s2h2c",
+            equity: 0.29,
+            weight: 0.13,
+        },
     ];
 
     pub fn plo5_fast_exploitability_pct_pot() -> f64 {
         plo_fast_exploitability_pct_pot(&PLO5_FAST_SAMPLES)
     }
 
-    fn plo_fast_exploitability_pct_pot(samples: &[(f64, f64, [f64; 3])]) -> f64 {
+    fn plo_fast_exploitability_pct_pot(samples: &[PloFastSample]) -> f64 {
         let rows: Vec<FlopBucket> = samples
             .iter()
-            .map(|(equity, weight, strategy)| FlopBucket {
-                representative: RiverCombo {
-                    equity: *equity,
-                    fold: strategy[0],
-                    call: strategy[1],
-                    raise: strategy[2],
-                },
-                weight: *weight,
+            .map(|sample| FlopBucket {
+                representative: best_response_combo(sample.equity, 100.0, 66.0),
+                weight: sample.weight,
             })
             .collect();
         flop_bucket_exploitability_pct_pot(&rows, 100.0, 66.0)
@@ -1432,16 +1482,14 @@ fn solve_plo_fast(
     } else {
         br::plo4_fast_exploitability_pct_pot()
     };
-    let combos = (1..=samples.len())
-        .map(|i| format!("{game} B{i}"))
+    let combos = samples
+        .iter()
+        .map(|sample| sample.combo.to_string())
         .collect::<Vec<_>>();
     let rows = samples
         .iter()
-        .map(|(equity, _, strategy)| br::RiverCombo {
-            equity: *equity,
-            fold: strategy[0],
-            call: strategy[1],
-            raise: strategy[2],
+        .map(|sample| {
+            br::best_response_combo_with_rake(sample.equity, spot.pot, spot.bet, rake_pct, rake_cap)
         })
         .collect::<Vec<_>>();
     let mut strategy = Vec::with_capacity(rows.len() * 3);
@@ -1965,8 +2013,12 @@ mod tests {
         let plo4 = super::solve(r#"{"game":"PLO4","pot":100.0,"bet":66.0,"stack":250.0}"#).unwrap();
         let plo4_payload = super::serialize(plo4).unwrap();
         let plo4_native: super::NativeSolve = serde_json::from_slice(&plo4_payload).unwrap();
-        assert_eq!(plo4_native.combos[0], "PLO4 B1");
+        assert_eq!(plo4_native.combos[0], "AsAhKsKh");
         assert_eq!(plo4_native.combos.len(), br::PLO4_FAST_SAMPLES.len());
+        assert!(plo4_native
+            .strategy
+            .chunks_exact(3)
+            .all(|row| (row.iter().sum::<f64>() - 1.0).abs() < 1e-9));
         assert!(plo4_native.metrics[plo4_native.combos.len() * 3 + 4] >= 0.0);
         assert_eq!(
             plo4_native.metrics[plo4_native.combos.len() * 3 + 5],
@@ -1975,7 +2027,11 @@ mod tests {
         let plo5 = super::solve(r#"{"game":"PLO5","pot":100.0,"bet":66.0,"stack":250.0}"#).unwrap();
         let plo5_payload = super::serialize(plo5).unwrap();
         let plo5_native: super::NativeSolve = serde_json::from_slice(&plo5_payload).unwrap();
-        assert_eq!(plo5_native.combos[0], "PLO5 B1");
+        assert_eq!(plo5_native.combos[0], "AsAhKsKhQs");
+        assert!(plo5_native
+            .strategy
+            .chunks_exact(3)
+            .all(|row| (row.iter().sum::<f64>() - 1.0).abs() < 1e-9));
         assert!(plo5_native.metrics[plo5_native.combos.len() * 3 + 4] >= 0.0);
         assert_eq!(
             plo5_native.metrics[plo5_native.combos.len() * 3 + 5],

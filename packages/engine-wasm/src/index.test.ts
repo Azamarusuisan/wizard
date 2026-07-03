@@ -115,11 +115,13 @@ test("TS river solve fallback subtracts capped rake from showdown EV", () => {
 
 test("TS solve fallback reports PLO Fast BR metrics", () => {
   const plo4 = solveRiverSpot(100, 66, 250, "", 0, 0, "PLO4");
-  assert.equal(plo4.rows[0]!.combo, "PLO4 B1");
+  assert.equal(plo4.rows[0]!.combo, "AsAhKsKh");
   assert.ok((plo4.metrics.brGapPctPot ?? -1) >= 0);
   assert.equal(plo4.metrics.ploFastExploitability, plo4FastExploitabilityPctPot());
+  assert.ok(plo4.rows.every((row) => row.fold + row.call + row.raise === 1));
   const plo5 = solveRiverSpot(100, 66, 250, "", 0, 0, "PLO5");
-  assert.equal(plo5.rows[0]!.combo, "PLO5 B1");
+  assert.equal(plo5.rows[0]!.combo, "AsAhKsKhQs");
   assert.ok((plo5.metrics.brGapPctPot ?? -1) >= 0);
   assert.equal(plo5.metrics.ploFastExploitability, plo5FastExploitabilityPctPot());
+  assert.ok(plo5.rows.every((row) => row.fold + row.call + row.raise === 1));
 });

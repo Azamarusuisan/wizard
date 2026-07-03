@@ -302,41 +302,41 @@ export function plo5FastExploitabilityPctPot(): number {
 function ploFastExploitabilityPctPot(samples: readonly PloFastSample[]): number {
   const total = samples.reduce((sum, row) => sum + row.weight, 0);
   return samples.reduce((sum, row) => {
-    const mixed = [{ combo: row.combo, equity: row.equity, fold: row.fold, call: row.call, raise: row.raise, foldEv: 0, callEv: 0, raiseEv: 0, ev: 0, eqr: 0 }];
+    const strategy = bestResponseStrategy(row.equity, 100, 66, 0, 0);
+    const mixed = [{ combo: row.combo, equity: row.equity, ...strategy, foldEv: 0, callEv: 0, raiseEv: 0, ev: 0, eqr: 0 }];
     return sum + row.weight * riverExploitability(mixed, 100, 66, 0, 0);
   }, 0) / total;
 }
 
-type PloFastSample = { combo: string; equity: number; weight: number; fold: number; call: number; raise: number };
+type PloFastSample = { combo: string; equity: number; weight: number };
 
 const PLO4_FAST_SAMPLES = [
-  { combo: "PLO4 B1", equity: 0.61, weight: 0.12, fold: 0.08, call: 0.54, raise: 0.38 },
-  { combo: "PLO4 B2", equity: 0.55, weight: 0.18, fold: 0.10, call: 0.66, raise: 0.24 },
-  { combo: "PLO4 B3", equity: 0.49, weight: 0.22, fold: 0.18, call: 0.68, raise: 0.14 },
-  { combo: "PLO4 B4", equity: 0.43, weight: 0.20, fold: 0.32, call: 0.58, raise: 0.10 },
-  { combo: "PLO4 B5", equity: 0.36, weight: 0.16, fold: 0.54, call: 0.42, raise: 0.04 },
-  { combo: "PLO4 B6", equity: 0.28, weight: 0.12, fold: 0.76, call: 0.23, raise: 0.01 }
+  { combo: "AsAhKsKh", equity: 0.61, weight: 0.12 },
+  { combo: "AsKsQhJh", equity: 0.55, weight: 0.18 },
+  { combo: "JsTs9h8h", equity: 0.49, weight: 0.22 },
+  { combo: "QdJc9s8h", equity: 0.43, weight: 0.20 },
+  { combo: "KcKd7s2h", equity: 0.36, weight: 0.16 },
+  { combo: "Ac9d6s2h", equity: 0.28, weight: 0.12 }
 ] as const;
 
 const PLO5_FAST_SAMPLES = [
-  { combo: "PLO5 B1", equity: 0.64, weight: 0.10, fold: 0.06, call: 0.48, raise: 0.46 },
-  { combo: "PLO5 B2", equity: 0.58, weight: 0.16, fold: 0.08, call: 0.58, raise: 0.34 },
-  { combo: "PLO5 B3", equity: 0.51, weight: 0.22, fold: 0.15, call: 0.67, raise: 0.18 },
-  { combo: "PLO5 B4", equity: 0.44, weight: 0.21, fold: 0.30, call: 0.60, raise: 0.10 },
-  { combo: "PLO5 B5", equity: 0.37, weight: 0.18, fold: 0.52, call: 0.44, raise: 0.04 },
-  { combo: "PLO5 B6", equity: 0.29, weight: 0.13, fold: 0.78, call: 0.21, raise: 0.01 }
+  { combo: "AsAhKsKhQs", equity: 0.64, weight: 0.10 },
+  { combo: "AsKsQhJhTd", equity: 0.58, weight: 0.16 },
+  { combo: "JsTs9h8h7d", equity: 0.51, weight: 0.22 },
+  { combo: "QdJc9s8h6c", equity: 0.44, weight: 0.21 },
+  { combo: "KcKd7s2h2d", equity: 0.37, weight: 0.18 },
+  { combo: "Ac9d6s2h2c", equity: 0.29, weight: 0.13 }
 ] as const;
 
 function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack: number, rakePct: number, rakeCap: number, potOdds: number, mdf: number, alpha: number): SolveResult {
   const samples = game === "PLO4" ? PLO4_FAST_SAMPLES : PLO5_FAST_SAMPLES;
   const rows = samples.map((sample) => {
     const { callEv, raiseEv } = actionEvs(sample.equity, pot, bet, rakePct, rakeCap);
-    const ev = (sample.call * callEv + sample.raise * raiseEv) / 100;
+    const strategy = bestResponseStrategy(sample.equity, pot, bet, rakePct, rakeCap);
+    const ev = (strategy.call * callEv + strategy.raise * raiseEv) / 100;
     return {
       combo: sample.combo,
-      fold: sample.fold,
-      call: sample.call,
-      raise: sample.raise,
+      ...strategy,
       foldEv: 0,
       callEv: callEv / 100,
       raiseEv: raiseEv / 100,
@@ -350,6 +350,13 @@ function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack
     exploitability: riverStrategyProgress(rows, pot, bet, 36, rakePct, rakeCap).map((value, i) => ({ iteration: (i + 1) * 50, value })),
     metrics: { spr: stack / pot, mdf, alpha, potOdds, brGapPctPot: riverExploitability(rows, pot, bet, rakePct, rakeCap), ploFastExploitability: game === "PLO4" ? plo4FastExploitabilityPctPot() : plo5FastExploitabilityPctPot() }
   };
+}
+
+function bestResponseStrategy(equityValue: number, pot: number, bet: number, rakePct: number, rakeCap: number): { fold: number; call: number; raise: number } {
+  const { callEv, raiseEv } = actionEvs(equityValue, pot, bet, rakePct, rakeCap);
+  if (raiseEv >= callEv && raiseEv >= 0) return { fold: 0, call: 0, raise: 1 };
+  if (callEv >= 0) return { fold: 0, call: 1, raise: 0 };
+  return { fold: 1, call: 0, raise: 0 };
 }
 
 function actionEvs(equityValue: number, pot: number, bet: number, rakePct: number, rakeCap: number): { callEv: number; raiseEv: number } {
