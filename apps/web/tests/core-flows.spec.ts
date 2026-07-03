@@ -85,6 +85,14 @@ test("COOP COEP headers are set", async ({ request }) => {
   expect(res.headers()["cross-origin-embedder-policy"]).toBe("require-corp");
 });
 
+test("top bar toggles theme and language", async ({ page }) => {
+  await page.goto("/");
+  await page.getByLabel("Toggle palette").click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await page.getByLabel("Toggle language").click();
+  await expect(page.getByLabel("Toggle language")).toHaveText("EN");
+});
+
 test("settings clears cached data", async ({ page }) => {
   await page.goto("/solver");
   await page.getByRole("button", { name: "Start solve" }).click();

@@ -23,6 +23,7 @@ function App() {
   const lang = useAppStore((s) => s.lang);
   const setLang = useAppStore((s) => s.setLang);
   const theme = useAppStore((s) => s.theme);
+  const setTheme = useAppStore((s) => s.setTheme);
   const deckColors = useAppStore((s) => s.deckColors);
   const match = routes.find(([p]) => p === path) ?? routes[0]!;
   const Page = match[3];
@@ -43,7 +44,11 @@ function App() {
         ))}
       </nav>
       <main className="main">
-        <header className="top"><span className="muted">Study / {match[1]}</span><button className="btn" onClick={() => setLang(lang === "ja" ? "en" : "ja")}>{lang.toUpperCase()}</button></header>
+        <header className="top">
+          <span className="muted">Study / {match[1]}</span>
+          <button className="btn" aria-label="Toggle palette" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>{theme}</button>
+          <button className="btn" aria-label="Toggle language" onClick={() => setLang(lang === "ja" ? "en" : "ja")}>{lang.toUpperCase()}</button>
+        </header>
         <AnimatePresence mode="wait">
           <motion.div key={path} className="content" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }} transition={{ duration: .18 }}>
             <Page />
