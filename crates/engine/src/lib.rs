@@ -1497,6 +1497,20 @@ mod tests {
             eval::evaluate_plo(&plo5_two_hearts, &board)
                 > eval::evaluate_plo(&plo5_one_heart, &board)
         );
+
+        let quads_board = [c(12, 0), c(12, 1), c(12, 2), c(12, 3), c(11, 0)];
+        let low_holes = [c(10, 1), c(9, 1), c(8, 1), c(7, 1)];
+        let kings = [c(11, 1), c(11, 2), c(10, 1), c(9, 1)];
+        assert!(
+            eval::evaluate_plo(&kings, &quads_board) > eval::evaluate_plo(&low_holes, &quads_board)
+        );
+
+        let plo5_low_holes = [c(10, 1), c(9, 1), c(8, 1), c(7, 1), c(6, 1)];
+        let plo5_kings = [c(11, 1), c(11, 2), c(10, 1), c(9, 1), c(8, 1)];
+        assert!(
+            eval::evaluate_plo(&plo5_kings, &quads_board)
+                > eval::evaluate_plo(&plo5_low_holes, &quads_board)
+        );
     }
 
     #[test]
