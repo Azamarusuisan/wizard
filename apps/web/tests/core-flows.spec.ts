@@ -7,6 +7,9 @@ test("solver runs and displays strategy metrics", async ({ page }) => {
   await expect(page.getByRole("alert")).toContainText("duplicate");
   await expect(page.getByRole("button", { name: "Start solve" })).toBeDisabled();
   await page.getByLabel("Board").fill("Ah Kd 7c");
+  await expect(page.getByLabel("Bet tree")).toContainText("flop 33,66,125,all-in");
+  await page.getByRole("button", { name: "33% pot" }).click();
+  await expect(page.getByLabel("Bet amount")).toHaveValue("33");
   await page.getByLabel("Game").selectOption("PLO5");
   await expect(page.getByRole("table", { name: "strategy table" })).toContainText("PLO5 B1");
   await expect(page.getByText("PLO Fast BR")).toBeVisible();

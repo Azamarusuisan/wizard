@@ -10,6 +10,7 @@ import { decodeSpot, encodeSpot } from "../lib/spotUrl";
 import { useAppStore } from "../state/store";
 
 const ranks = "AKQJT98765432";
+const DEFAULT_BET_TREE = "flop 33,66,125,all-in; turn 66,125,all-in; river 66,150,all-in";
 
 export function Dashboard() {
   const result = useAppStore((s) => s.result) ?? solveRiverSpot(100, 66);
@@ -69,6 +70,7 @@ export function SolverStudio() {
   const [rakePct, setRakePct] = useState(shared?.rakePct ?? 0);
   const [rakeCap, setRakeCap] = useState(shared?.rakeCap ?? 0);
   const [board, setBoard] = useState(shared?.board ?? "Ah Kd 7c");
+  const [betTree, setBetTree] = useState(DEFAULT_BET_TREE);
   const [progress, setProgress] = useState<{ iteration: number; value: number }[]>([]);
   const [cached, setCached] = useState(false);
   const [running, setRunning] = useState(false);
@@ -93,11 +95,15 @@ export function SolverStudio() {
         <h1 className="title">Solver Studio</h1>
         <label className="field">Game<select value={game} onChange={(e) => setGame(e.target.value as Game)}><option>NLH</option><option>PLO4</option><option>PLO5</option></select></label>
         <label className="field">Pot<input type="number" min="1" value={pot} onChange={(e) => setPot(Number(e.target.value))} /></label>
-        <label className="field">Bet<input type="number" min="0" value={bet} onChange={(e) => setBet(Number(e.target.value))} /></label>
+        <label className="field">Bet amount<input type="number" min="0" value={bet} onChange={(e) => setBet(Number(e.target.value))} /></label>
         <label className="field">Stack<input type="number" min="1" value={stack} onChange={(e) => setStack(Number(e.target.value))} /></label>
         <label className="field">Rake %<input type="number" min="0" max="100" step="0.1" value={rakePct} onChange={(e) => setRakePct(Number(e.target.value))} /></label>
         <label className="field">Rake cap<input type="number" min="0" step="0.1" value={rakeCap} onChange={(e) => setRakeCap(Number(e.target.value))} /></label>
         <label className="field">Board<input value={board} onChange={(e) => setBoard(e.target.value)} /></label>
+        <label className="field">Bet tree<textarea rows={3} value={betTree} onChange={(e) => setBetTree(e.target.value)} /></label>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {flopBetSizes(betTree).map((size) => <button className="btn" key={size} onClick={() => setBet(size === "all-in" ? stack : Math.round(pot * Number(size) / 100))}>{size === "all-in" ? "All-in" : `${size}% pot`}</button>)}
+        </div>
         {preview.error ? <p className="error" role="alert">{preview.error}</p> : null}
         <button className="btn primary" disabled={!!preview.error || running} onClick={() => {
           if (preview.error || running || cancelRef.current) return;
@@ -144,6 +150,11 @@ export function SolverStudio() {
       </section>
     </div>
   );
+}
+
+function flopBetSizes(text: string): string[] {
+  const flop = text.split(";").find((part) => part.trim().toLowerCase().startsWith("flop")) ?? "";
+  return flop.replace(/^flop/i, "").split(",").map((x) => x.trim()).filter((x) => x === "all-in" || Number.isFinite(Number(x)));
 }
 
 function validateSolverInputs(game: Game, pot: number, bet: number, stack: number, board: string, rakePct: number, rakeCap: number): void {
