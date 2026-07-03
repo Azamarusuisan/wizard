@@ -8,7 +8,7 @@
 - Rust crate now has modules for `eval`, `iso`, `equity`, `tree`, `cfr`, `br`, and `bucket`.
 - Suit-isomorphism class counts are now exhaustive Rust tests for NLH preflop, PLO4, PLO5, and flop: `169 / 16,432 / 134,459 / 1,755`.
 - Kuhn poker gate now runs an actual CFR trainer and converges to `-1/18 ± 1e-3`.
-- Leduc has a tabular CFR + average-strategy BR probe in Rust, but the measured BR is still too high to replace the current gate. Treat this as the next debugging target: likely BR normalization, game-tree definition, or average-strategy weighting.
+- Leduc has a tabular CFR + average-strategy BR probe in Rust. Chance reach is now included in regret and average-strategy weighting, but measured BR is still too high to replace the current gate. Treat this as the next debugging target: likely BR normalization or game-tree definition.
 - IndexedDB stores `solves`, `ranges`, and `training` exist in the web app. Unit tests cover range save/load, quantized solve save/load, stats, clear, and oldest-first solve pruning. Playwright covers range persistence, same-spot solve cache hit, and Settings data clearing.
 - CI workflow exists for Node and Rust.
 - Production code grep for `TODO|FIXME|未実装|placeholder` is clean.

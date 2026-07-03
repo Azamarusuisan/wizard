@@ -312,7 +312,7 @@ pub mod cfr {
     }
 
     pub fn leduc_cfr_probe_exploitability(_iterations: usize) -> f64 {
-        let iterations = _iterations.min(5_000);
+        let iterations = _iterations.min(20_000);
         let mut trainer = LeducTrainer::default();
         trainer.train(iterations);
         trainer.exploitability()
@@ -545,7 +545,7 @@ pub mod cfr {
                             continue;
                         }
                         let state = LeducState::root([c0, c1]);
-                        self.cfr(state, [1.0, 1.0]);
+                        self.cfr(state, [1.0, 1.0], 1.0);
                     }
                 }
             }
@@ -569,7 +569,7 @@ pub mod cfr {
             (br[0] + br[1]) / (2.0 * deals)
         }
 
-        fn cfr(&mut self, state: LeducState, reach: [f64; 2]) -> f64 {
+        fn cfr(&mut self, state: LeducState, reach: [f64; 2], chance: f64) -> f64 {
             if let Some(value) = state.terminal_p0() {
                 return value;
             }
@@ -580,7 +580,7 @@ pub mod cfr {
                     if public == state.private[0] || public == state.private[1] {
                         continue;
                     }
-                    total += self.cfr(state.advance_round(public), reach);
+                    total += self.cfr(state.advance_round(public), reach, chance / 4.0);
                     count += 1.0;
                 }
                 return total / count;
@@ -593,15 +593,18 @@ pub mod cfr {
                 .nodes
                 .entry(key.clone())
                 .or_default()
-                .strategy(actions.len(), reach[player]);
+                .strategy(actions.len(), reach[player] * chance);
             let mut action_utils = vec![0.0; actions.len()];
             let mut node_util = 0.0;
             for (i, action) in actions.iter().enumerate() {
-                action_utils[i] =
-                    self.cfr(state.apply(*action), reach_with(reach, player, strategy[i]));
+                action_utils[i] = self.cfr(
+                    state.apply(*action),
+                    reach_with(reach, player, strategy[i]),
+                    chance,
+                );
                 node_util += strategy[i] * action_utils[i];
             }
-            let reach_opp = reach[1 - player];
+            let reach_opp = reach[1 - player] * chance;
             let node = self.nodes.get_mut(&key).expect("node exists");
             for (i, action_util) in action_utils.iter().enumerate() {
                 let regret = if player == 0 {
