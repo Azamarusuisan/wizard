@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { parseCard, equity, parseNlhRange, parsePloRange, serializeRange, solveRiverSpot, type Game } from "@gto-lab/engine-wasm";
+import { HAND_CATEGORIES, parseCard, equity, parseNlhRange, parsePloRange, serializeRange, solveRiverSpot, type Game } from "@gto-lab/engine-wasm";
 import { CardView } from "../components/CardView";
 import { Metric } from "../components/Metric";
 import { StrategyTable } from "../components/StrategyTable";
@@ -196,6 +196,16 @@ export function EquityLab() {
       <div className="grid cols-3">
         {calc.rows.map((r, i) => <Metric key={i} label={`Player ${i + 1}`} value={`Eq ${(r.equity * 100).toFixed(2)}% / W ${(r.win * 100).toFixed(2)}% / T ${(r.tie * 100).toFixed(2)}% / CI ± ${(r.ci95 * 100).toFixed(2)}`} />)}
       </div>
+      {calc.rows[0] ? <div className="card" aria-label="Player 1 hand distribution">
+        <h2 className="title">Hand distribution</h2>
+        <div className="grid">
+          {HAND_CATEGORIES.map((label, i) => <div className="hist-row" key={label}>
+            <span>{label}</span>
+            <i style={{ width: `${calc.rows[0]!.handDistribution[i]! * 100}%` }} />
+            <b className="num">{(calc.rows[0]!.handDistribution[i]! * 100).toFixed(1)}%</b>
+          </div>)}
+        </div>
+      </div> : null}
       <div className="cards">{cards.map((c) => <CardView key={c} card={c} />)}</div>
     </div>
   );

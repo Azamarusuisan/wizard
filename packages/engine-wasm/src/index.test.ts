@@ -32,7 +32,13 @@ test("PLO equity validates game-specific hole counts", () => {
   const rows = equity([{ cards: cs("As Ah Kc Qd Js") }, { cards: cs("Ts 9h 8d 7c 6s") }], board, "PLO5", 0, 3);
   assert.equal(rows.length, 2);
   assert.equal(rows[0]!.samples, 1);
+  assert.equal(rows[0]!.handDistribution.reduce((a, b) => a + b, 0), 1);
   assert.throws(() => equity([{ cards: cs("As Ah Kc Qd Js") }, { cards: cs("Ts 9h 8d 7c 6s") }], board, "PLO4"), /PLO4/);
+});
+
+test("equity reports hand category distribution", () => {
+  const [row] = equity([{ cards: cs("As Ah") }, { cards: cs("Kc Kd") }], cs("Ac Ad Kh Qs Jc"), "NLH", 0, 3);
+  assert.equal(row!.handDistribution[7], 1);
 });
 
 test("equity excludes dead cards", () => {

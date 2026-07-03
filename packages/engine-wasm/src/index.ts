@@ -119,7 +119,8 @@ export function evaluatePlo(holes: Card[], board: Card[]): number {
 }
 
 export type PlayerInput = { cards: Card[]; weight?: number };
-export type EquityResult = { equity: number; win: number; tie: number; samples: number; ci95: number };
+export type EquityResult = { equity: number; win: number; tie: number; samples: number; ci95: number; handDistribution: number[] };
+export const HAND_CATEGORIES = ["High card", "Pair", "Two pair", "Trips", "Straight", "Flush", "Full house", "Quads", "Straight flush"] as const;
 
 function mulberry32(seed: number): () => number {
   let t = seed >>> 0;
@@ -142,7 +143,7 @@ export function equity(players: PlayerInput[], board: Card[], game: Game = "NLH"
   const missing = 5 - board.length;
   const runouts = samples > 0 ? null : combinations(deck(dead), missing);
   const rng = mulberry32(seed);
-  const totals = players.map(() => ({ equity: 0, win: 0, tie: 0, samples: 0, ci95: 0 }));
+  const totals = players.map(() => ({ equity: 0, win: 0, tie: 0, samples: 0, ci95: 0, handDistribution: Array(HAND_CATEGORIES.length).fill(0) as number[] }));
   const n = runouts?.length ?? samples;
   for (let i = 0; i < n; i++) {
     const runout = runouts ? runouts[i]! : sample(deck(dead), missing, rng);
@@ -152,6 +153,7 @@ export function equity(players: PlayerInput[], board: Card[], game: Game = "NLH"
     const winners = ranks.flatMap((r, idx) => (r === best ? [idx] : []));
     for (let p = 0; p < players.length; p++) {
       totals[p]!.samples++;
+      totals[p]!.handDistribution[Math.floor(ranks[p]! / CATEGORY_SHIFT)]!++;
       if (winners.includes(p)) {
         totals[p]!.equity += 1 / winners.length;
         if (winners.length === 1) totals[p]!.win++;
@@ -161,7 +163,7 @@ export function equity(players: PlayerInput[], board: Card[], game: Game = "NLH"
   }
   return totals.map((r) => {
     const p = r.equity / Math.max(1, r.samples);
-    return { equity: p, win: r.win / r.samples, tie: r.tie / r.samples, samples: r.samples, ci95: 1.96 * Math.sqrt((p * (1 - p)) / Math.max(1, r.samples)) };
+    return { equity: p, win: r.win / r.samples, tie: r.tie / r.samples, samples: r.samples, ci95: 1.96 * Math.sqrt((p * (1 - p)) / Math.max(1, r.samples)), handDistribution: r.handDistribution.map((x) => x / Math.max(1, r.samples)) };
   });
 }
 
