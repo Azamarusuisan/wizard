@@ -6,6 +6,7 @@ import { Metric } from "../components/Metric";
 import { StrategyTable } from "../components/StrategyTable";
 import { cacheStats, clearAllData, clearStore, loadRange, saveRange, type CacheStats } from "../lib/db";
 import { runSolve } from "../lib/solverClient";
+import { decodeSpot, encodeSpot } from "../lib/spotUrl";
 import { useAppStore } from "../state/store";
 
 const ranks = "AKQJT98765432";
@@ -51,10 +52,11 @@ export function RangeExplorer() {
 }
 
 export function SolverStudio() {
-  const [pot, setPot] = useState(100);
-  const [bet, setBet] = useState(66);
-  const [stack, setStack] = useState(420);
-  const [board, setBoard] = useState("Ah Kd 7c");
+  const shared = decodeSpot(new URLSearchParams(window.location.search).get("spot"));
+  const [pot, setPot] = useState(shared?.pot ?? 100);
+  const [bet, setBet] = useState(shared?.bet ?? 66);
+  const [stack, setStack] = useState(shared?.stack ?? 420);
+  const [board, setBoard] = useState(shared?.board ?? "Ah Kd 7c");
   const [progress, setProgress] = useState<{ iteration: number; value: number }[]>([]);
   const [cached, setCached] = useState(false);
   const [running, setRunning] = useState(false);
@@ -77,6 +79,7 @@ export function SolverStudio() {
           setRunning(true);
           setProgress([]);
           setCached(false);
+          history.replaceState(null, "", `/solver?spot=${encodeSpot({ pot, bet, stack, board })}`);
           void runSolve({ pot, bet, stack, board }, (p) => setProgress((xs) => [...xs, p]), controller.signal).then((run) => {
             setCached(run.cached);
             setResult(run.result);
