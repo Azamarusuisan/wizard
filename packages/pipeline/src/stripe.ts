@@ -2,7 +2,7 @@ import Stripe from "stripe";
 import { ORDER_STATUS, type PaymentMethod } from "@craftsite/shared";
 import { requiredEnv } from "./env";
 import { notifyOwner } from "./notify";
-import { updateOrderPayment, updateOrderStatus } from "./db";
+import { getOrderPayment, updateOrderPayment, updateOrderStatus } from "./db";
 
 const stripe = () => new Stripe(requiredEnv("STRIPE_SECRET_KEY"));
 
@@ -46,7 +46,7 @@ export function checkoutSessionParams(input: CheckoutInput): Stripe.Checkout.Ses
     customer_creation: "always" as const,
     line_items: [{ price: requiredEnv("STRIPE_SETUP_PRICE_ID"), quantity: 1 }],
     payment_method_types: [paymentMethod === "konbini" ? "konbini" : "customer_balance"],
-    ...(paymentMethod === "bank_transfer" ? { payment_method_options: { customer_balance: { funding_type: "bank_transfer" as const } } } : {})
+    ...(paymentMethod === "bank_transfer" ? { payment_method_options: { customer_balance: { funding_type: "bank_transfer" as const, bank_transfer: { type: "jp_bank_transfer" as const } } } } : {})
   };
 }
 
@@ -92,12 +92,26 @@ async function setOrderStatus(orderId: string | undefined, status: string) {
   await updateOrderStatus(orderId, status);
 }
 
-async function completeCheckoutSession(session: Stripe.Checkout.Session) {
+export async function completeCheckoutSession(
+  session: Pick<Stripe.Checkout.Session, "customer" | "metadata" | "mode" | "payment_status">,
+  deps = {
+    createSubscription: (params: Stripe.SubscriptionCreateParams) => stripe().subscriptions.create(params),
+    getOrderPayment,
+    updateOrderPayment,
+    setOrderStatus
+  }
+) {
   const orderId = session.metadata?.orderId;
   if (!orderId) throw new Error("Missing orderId");
+  if (session.payment_status !== "paid") {
+    await deps.updateOrderPayment({ orderId, status: ORDER_STATUS.waitingPayment });
+    return;
+  }
   const paymentMethod = session.metadata?.paymentMethod;
   if (session.mode === "payment" && paymentMethod && paymentMethod !== "card") {
-    const subscription = await stripe().subscriptions.create({
+    const order = await deps.getOrderPayment(orderId);
+    if (order.stripeSubscriptionId) return;
+    const subscription = await deps.createSubscription({
       customer: String(session.customer),
       items: [{ price: requiredEnv("STRIPE_MONTHLY_PRICE_ID") }],
       collection_method: "send_invoice",
@@ -105,8 +119,8 @@ async function completeCheckoutSession(session: Stripe.Checkout.Session) {
       trial_period_days: 31,
       metadata: { orderId, paymentMethod }
     });
-    await updateOrderPayment({ orderId, status: ORDER_STATUS.paid, stripeSubscriptionId: subscription.id });
+    await deps.updateOrderPayment({ orderId, status: ORDER_STATUS.paid, stripeSubscriptionId: subscription.id });
     return;
   }
-  await setOrderStatus(orderId, ORDER_STATUS.paid);
+  await deps.setOrderStatus(orderId, ORDER_STATUS.paid);
 }

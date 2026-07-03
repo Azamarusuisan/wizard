@@ -32,6 +32,14 @@ export async function updateOrderPayment(input: {
   if (error) throw error;
 }
 
+export async function getOrderPayment(orderId: string) {
+  const db = supabase();
+  if (!db) return { stripeSubscriptionId: undefined };
+  const { data, error } = await db.from("orders").select("stripe_subscription_id").eq("id", orderId).maybeSingle();
+  if (error) throw error;
+  return { stripeSubscriptionId: data?.stripe_subscription_id as string | undefined };
+}
+
 export async function recordEvent(input: {
   leadId?: string;
   orderId?: string;
