@@ -25,6 +25,9 @@ test("equity lab shows AA vs KK", async ({ page }) => {
   await page.goto("/equity");
   await expect(page.locator(".card").filter({ hasText: "Player 1" })).toBeVisible();
   await expect(page.getByText(/8[0-3]\./)).toBeVisible();
+  await page.getByLabel("Mode").selectOption("mc");
+  await page.getByLabel("Iterations").fill("1000");
+  await expect(page.locator('[aria-label^="Player 1:"]')).toContainText("±");
   await page.getByLabel("Dead cards example Ac Td").fill("As");
   await expect(page.getByRole("alert")).toContainText("duplicate");
   await page.getByLabel("Dead cards example Ac Td").fill("");

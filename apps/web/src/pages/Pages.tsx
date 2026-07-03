@@ -125,6 +125,8 @@ export function SolverStudio() {
 
 export function EquityLab() {
   const [game, setGame] = useState<Game>("NLH");
+  const [mode, setMode] = useState<"auto" | "exact" | "mc">("auto");
+  const [iterations, setIterations] = useState(20000);
   const [players, setPlayers] = useState(["As Ah", "Kc Kd"]);
   const [board, setBoard] = useState("");
   const [dead, setDead] = useState("");
@@ -132,11 +134,12 @@ export function EquityLab() {
   const setPlayer = (index: number, value: string) => setPlayers((xs) => xs.map((x, i) => i === index ? value : x));
   const calc = useMemo(() => {
     try {
-      return { rows: equity(players.map((p) => ({ cards: parse(p) })), parse(board), game, board.trim() ? 0 : 20000, 11, parse(dead)), error: "" };
+      const samples = mode === "exact" ? 0 : mode === "mc" ? Math.max(1, iterations) : board.trim() ? 0 : Math.max(1, iterations);
+      return { rows: equity(players.map((p) => ({ cards: parse(p) })), parse(board), game, samples, 11, parse(dead)), error: "" };
     } catch (err) {
       return { rows: [], error: err instanceof Error ? err.message : "invalid equity input" };
     }
-  }, [players, board, dead, game]);
+  }, [players, board, dead, game, mode, iterations]);
   const cards = useMemo(() => {
     try { return parse(players.join(" ")); } catch { return []; }
   }, [players]);
@@ -145,6 +148,8 @@ export function EquityLab() {
       <h1 className="title">Equity Lab</h1>
       <div className="grid cols-3">
         <label className="field">Game<select value={game} onChange={(e) => setGame(e.target.value as Game)}><option>NLH</option><option>PLO4</option><option>PLO5</option></select></label>
+        <label className="field">Mode<select value={mode} onChange={(e) => setMode(e.target.value as "auto" | "exact" | "mc")}><option value="auto">Auto</option><option value="exact">Exact</option><option value="mc">MC</option></select></label>
+        <label className="field">Iterations<input type="number" min="1" value={iterations} onChange={(e) => setIterations(Number(e.target.value))} /></label>
         {players.map((player, i) => <label className="field" key={i}>Player {i + 1}<input value={player} onChange={(e) => setPlayer(i, e.target.value)} /></label>)}
         <label className="field">Board<input value={board} onChange={(e) => setBoard(e.target.value)} aria-label="Board cards example Ah Kd 7c" /></label>
         <label className="field">Dead<input value={dead} onChange={(e) => setDead(e.target.value)} aria-label="Dead cards example Ac Td" /></label>

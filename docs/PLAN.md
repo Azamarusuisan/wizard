@@ -35,7 +35,7 @@ Evidence:
 - Exact and Monte Carlo NLH equity paths are implemented with seeded MC confidence intervals.
 - Tests cover AA vs KK, AKs vs QQ, mirror-suit invariance, MC-vs-exact agreement, and PLO exact-two rule.
 - TypeScript equity validates NLH/PLO4/PLO5 hole counts and supports dead cards.
-- Web Equity Lab supports 2-6 player slots, NLH/PLO4/PLO5 selection, dead cards, and validation errors; Playwright covers NLH, PLO5 exact board, 3-way, and dead-card duplicate flows.
+- Web Equity Lab supports 2-6 player slots, NLH/PLO4/PLO5 selection, dead cards, Auto/Exact/MC mode, iterations, and validation errors; Playwright covers NLH, PLO5 exact board, 3-way, manual MC, and dead-card duplicate flows.
 
 Verify:
 - `cargo test --release -p gto_lab_engine`
