@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { evaluateNlh7, evaluatePlo, equity, kuhnCfr, parseCard, parseNlhRange, potLimitMaxRaise, serializeRange } from "./index.js";
+import { evaluateNlh7, evaluatePlo, equity, kuhnCfr, parseCard, parseNlhRange, potLimitMaxRaise, serializeRange, solveRiverSpot } from "./index.js";
 
 const cs = (s: string) => s.split(/\s+/).map(parseCard);
 
@@ -31,4 +31,14 @@ test("pot limit max raise known formula", () => {
 
 test("Kuhn value converges near -1/18", () => {
   assert.ok(Math.abs(kuhnCfr() + 1 / 18) < 1e-3);
+});
+
+test("TS river solve fallback emits pure best-response rows", () => {
+  const result = solveRiverSpot(100, 66);
+  assert.equal(result.rows[0]?.combo, "AA");
+  assert.deepEqual(
+    result.rows.map((r) => r.fold + r.call + r.raise),
+    result.rows.map(() => 1)
+  );
+  assert.equal(result.exploitability.at(-1)?.value, 0);
 });

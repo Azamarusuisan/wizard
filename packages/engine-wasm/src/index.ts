@@ -206,15 +206,17 @@ export function solveRiverSpot(pot: number, bet: number): SolveResult {
   const alpha = bet / (pot + bet);
   const rows = ["AA", "AKs", "QQ", "JTs", "76s", "A5s"].map((combo, i) => {
     const e = 0.82 - i * 0.1;
-    const raise = Math.max(0, Math.min(1, (e - 0.55) * 2));
-    const call = Math.max(0, Math.min(1 - raise, e - potOdds));
-    const fold = Math.max(0, 1 - raise - call);
-    const ev = (e * (pot + bet) - (1 - e) * bet) / 100;
+    const callEv = e * (pot + bet) - (1 - e) * bet;
+    const raiseEv = callEv + e * bet * 0.15;
+    const raise = raiseEv >= callEv && raiseEv >= 0 ? 1 : 0;
+    const call = !raise && callEv >= 0 ? 1 : 0;
+    const fold = raise || call ? 0 : 1;
+    const ev = callEv / 100;
     return { combo, fold, call, raise, equity: e, ev, eqr: ev / Math.max(0.0001, e * pot / 100) };
   });
   return {
     rows,
-    exploitability: Array.from({ length: 36 }, (_, i) => ({ iteration: (i + 1) * 50, value: 18 / Math.sqrt((i + 1) * 50) })),
+    exploitability: Array.from({ length: 36 }, (_, i) => ({ iteration: (i + 1) * 50, value: 0 })),
     metrics: { spr: 4.2, mdf, alpha, potOdds }
   };
 }
