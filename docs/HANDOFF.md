@@ -7,6 +7,7 @@
 - `scripts/verify.sh` exists and currently exits 0 for the tests presently in the repo.
 - Rust crate now has modules for `eval`, `iso`, `equity`, `tree`, `cfr`, `br`, and `bucket`.
 - Suit-isomorphism class counts are now exhaustive Rust tests for NLH preflop, PLO4, PLO5, and flop: `169 / 16,432 / 134,459 / 1,755`.
+- Kuhn poker gate now runs an actual CFR trainer and converges to `-1/18 ± 1e-3`.
 - IndexedDB stores `solves`, `ranges`, and `training` exist in the web app. Unit tests cover range save/load and quantized solve save/load. Playwright covers range persistence and same-spot solve cache hit.
 - CI workflow exists for Node and Rust.
 - Production code grep for `TODO|FIXME|未実装|placeholder` is clean.

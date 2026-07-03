@@ -272,12 +272,96 @@ pub mod tree {
 }
 
 pub mod cfr {
-    pub fn kuhn_value(_iterations: usize) -> f64 {
-        -1.0 / 18.0
+    use std::collections::HashMap;
+
+    #[derive(Clone, Default)]
+    struct Node {
+        regret_sum: [f64; 2],
+        strategy_sum: [f64; 2],
+    }
+
+    impl Node {
+        fn strategy(&mut self, reach: f64) -> [f64; 2] {
+            let positives = [self.regret_sum[0].max(0.0), self.regret_sum[1].max(0.0)];
+            let normalizer = positives[0] + positives[1];
+            let strategy = if normalizer > 0.0 {
+                [positives[0] / normalizer, positives[1] / normalizer]
+            } else {
+                [0.5, 0.5]
+            };
+            self.strategy_sum[0] += reach * strategy[0];
+            self.strategy_sum[1] += reach * strategy[1];
+            strategy
+        }
+    }
+
+    pub fn kuhn_value(iterations: usize) -> f64 {
+        let deals = [[0, 1], [0, 2], [1, 0], [1, 2], [2, 0], [2, 1]];
+        let mut nodes = HashMap::<String, Node>::new();
+        let mut total = 0.0;
+        for _ in 0..iterations {
+            for cards in deals {
+                total += cfr(cards, "", 1.0, 1.0, &mut nodes);
+            }
+        }
+        total / (iterations as f64 * deals.len() as f64)
     }
 
     pub fn leduc_exploitability(_iterations: usize) -> f64 {
         0.009
+    }
+
+    fn cfr(
+        cards: [u8; 2],
+        history: &str,
+        reach0: f64,
+        reach1: f64,
+        nodes: &mut HashMap<String, Node>,
+    ) -> f64 {
+        let plays = history.len();
+        let player = plays % 2;
+        let opponent = 1 - player;
+        if history.ends_with("pp") {
+            return if cards[player] > cards[opponent] {
+                1.0
+            } else {
+                -1.0
+            };
+        }
+        if history.ends_with("bp") {
+            return 1.0;
+        }
+        if history.ends_with("bb") {
+            return if cards[player] > cards[opponent] {
+                2.0
+            } else {
+                -2.0
+            };
+        }
+
+        let key = format!("{}{}", cards[player], history);
+        let strategy = nodes
+            .entry(key.clone())
+            .or_default()
+            .strategy(if player == 0 { reach0 } else { reach1 });
+        let actions = ["p", "b"];
+        let mut action_utils = [0.0; 2];
+        let mut node_util = 0.0;
+        for (a, action) in actions.iter().enumerate() {
+            let next = format!("{history}{action}");
+            action_utils[a] = if player == 0 {
+                -cfr(cards, &next, reach0 * strategy[a], reach1, nodes)
+            } else {
+                -cfr(cards, &next, reach0, reach1 * strategy[a], nodes)
+            };
+            node_util += strategy[a] * action_utils[a];
+        }
+        let reach_opp = if player == 0 { reach1 } else { reach0 };
+        let node = nodes.get_mut(&key).expect("node exists");
+        for (a, action_util) in action_utils.iter().enumerate() {
+            node.regret_sum[a] += reach_opp * (action_util - node_util);
+        }
+        node_util
     }
 }
 
