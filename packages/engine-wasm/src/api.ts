@@ -17,7 +17,7 @@ export interface EngineAPI {
   result(handle: EngineHandle): Promise<SolveResult>;
 }
 
-const COMBOS = ["AA", "AKs", "QQ", "JTs", "76s", "A5s"];
+const FALLBACK_COMBOS = ["AA", "AKs", "QQ", "JTs", "76s", "A5s"];
 
 type WasmModule = {
   default: (input?: URL | Uint8Array) => Promise<unknown>;
@@ -31,6 +31,7 @@ type WasmModule = {
 };
 
 type NativeSolve = {
+  combos: string[];
   progress: { iter: number; exploitability_pct: number; elapsed: number }[];
   strategy: number[];
   metrics: number[];
@@ -130,14 +131,15 @@ class WasmPreferredEngine implements EngineAPI {
   async getStrategy(handle: EngineHandle, nodeId: string): Promise<StrategyTable> {
     const wasm = await this.loadWasm();
     if (!wasm) return await this.local.getStrategy(handle, nodeId);
-    return { combos: COMBOS, actions: wasm.get_strategy(handle, nodeId) };
+    const native = JSON.parse(new TextDecoder().decode(wasm.serialize(handle))) as NativeSolve;
+    return { combos: native.combos, actions: wasm.get_strategy(handle, nodeId) };
   }
 
   async getHandMetrics(handle: EngineHandle, nodeId: string): Promise<HandMetrics> {
     const wasm = await this.loadWasm();
     if (!wasm) return await this.local.getHandMetrics(handle, nodeId);
     const raw = wasm.get_hand_metrics(handle, nodeId);
-    return splitMetrics(raw);
+    return splitMetrics(raw, FALLBACK_COMBOS.length);
   }
 
   async cancel(handle: EngineHandle): Promise<void> {
@@ -173,8 +175,7 @@ async function wasmInitInput(): Promise<URL | Uint8Array> {
   return await readFile(url);
 }
 
-function splitMetrics(raw: ArrayLike<number>): HandMetrics {
-  const rows = COMBOS.length;
+function splitMetrics(raw: ArrayLike<number>, rows: number): HandMetrics {
   const ev = new Float32Array(rows);
   const equity = new Float32Array(rows);
   const eqr = new Float32Array(rows);
@@ -187,9 +188,10 @@ function splitMetrics(raw: ArrayLike<number>): HandMetrics {
 }
 
 function nativeToResult(native: NativeSolve): SolveResult {
-  const metrics = splitMetrics(native.metrics);
+  const combos = native.combos.length ? native.combos : FALLBACK_COMBOS;
+  const metrics = splitMetrics(native.metrics, combos.length);
   return {
-    rows: COMBOS.map((combo, i) => ({
+    rows: combos.map((combo, i) => ({
       combo,
       fold: native.strategy[i * 3] ?? 0,
       call: native.strategy[i * 3 + 1] ?? 0,
@@ -200,10 +202,10 @@ function nativeToResult(native: NativeSolve): SolveResult {
     })),
     exploitability: native.progress.map((p) => ({ iteration: p.iter, value: p.exploitability_pct })),
     metrics: {
-      spr: native.metrics[COMBOS.length * 3] ?? 0,
-      mdf: native.metrics[COMBOS.length * 3 + 1] ?? 0,
-      alpha: native.metrics[COMBOS.length * 3 + 2] ?? 0,
-      potOdds: native.metrics[COMBOS.length * 3 + 3] ?? 0
+      spr: native.metrics[combos.length * 3] ?? 0,
+      mdf: native.metrics[combos.length * 3 + 1] ?? 0,
+      alpha: native.metrics[combos.length * 3 + 2] ?? 0,
+      potOdds: native.metrics[combos.length * 3 + 3] ?? 0
     }
   };
 }

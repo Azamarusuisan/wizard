@@ -713,6 +713,7 @@ struct NativeProgress {
 #[derive(Clone, Serialize, Deserialize)]
 struct NativeSolve {
     spot: NativeSpot,
+    combos: Vec<String>,
     progress: Vec<NativeProgress>,
     strategy: Vec<f64>,
     metrics: Vec<f64>,
@@ -747,6 +748,10 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
     let pot_odds = spot.bet / (spot.pot + 2.0 * spot.bet);
     let mdf = spot.pot / (spot.pot + spot.bet);
     let alpha = spot.bet / (spot.pot + spot.bet);
+    let combos = ["AA", "AKs", "QQ", "JTs", "76s", "A5s"]
+        .iter()
+        .map(|combo| combo.to_string())
+        .collect::<Vec<_>>();
     let equities = [0.82, 0.72, 0.62, 0.52, 0.42, 0.32];
     let mut strategy = Vec::with_capacity(equities.len() * 3);
     let mut metrics = Vec::with_capacity(equities.len() * 3 + 4);
@@ -769,6 +774,7 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
         .collect();
     let solve = NativeSolve {
         spot,
+        combos,
         progress,
         strategy,
         metrics,
