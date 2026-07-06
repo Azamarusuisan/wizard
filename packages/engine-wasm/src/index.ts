@@ -295,9 +295,18 @@ export function parseBetTree(text: string): BetTree {
 }
 
 export function concreteBets(sizes: BetSize[], pot: number, stack: number): number[] {
+  return concreteBetsWithCap(sizes, pot, stack, stack);
+}
+
+export function concretePotLimitBets(sizes: BetSize[], pot: number, call: number, stack: number): number[] {
+  return concreteBetsWithCap(sizes, pot, stack, Math.min(potLimitMaxRaise(pot, call), stack));
+}
+
+function concreteBetsWithCap(sizes: BetSize[], pot: number, stack: number, cap: number): number[] {
   return [...new Set(sizes
     .map((size) => size.kind === "all-in" ? stack : pot * size.value / 100)
     .map((bet) => bet >= stack * 0.85 ? stack : Math.min(bet, stack))
+    .map((bet) => Math.min(bet, cap))
     .filter((bet) => Number.isFinite(bet) && bet > 0)
     .sort((a, b) => a - b)
     .map((bet) => Math.round(bet * 1e9) / 1e9))];

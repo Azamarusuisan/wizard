@@ -44,6 +44,7 @@
 - Rust bet-tree utilities now also expose pot-limit capped concrete sizes using the existing `pot + 3 * call` formula; tests cover a capped all-in/oversized PLO size.
 - TypeScript fallback and Solver Studio now use the shared engine-wasm bet-tree parser, so WASM and local backends reject the same malformed tree strings.
 - TypeScript fallback now also exposes concrete bet-size expansion, and Solver Studio's bet-size buttons use it instead of duplicating `% pot` math in the UI.
+- TypeScript fallback also exposes pot-limit capped concrete sizes, and Solver Studio uses the cap for PLO4/PLO5 bet-size buttons.
 - Solver Studio board input now has Random flop, Monotone, and Paired buttons; Playwright covers category/random board updates.
 - Solver Studio no longer runs board-aware NLH range equity synchronously during preview; board-card validation stays on the main thread and the actual solve runs through the worker path.
 - Solver Studio displays an `abstracted` badge and explicitly says exploitability is measured on the default-combo abstraction. Playwright covers the disclosure.
@@ -75,7 +76,7 @@
 - IndexedDB solve cache keys are canonical JSON SHA-256 via WebCrypto in the web layer.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `default_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~11.66 ns/eval, default river rows ~501.65 us. The evaluator now exceeds the original 50M eval/s target on this machine.
-- Last verified: `bash scripts/verify.sh` exited 0 after adding Rust pot-limit capped concrete sizes. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
+- Last verified: `bash scripts/verify.sh` exited 0 after adding TypeScript/UI pot-limit capped concrete sizes. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
 - Git remote `origin` is set to `https://github.com/Azamarusuisan/wizard.git`; do not push until §6 is actually complete.
 
 ## Important Caveat

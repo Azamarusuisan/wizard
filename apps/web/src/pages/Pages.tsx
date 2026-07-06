@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { EXACT_EQUITY_EVAL_THRESHOLD, HAND_CATEGORIES, concreteBets, deck, estimateEquityEvaluations, formatCard, parseBetTree, parseCard, equity, parseNlhRange, parsePloRange, serializeRange, solveRiverSpot, type Game } from "@gto-lab/engine-wasm";
+import { EXACT_EQUITY_EVAL_THRESHOLD, HAND_CATEGORIES, concreteBets, concretePotLimitBets, deck, estimateEquityEvaluations, formatCard, parseBetTree, parseCard, equity, parseNlhRange, parsePloRange, serializeRange, solveRiverSpot, type Game } from "@gto-lab/engine-wasm";
 import { CardView } from "../components/CardView";
 import { Metric } from "../components/Metric";
 import { StrategyTable } from "../components/StrategyTable";
@@ -107,7 +107,7 @@ export function SolverStudio() {
         </div>
         <label className="field">Bet tree<textarea rows={3} value={betTree} onChange={(e) => setBetTree(e.target.value)} /></label>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {flopBetSizes(betTree, pot, stack).map((size) => <button className="btn" key={size.amount} onClick={() => setBet(size.amount)}>{size.label}</button>)}
+          {flopBetSizes(betTree, pot, bet, stack, game).map((size) => <button className="btn" key={size.amount} onClick={() => setBet(size.amount)}>{size.label}</button>)}
         </div>
         {preview.error ? <p className="error" role="alert">{preview.error}</p> : null}
         <button className="btn primary" disabled={!!preview.error || running} onClick={() => {
@@ -157,10 +157,10 @@ export function SolverStudio() {
   );
 }
 
-function flopBetSizes(text: string, pot: number, stack: number): { amount: number; label: string }[] {
+function flopBetSizes(text: string, pot: number, call: number, stack: number, game: Game): { amount: number; label: string }[] {
   try {
     const tree = parseBetTree(text);
-    const amounts = concreteBets(tree.flop, pot, stack);
+    const amounts = game === "NLH" ? concreteBets(tree.flop, pot, stack) : concretePotLimitBets(tree.flop, pot, call, stack);
     return amounts.map((amount) => ({ amount, label: amount === stack ? "All-in" : `${Math.round(amount / pot * 100)}% pot` }));
   } catch {
     return [];
@@ -177,7 +177,7 @@ function validateSolverInputs(game: Game, pot: number, bet: number, stack: numbe
   if (!Number.isFinite(stack) || stack <= 0) throw new Error("stack must be positive");
   if (!Number.isFinite(rakePct) || rakePct < 0 || rakePct > 100) throw new Error("rake percent must be 0-100");
   if (!Number.isFinite(rakeCap) || rakeCap < 0) throw new Error("rake cap must be non-negative");
-  if (!flopBetSizes(betTree, pot, stack).length) parseBetTree(betTree);
+  if (!flopBetSizes(betTree, pot, bet, stack, game).length) parseBetTree(betTree);
   const cards = board.trim() ? board.trim().split(/\s+/).map(parseCard) : [];
   if (cards.length > 5) throw new Error("board cannot have more than five cards");
   if (new Set(cards).size !== cards.length) throw new Error("duplicate board cards");
