@@ -40,23 +40,72 @@ export function Dashboard() {
 }
 
 export function RangeExplorer() {
+  const [game, setGame] = useState<"NLH" | "PLO">("NLH");
+  const [ploText, setPloText] = useState("AA**:ds@100, JT98:ds@75, KKQ*:ss@50");
+  const ploParse = useMemo(() => {
+    try {
+      return { rows: parsePloRange(ploText), error: "" };
+    } catch (err) {
+      return { rows: [], error: err instanceof Error ? err.message : "bad PLO range" };
+    }
+  }, [ploText]);
   return (
     <div className="grid">
       <h1 className="title">Range Explorer</h1>
-      <div className="matrix">
-        {[...ranks].flatMap((a, i) => [...ranks].map((b, j) => {
-          const pair = i === j;
-          const label = pair ? `${a}${b}` : i < j ? `${a}${b}s` : `${b}${a}o`;
-          const w = Math.max(0.08, 1 - (i + j) / 20);
-          return (
-            <div className="cell" key={`${i}-${j}`} style={{ background: `rgba(79,70,229,${w * .35})` }} title={`${label} ${Math.round(w * 100)}%`}>
-              <span className="num">{label}</span>
-              <div className="bar"><i style={{ width: "18%" }} /><i style={{ width: "46%" }} /><i style={{ width: "36%" }} /></div>
-            </div>
-          );
-        }))}
+      <label className="field">Game<select value={game} onChange={(event) => setGame(event.target.value as "NLH" | "PLO")}><option>NLH</option><option>PLO</option></select></label>
+      {game === "NLH" ? <NlhMatrix /> : <PloRangeViews text={ploText} setText={setPloText} rows={ploParse.rows} error={ploParse.error} />}
+    </div>
+  );
+}
+
+function NlhMatrix() {
+  return (
+    <div className="matrix">
+      {[...ranks].flatMap((a, i) => [...ranks].map((b, j) => {
+        const pair = i === j;
+        const label = pair ? `${a}${b}` : i < j ? `${a}${b}s` : `${b}${a}o`;
+        const w = Math.max(0.08, 1 - (i + j) / 20);
+        return (
+          <div className="cell" key={`${i}-${j}`} style={{ background: `rgba(79,70,229,${w * .35})` }} title={`${label} ${Math.round(w * 100)}%`}>
+            <span className="num">{label}</span>
+            <div className="bar"><i style={{ width: "18%" }} /><i style={{ width: "46%" }} /><i style={{ width: "36%" }} /></div>
+          </div>
+        );
+      }))}
+    </div>
+  );
+}
+
+const PLO_CATEGORIES = [
+  ["AAxx", "AA**:ds@100", "Premium aces, double suited"],
+  ["Rundowns", "JT98:ds@75", "Connected high-card structures"],
+  ["Broadway", "AKQJ:ss@65", "High-card single-suited hands"],
+  ["Kings", "KKQ*:ss@50", "Strong KK with side-card support"]
+] as const;
+
+function PloRangeViews({ text, setText, rows, error }: { text: string; setText: (value: string) => void; rows: { label: string; weight: number }[]; error: string }) {
+  return (
+    <div className="grid cols-3">
+      <div className="card" aria-label="PLO category tree">
+        <b>PLO category tree</b>
+        <div className="grid" style={{ marginTop: 12 }}>
+          {PLO_CATEGORIES.map(([name, syntax, detail]) => (
+            <button className="btn" key={name} onClick={() => setText(syntax)}>
+              <span>{name}</span><span className="muted"> {detail}</span>
+            </button>
+          ))}
+        </div>
       </div>
-      <div className="card"><b>PLO views</b><p className="muted">Category tree, syntax search, and virtual hand list are represented by the range parser in this slice.</p></div>
+      <div className="card">
+        <label className="field">PLO syntax search<textarea aria-label="PLO syntax search" rows={6} value={text} onChange={(event) => setText(event.target.value)} /></label>
+        {error ? <p className="error" role="alert">{error}</p> : <p className="muted">{rows.length} parsed terms</p>}
+      </div>
+      <div className="card" aria-label="PLO hand list">
+        <b>PLO hand list</b>
+        <div className="grid" style={{ marginTop: 12 }}>
+          {rows.map((row) => <div className="row" key={row.label}><span className="num">{row.label}</span><span>{Math.round(row.weight * 100)}%</span></div>)}
+        </div>
+      </div>
     </div>
   );
 }

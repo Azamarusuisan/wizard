@@ -79,6 +79,7 @@
 - NLH range parser now expands standard plus/span syntax such as `AJo+`, `TT-77:0.25`, and `76s-54s`; package tests cover the spec examples.
 - PLO range parser now validates rank patterns, `ds`/`ss`/`r` suitedness, and `@0..100` percentages; package tests cover the spec examples.
 - Range Editor now imports/exports range JSON as `{version:1,kind:"range",payload:{text}}`; Playwright covers JSON import and persisted reload.
+- Range Explorer now has a PLO mode with category buttons, syntax search backed by the PLO parser, and a hand-list view; Playwright covers category selection, list output, and parser errors.
 - TypeScript equity now validates game-specific hole counts for NLH/PLO4/PLO5 and tests exact-board PLO5 equity.
 - CI workflow exists for Node and Rust.
 - Production code grep for `TODO|FIXME|未実装|placeholder` is clean.
@@ -98,7 +99,7 @@
 - IndexedDB solve cache keys are canonical JSON SHA-256 via WebCrypto in the web layer.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `default_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~11.66 ns/eval, default river rows ~501.65 us. The evaluator now exceeds the original 50M eval/s target on this machine.
-- Last verified: `bash scripts/verify.sh` exited 0 after wiring configured bet-tree sizes into PLO Fast root raise EV/progress/BR-gap calculations. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
+- Last verified: `bash scripts/verify.sh` exited 0 after replacing the Range Explorer PLO placeholder with category/search/list views. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
 - Git remote `origin` is set to `https://github.com/Azamarusuisan/wizard.git`; do not push until §6 is actually complete.
 
 ## Important Caveat

@@ -82,6 +82,18 @@ test("equity lab shows AA vs KK", async ({ page }) => {
   await expect(page.locator('[aria-label^="Player 2:"]')).toBeVisible();
 });
 
+test("range explorer shows PLO category search and list", async ({ page }) => {
+  await page.goto("/range");
+  await page.getByLabel("Game").selectOption("PLO");
+  await expect(page.getByLabel("PLO category tree")).toContainText("AAxx");
+  await expect(page.getByLabel("PLO hand list")).toContainText("AA**:ds");
+  await page.getByRole("button", { name: /Rundowns/ }).click();
+  await expect(page.getByLabel("PLO syntax search")).toHaveValue("JT98:ds@75");
+  await expect(page.getByLabel("PLO hand list")).toContainText("75%");
+  await page.getByLabel("PLO syntax search").fill("AA**:bad@50");
+  await expect(page.getByRole("alert")).toContainText("suitedness");
+});
+
 test("trainer displays decision controls", async ({ page }) => {
   await page.goto("/trainer");
   await expect(page.getByText("BTN vs BB")).toBeVisible();
