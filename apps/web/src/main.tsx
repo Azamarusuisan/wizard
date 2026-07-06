@@ -28,6 +28,7 @@ function App() {
   const deckColors = useAppStore((s) => s.deckColors);
   const match = routes.find(([p]) => p === path) ?? routes[0]!;
   const Page = match[3];
+  const currentLabel = match[1] === "UI" ? "UI Gallery" : dict[lang][match[1] as keyof typeof dict.ja];
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
@@ -46,7 +47,7 @@ function App() {
       </nav>
       <main className="main">
         <header className="top">
-          <span className="muted">Study / {match[1]}</span>
+          <span className="muted">Study / {currentLabel}</span>
           <button className="btn" aria-label="Toggle palette" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>{theme}</button>
           <button className="btn" aria-label="Toggle language" onClick={() => setLang(lang === "ja" ? "en" : "ja")}>{lang.toUpperCase()}</button>
         </header>
