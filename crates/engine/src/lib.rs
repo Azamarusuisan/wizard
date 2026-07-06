@@ -543,6 +543,14 @@ pub mod tree {
     }
 
     pub fn concrete_bets(sizes: &[BetSize], pot: f64, stack: f64) -> Vec<f64> {
+        concrete_bets_with_cap(sizes, pot, stack, stack)
+    }
+
+    pub fn concrete_pot_limit_bets(sizes: &[BetSize], pot: f64, call: f64, stack: f64) -> Vec<f64> {
+        concrete_bets_with_cap(sizes, pot, stack, pot_limit_max_raise(pot, call).min(stack))
+    }
+
+    fn concrete_bets_with_cap(sizes: &[BetSize], pot: f64, stack: f64, cap: f64) -> Vec<f64> {
         let mut bets = sizes
             .iter()
             .map(|size| match size {
@@ -556,6 +564,7 @@ pub mod tree {
                     bet.min(stack)
                 }
             })
+            .map(|bet| bet.min(cap))
             .filter(|bet| bet.is_finite() && *bet > 0.0)
             .collect::<Vec<_>>();
         bets.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
@@ -2424,6 +2433,19 @@ mod tests {
                 100.0
             ),
             vec![100.0]
+        );
+        assert_eq!(
+            tree::concrete_pot_limit_bets(
+                &[
+                    tree::BetSize::Percent(50.0),
+                    tree::BetSize::Percent(200.0),
+                    tree::BetSize::AllIn
+                ],
+                100.0,
+                20.0,
+                300.0,
+            ),
+            vec![50.0, 160.0]
         );
         assert!(tree::parse_bet_tree("turn 66; river all-in").is_err());
         assert!(tree::parse_bet_tree("flop 0").is_err());
