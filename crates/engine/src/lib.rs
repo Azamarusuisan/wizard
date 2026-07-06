@@ -4678,16 +4678,21 @@ mod tests {
     #[test]
     fn native_solve_subtracts_capped_rake_from_showdown_ev() {
         super::init(None);
-        let no_rake = super::solve(r#"{"pot":100.0,"bet":66.0,"stack":250.0}"#).unwrap();
-        let raked =
-            super::solve(r#"{"pot":100.0,"bet":66.0,"stack":250.0,"rakePct":5.0,"rakeCap":10.0}"#)
-                .unwrap();
+        let no_rake =
+            super::solve(r#"{"pot":100.0,"bet":66.0,"stack":250.0,"betTree":"flop 66"}"#).unwrap();
+        let raked = super::solve(
+            r#"{"pot":100.0,"bet":66.0,"stack":250.0,"rakePct":5.0,"rakeCap":10.0,"betTree":"flop 66"}"#,
+        )
+        .unwrap();
         let no_rake_payload = super::serialize(no_rake).unwrap();
         let raked_payload = super::serialize(raked).unwrap();
         let no_rake_native: super::NativeSolve = serde_json::from_slice(&no_rake_payload).unwrap();
         let raked_native: super::NativeSolve = serde_json::from_slice(&raked_payload).unwrap();
         assert!(raked_native.action_evs[1] < no_rake_native.action_evs[1]);
         assert!(raked_native.action_evs[2] < no_rake_native.action_evs[2]);
+        let no_rake_bet_call = super::get_hand_metrics(no_rake, "root/bet-66/call").unwrap();
+        let raked_bet_call = super::get_hand_metrics(raked, "root/bet-66/call").unwrap();
+        assert!(raked_bet_call[0] < no_rake_bet_call[0]);
         super::cancel(no_rake).unwrap();
         super::cancel(raked).unwrap();
     }
