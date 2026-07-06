@@ -3646,6 +3646,9 @@ mod tests {
         let bet_call_metrics = super::get_hand_metrics(handle, "root/bet-33/call").unwrap();
         assert_eq!(bet_call_metrics.len(), native.combos.len() * 3);
         assert!(bet_call_metrics[0].is_finite());
+        let bet_call_by_info_set =
+            super::get_hand_metrics(handle, "preflop:root/bet-33/call").unwrap();
+        assert_eq!(bet_call_metrics, bet_call_by_info_set);
         assert!(native.action_evs[2] >= native.action_evs[1]);
         assert!(native.action_evs[2] > br::action_evs(equity, 100.0, 66.0, 0.0, 0.0).2 / 100.0);
         assert!(native.metrics[(native.combos.len() - 1) * 3] >= 0.0);

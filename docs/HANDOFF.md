@@ -70,6 +70,7 @@
 - PLO4/PLO5 bet-size nodes use the pot-limit capped concrete sizes; Rust native and TypeScript fallback tests cover a PLO4 cap example (`root/bet-160` instead of an uncapped all-in).
 - Bet-size nodes now carry `amount` and `pot`, expose `fold` / `call` actions, and EngineAPI returns MDF/alpha response strategy plus branch EV/equity/EQR hand metrics for those nodes.
 - Bet-size response terminal children such as `root/bet-33/fold` and `root/bet-33/call` are now serialized in Rust native and TypeScript fallback results, with branch metrics available through EngineAPI.
+- Bet-response terminal children are now covered through both node id and information-set lookup paths in Rust native and EngineAPI tests, and Playwright selects `root/bet-33/call` in the Solver Studio node list.
 - First-level terminal action nodes (`root/fold`, `root/call`, `root/raise`) still return empty strategy payloads but now return their branch EV/equity/EQR hand metrics from the stored action-EV table.
 - Rust native spot validation now parses `flop` / `turn` / `river` bet-tree text with numeric `% pot` sizes and `all-in`, rejecting malformed trees before solve creation.
 - Rust bet-tree utilities now expand `% pot` / `all-in` sizes into concrete bet amounts, applying the spec's 85% stack all-in rounding and de-duplicating equivalent all-ins.
@@ -126,7 +127,7 @@
 - IndexedDB solve cache keys are canonical JSON SHA-256 via WebCrypto in the web layer.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `default_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~11.66 ns/eval, default river rows ~501.65 us. The evaluator now exceeds the original 50M eval/s target on this machine.
-- Last verified: `bash scripts/verify.sh` exited 0 after adding serialized bet-response terminal child nodes and branch metrics. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
+- Last verified: `bash scripts/verify.sh` exited 0 after covering bet-response terminal child information-set lookup and UI selection. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
 - Git remote `origin` is set to `https://github.com/Azamarusuisan/wizard.git`; do not push until §6 is actually complete.
 
 ## Important Caveat
