@@ -412,19 +412,19 @@ export function solveNlhComboSpot(pot: number, bet: number, stack = pot * 4.2, b
   };
 }
 
-export function plo4FastExploitabilityPctPot(): number {
-  return ploFastExploitabilityPctPot(PLO4_FAST_SAMPLES);
+export function plo4FastExploitabilityPctPot(iterations = 2_048): number {
+  return ploFastExploitabilityPctPot(PLO4_FAST_SAMPLES, iterations);
 }
 
-export function plo5FastExploitabilityPctPot(): number {
-  return ploFastExploitabilityPctPot(PLO5_FAST_SAMPLES);
+export function plo5FastExploitabilityPctPot(iterations = 2_048): number {
+  return ploFastExploitabilityPctPot(PLO5_FAST_SAMPLES, iterations);
 }
 
-function ploFastExploitabilityPctPot(samples: readonly PloFastSample[]): number {
+function ploFastExploitabilityPctPot(samples: readonly PloFastSample[], iterations: number): number {
   const total = samples.reduce((sum, row) => sum + row.weight, 0);
   return samples.reduce((sum, row) => {
     const eq = ploFastSampleEquity(row);
-    const strategy = cfrStrategy(eq, 100, 66, 0, 0, 2_048);
+    const strategy = cfrStrategy(eq, 100, 66, 0, 0, iterations);
     const mixed = [{ combo: row.combo, weight: row.weight, handClass: "sample", blockedCombos: 0, blockerPct: 0, equity: eq, ...strategy, foldEv: 0, callEv: 0, raiseEv: 0, ev: 0, eqr: 0 }];
     return sum + row.weight * riverExploitability(mixed, 100, 66, 0, 0);
   }, 0) / total;
@@ -482,7 +482,7 @@ function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack
     informationSets: infoSetsFromNodes(nodes),
     rows,
     exploitability: riverStrategyProgressFromRows(rows, pot, 36).map((value, i) => ({ iteration: (i + 1) * 50, value })),
-    metrics: { spr: stack / pot, mdf, alpha, potOdds, brGapPctPot: riverExploitabilityFromRows(rows, pot), ploFastExploitability: game === "PLO4" ? plo4FastExploitabilityPctPot() : plo5FastExploitabilityPctPot(), ploSampleCount: samples.length, ploWeightCoverage: samples.reduce((sum, sample) => sum + sample.weight, 0), ploIterations: iterations, ploComboCap: PLO_COMBO_CAP[game] }
+    metrics: { spr: stack / pot, mdf, alpha, potOdds, brGapPctPot: riverExploitabilityFromRows(rows, pot), ploFastExploitability: game === "PLO4" ? plo4FastExploitabilityPctPot(iterations) : plo5FastExploitabilityPctPot(iterations), ploSampleCount: samples.length, ploWeightCoverage: samples.reduce((sum, sample) => sum + sample.weight, 0), ploIterations: iterations, ploComboCap: PLO_COMBO_CAP[game] }
   };
 }
 

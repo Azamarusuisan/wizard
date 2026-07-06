@@ -1711,7 +1711,11 @@ pub mod br {
     ];
 
     pub fn plo4_fast_exploitability_pct_pot() -> f64 {
-        plo_fast_exploitability_pct_pot(&PLO4_FAST_SAMPLES)
+        plo4_fast_exploitability_pct_pot_with_iterations(2_048)
+    }
+
+    pub fn plo4_fast_exploitability_pct_pot_with_iterations(iterations: usize) -> f64 {
+        plo_fast_exploitability_pct_pot(&PLO4_FAST_SAMPLES, iterations)
     }
 
     pub const PLO5_FAST_SAMPLES: [PloFastSample; 6] = [
@@ -1748,16 +1752,20 @@ pub mod br {
     ];
 
     pub fn plo5_fast_exploitability_pct_pot() -> f64 {
-        plo_fast_exploitability_pct_pot(&PLO5_FAST_SAMPLES)
+        plo5_fast_exploitability_pct_pot_with_iterations(2_048)
     }
 
-    fn plo_fast_exploitability_pct_pot(samples: &[PloFastSample]) -> f64 {
+    pub fn plo5_fast_exploitability_pct_pot_with_iterations(iterations: usize) -> f64 {
+        plo_fast_exploitability_pct_pot(&PLO5_FAST_SAMPLES, iterations)
+    }
+
+    fn plo_fast_exploitability_pct_pot(samples: &[PloFastSample], iterations: usize) -> f64 {
         let rows: Vec<FlopBucket> = samples
             .iter()
             .map(|sample| {
                 let equity = sample.equity();
                 FlopBucket {
-                    representative: cfr_combo(equity, 100.0, 66.0, 2_048),
+                    representative: cfr_combo(equity, 100.0, 66.0, iterations),
                     turn_equities: [equity; 3],
                     turn_weights: [1.0 / 3.0; 3],
                     river_equities: [[equity; 3]; 3],
@@ -2153,14 +2161,14 @@ fn solve_plo_fast(
     } else {
         &br::PLO4_FAST_SAMPLES
     };
-    let metric = if game == "PLO5" {
-        br::plo5_fast_exploitability_pct_pot()
-    } else {
-        br::plo4_fast_exploitability_pct_pot()
-    };
     let combo_cap = if game == "PLO5" { 30_000.0 } else { 20_000.0 };
     let bet_amounts = bet_amounts_for_spot(&spot, board_len);
     let iterations = precision_iterations(&spot);
+    let metric = if game == "PLO5" {
+        br::plo5_fast_exploitability_pct_pot_with_iterations(iterations)
+    } else {
+        br::plo4_fast_exploitability_pct_pot_with_iterations(iterations)
+    };
     let combos = samples
         .iter()
         .map(|sample| sample.combo.to_string())
@@ -3725,6 +3733,20 @@ mod tests {
         assert_eq!(
             plo4_native.metrics[plo4_native.combos.len() * 3 + 5],
             br::plo4_fast_exploitability_pct_pot()
+        );
+        let plo4_precise =
+            super::solve(r#"{"game":"PLO4","pot":100.0,"bet":20.0,"precision":"precise"}"#)
+                .unwrap();
+        let plo4_precise_payload = super::serialize(plo4_precise).unwrap();
+        let plo4_precise_native: super::NativeSolve =
+            serde_json::from_slice(&plo4_precise_payload).unwrap();
+        assert_eq!(
+            plo4_precise_native.metrics[plo4_precise_native.combos.len() * 3 + 5],
+            br::plo4_fast_exploitability_pct_pot_with_iterations(4_096)
+        );
+        assert_eq!(
+            plo4_precise_native.metrics[plo4_precise_native.combos.len() * 3 + 8],
+            4_096.0
         );
         assert_eq!(
             plo4_native.metrics[plo4_native.combos.len() * 3 + 6],

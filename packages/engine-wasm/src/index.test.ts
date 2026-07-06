@@ -199,6 +199,9 @@ test("TS solve fallback reports PLO Fast BR metrics", () => {
   assert.ok(plo4.rows[0]!.raiseEv > solveRiverSpot(100, 20, 300, "", 0, 0, "PLO4").rows[0]!.raiseEv);
   assert.ok((plo4.metrics.brGapPctPot ?? -1) >= 0);
   assert.equal(plo4.metrics.ploFastExploitability, plo4FastExploitabilityPctPot());
+  const plo4Precise = solveRiverSpot(100, 20, 300, "", 0, 0, "PLO4", "flop 50,200,all-in", "precise");
+  assert.equal(plo4Precise.metrics.ploIterations, 4096);
+  assert.equal(plo4Precise.metrics.ploFastExploitability, plo4FastExploitabilityPctPot(4096));
   assert.equal(plo4.metrics.ploSampleCount, 6);
   assert.ok(Math.abs(plo4.metrics.ploWeightCoverage! - 1) < 1e-12);
   assert.equal(plo4.metrics.ploIterations, 2048);
