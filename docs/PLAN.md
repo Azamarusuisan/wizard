@@ -69,11 +69,11 @@ Remaining:
 ## M5 PLO4/PLO5
 
 Evidence:
-- PLO evaluator and PLO4/PLO5 Fast sampled BR reporting exist.
+- PLO evaluator and PLO4/PLO5 Fast capped representative CFR/BR reporting exist.
 - PLO4 AAxx double-suited-over-rainbow monotonicity is tested.
 
 Remaining:
-- Replace Fast sampled reporting with external-sampling MCCFR, stratified range caps, PLO bucket tables, and full UI approximation disclosure.
+- Replace capped representative Fast reporting with external-sampling MCCFR, stratified range caps, PLO bucket tables, and full UI approximation disclosure.
 
 ## M6 Trainer And Range Editor
 

@@ -223,7 +223,7 @@ export function SolverStudio() {
         <span className="badge">abstracted</span>
         {ploSampled ? <span className="badge">PLO sampled proxy</span> : null}
         <p className="muted">Exploitability is measured on the current compact range abstraction, not a full postflop tree.</p>
-        {ploSampled ? <p className="muted">PLO Fast uses weighted representative hands and sampled equities; the combo cap limits range representation before MCCFR, and external-sampling MCCFR is not active for this result.</p> : null}
+        {ploSampled ? <p className="muted">PLO Fast uses weighted representative hands, sampled equities, and CFR iterations over the capped representative set; the combo cap limits range representation, and full external-sampling MCCFR for the uncapped game tree is still pending.</p> : null}
       </section>
       <section className="card">
         <h2 className="title">Strategy</h2>

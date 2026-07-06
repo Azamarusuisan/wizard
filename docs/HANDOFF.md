@@ -21,7 +21,7 @@
 - TypeScript fallback NLH solve now derives `brGapPctPot` and the final progress point through one shared fallback path, so cached/local fallback payloads do not drift internally.
 - Compact flop continuation no longer invents synthetic chance branches when no card-derived branch data exists; missing chance data now terminates that abstraction state.
 - Leduc has a tabular CFR + average-strategy BR probe in Rust. Chance reach is included in regret and average-strategy weighting. Fold payoff is locked by a test (`p1 folds => +1`, `p0 folds => -1`). The gate now uses measured imperfect-information best response rather than a fixed scalar.
-- PLO4/PLO5 Fast exploitability no longer returns a fixed scalar; it computes a weighted representative bucket BR gap. It is still a small sampled proxy, not full PLO MCCFR.
+- PLO4/PLO5 Fast exploitability no longer returns a fixed scalar; it computes a weighted representative bucket BR gap from capped representative CFR rows. It is still not full external-sampling PLO MCCFR over the uncapped game tree.
 - Bucket module now has fixed-seed 10-feature k-means++ and a variance-quality gate proving more clusters do not worsen synthetic equity-feature clustering.
 - Rust solver gates now compute compact flop abstraction exploitability from card-derived flop buckets rather than synthetic equity rows.
 - Merged compact flop buckets now normalize turn and river chance-branch mass after grouping, so grouped abstractions keep probability mass at 1.0.
@@ -62,9 +62,9 @@
 - Solver Studio now shows a compact action-by-hand-class composition summary from existing row frequencies.
 - Solver spot payload/cache key now carries rake percent and cap. Native WASM and TS fallback river action EVs subtract capped rake from the win pot; tests cover that rake lowers call/raise showdown EV.
 - Solver spot payload/cache key now carries game. PLO4/PLO5 in Solver Studio return Fast sampled BR metrics instead of silently using NLH rows; the real MCCFR path still needs to replace this proxy.
-- Solver Studio now labels PLO4/PLO5 Fast results as a sampled proxy and states that external-sampling MCCFR is not active for that result. Playwright covers the disclosure.
+- Solver Studio now labels PLO4/PLO5 Fast results as a sampled proxy and states that the current result uses CFR iterations over the capped representative set while full external-sampling MCCFR remains pending. Playwright covers the disclosure.
 - PLO4/PLO5 Fast solve rows now use concrete representative combo labels and derive their equity from seeded PLO-vs-random MC before computing pure fold/call/raise strategy from current pot/bet/rake EV. This is still a representative proxy, not full PLO MCCFR.
-- PLO4/PLO5 Fast representative rows now also use the shared regret-matching average strategy instead of immediate best response. This remains a representative proxy, not external-sampling MCCFR.
+- PLO4/PLO5 Fast representative rows now also use the shared regret-matching average strategy instead of immediate best response. This remains capped representative CFR, not full external-sampling MCCFR.
 - PLO4/PLO5 Fast solve metrics now expose representative sample count and total sample weight coverage in native/TS payloads and Solver Studio.
 - PLO4/PLO5 Fast solve metrics now also expose the precision-driven iteration count in Rust native, EngineAPI conversion, TypeScript fallback, Solver Studio, formats docs, and IndexedDB round-trip tests.
 - PLO4/PLO5 Fast solve metrics now expose the current combo cap (`20,000` / `30,000`) in Rust native, EngineAPI conversion, TypeScript fallback, Solver Studio, formats docs, and IndexedDB round-trip tests.
@@ -145,7 +145,7 @@
 - IndexedDB solve cache keys are canonical JSON SHA-256 via WebCrypto in the web layer.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `default_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~11.66 ns/eval, default river rows ~501.65 us. The evaluator now exceeds the original 50M eval/s target on this machine.
-- Last verified: `bash scripts/verify.sh` exited 0 after adding conditional raise-size mixes. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
+- Last verified: `pnpm --filter @gto-lab/web typecheck`, `pnpm --filter @gto-lab/web test`, and `pnpm exec playwright test apps/web/tests/core-flows.spec.ts --grep "solver runs"` exited 0 after correcting PLO Fast CFR disclosure. Latest full verify: `bash scripts/verify.sh` exited 0 after adding conditional raise-size mixes. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
 - Git remote `origin` is set to `https://github.com/Azamarusuisan/wizard.git`; do not push until §6 is actually complete.
 
 ## Important Caveat
