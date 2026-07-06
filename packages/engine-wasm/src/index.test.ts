@@ -212,6 +212,7 @@ test("TS solve fallback reports PLO Fast BR metrics", () => {
   assert.equal(plo4Precise.metrics.ploFastExploitability, plo4FastExploitabilityPctPot(4096));
   assert.equal(plo4.metrics.ploSampleCount, 6);
   assert.ok(Math.abs(plo4.metrics.ploWeightCoverage! - 1) < 1e-12);
+  assert.notEqual(solveRiverSpot(100, 20, 300, "2c 3d 4h", 0, 0, "PLO4").rows[0]!.equity, plo4.rows[0]!.equity);
   assert.equal(plo4.metrics.ploIterations, 2048);
   assert.equal(plo4.metrics.ploComboCap, 20000);
   assert.equal(plo4.metrics.ploEquitySamples, 512);

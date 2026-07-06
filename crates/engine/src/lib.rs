@@ -442,18 +442,32 @@ pub mod equity {
     }
 
     pub fn plo_vs_random_equity_mc(hero: &[Card], samples: usize, seed: u64) -> EquityMc {
+        plo_vs_random_equity_mc_board(hero, &[], samples, seed)
+    }
+
+    pub fn plo_vs_random_equity_mc_board(
+        hero: &[Card],
+        board: &[Card],
+        samples: usize,
+        seed: u64,
+    ) -> EquityMc {
         assert!(hero.len() == 4 || hero.len() == 5);
-        let dead = hero.to_vec();
-        assert_eq!(unique_len(&dead), hero.len());
+        assert!(board.len() <= 5);
+        let dead = hero.iter().chain(board).copied().collect::<Vec<_>>();
+        assert_eq!(unique_len(&dead), dead.len());
         let deck: Vec<Card> = (0..52).filter(|c| !dead.contains(c)).collect();
         let mut rng = Lcg(seed);
         let mut wins = 0.0;
         for _ in 0..samples {
-            let drawn = sample_runout(&deck, hero.len() + 5, &mut rng);
+            let drawn = sample_runout(&deck, hero.len() + (5 - board.len()), &mut rng);
             let villain = &drawn[..hero.len()];
-            let board = &drawn[hero.len()..];
-            let hero_rank = evaluate_plo(hero, board);
-            let villain_rank = evaluate_plo(villain, board);
+            let full_board = board
+                .iter()
+                .copied()
+                .chain(drawn[hero.len()..].iter().copied())
+                .collect::<Vec<_>>();
+            let hero_rank = evaluate_plo(hero, &full_board);
+            let villain_rank = evaluate_plo(villain, &full_board);
             if hero_rank > villain_rank {
                 wins += 1.0;
             } else if hero_rank == villain_rank {
@@ -1807,8 +1821,18 @@ pub mod br {
 
     impl PloFastSample {
         pub fn equity(self) -> f64 {
+            self.equity_on_board(&[])
+        }
+
+        pub fn equity_on_board(self, board: &[Card]) -> f64 {
             let cards = parse_combo_cards(self.combo);
-            equity::plo_vs_random_equity_mc(&cards, PLO_FAST_EQUITY_SAMPLES, self.seed).equity
+            equity::plo_vs_random_equity_mc_board(&cards, board, PLO_FAST_EQUITY_SAMPLES, self.seed)
+                .equity
+        }
+
+        pub fn conflicts_board(self, board: &[Card]) -> bool {
+            let cards = parse_combo_cards(self.combo);
+            cards.iter().any(|card| board.contains(card))
         }
     }
 
@@ -2186,15 +2210,23 @@ fn solve_plo_fast(
     rake_pct: f64,
     rake_cap: f64,
 ) -> Result<u32, JsValue> {
-    let board_len = parse_board(spot.board.as_deref().unwrap_or(""))
-        .map_err(|err| JsValue::from_str(&err))?
-        .len();
+    let board =
+        parse_board(spot.board.as_deref().unwrap_or("")).map_err(|err| JsValue::from_str(&err))?;
+    let board_len = board.len();
     let game = spot.game.as_deref().unwrap_or("PLO4");
-    let samples = if game == "PLO5" {
+    let sample_pool = if game == "PLO5" {
         &br::PLO5_FAST_SAMPLES
     } else {
         &br::PLO4_FAST_SAMPLES
     };
+    let samples = sample_pool
+        .iter()
+        .copied()
+        .filter(|sample| !sample.conflicts_board(&board))
+        .collect::<Vec<_>>();
+    if samples.is_empty() {
+        return Err(JsValue::from_str("board blocks every PLO representative"));
+    }
     let combo_cap = if game == "PLO5" { 30_000.0 } else { 20_000.0 };
     let bet_amounts = bet_amounts_for_spot(&spot, board_len);
     let iterations = precision_iterations(&spot);
@@ -2217,12 +2249,12 @@ fn solve_plo_fast(
         .collect::<Vec<_>>();
     let blocker_metrics = samples
         .iter()
-        .flat_map(|sample| plo_fast_blocker_metrics(sample.combo, samples))
+        .flat_map(|sample| plo_fast_blocker_metrics(sample.combo, &samples))
         .collect::<Vec<_>>();
     let (rows, best_raise_amounts): (Vec<_>, Vec<_>) = samples
         .iter()
         .map(|sample| {
-            let equity = sample.equity();
+            let equity = sample.equity_on_board(&board);
             let (fold_ev, call_ev, _) =
                 row_action_evs(equity, spot.pot, spot.bet, &bet_amounts, rake_pct, rake_cap);
             let (best_raise_amount, raise_ev) =
@@ -4105,6 +4137,12 @@ mod tests {
             plo4_native.metrics[plo4_native.combos.len() * 3 + 10],
             br::PLO_FAST_EQUITY_SAMPLES as f64
         );
+        let plo4_board =
+            super::solve(r#"{"game":"PLO4","pot":100.0,"bet":20.0,"board":"2c 3d 4h"}"#).unwrap();
+        let plo4_board_payload = super::serialize(plo4_board).unwrap();
+        let plo4_board_native: super::NativeSolve =
+            serde_json::from_slice(&plo4_board_payload).unwrap();
+        assert_ne!(plo4_board_native.metrics[1], plo4_native.metrics[1]);
         let plo5 = super::solve(r#"{"game":"PLO5","pot":100.0,"bet":66.0,"stack":250.0}"#).unwrap();
         let plo5_payload = super::serialize(plo5).unwrap();
         let plo5_native: super::NativeSolve = serde_json::from_slice(&plo5_payload).unwrap();

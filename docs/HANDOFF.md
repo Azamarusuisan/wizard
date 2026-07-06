@@ -72,6 +72,7 @@
 - PLO4/PLO5 Fast metrics now expose the fixed representative-equity Monte Carlo sample count (`512`) through Rust native, EngineAPI conversion, TypeScript fallback, Solver Studio, formats docs, and IndexedDB round-trip tests.
 - PLO4/PLO5 Fast rows now carry coarse category labels (`AA double-suited`, `double-suited rundown`, `rundown`, `pair`, etc.) instead of the placeholder `sample` class. Rust native, TS fallback, EngineAPI, and Playwright cover the labels.
 - PLO4/PLO5 Fast rows now compute blocker metrics against the capped representative sample set instead of reporting zero for every representative. Rust native, TS fallback, and EngineAPI tests cover positive blocker values.
+- PLO4/PLO5 Fast representative equities are now board-aware and representatives blocked by the entered board are removed before solving. Rust native and TS fallback tests cover board-dependent PLO Fast equity.
 - Solver Studio PLO Fast disclosure now states that the combo cap limits range representation before MCCFR. Playwright covers the disclosure.
 - Solve metrics now include `brGapPctPot`, computed from the same rows used for the strategy table and convergence graph. UI shows it as `BR gap`.
 - Solver Studio now includes an editable bet-tree preset string and flop-size buttons that apply `% pot` or all-in values to the active bet amount. The bet-tree string is validated, included in share URLs and solve cache payloads. NLH and PLO Fast root rows now use the configured concrete bet-tree sizes when choosing the abstract raise EV; this is still not full multi-size tree CFR.
@@ -147,7 +148,7 @@
 - IndexedDB solve cache keys are canonical JSON SHA-256 via WebCrypto in the web layer.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `default_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~11.66 ns/eval, default river rows ~501.65 us. The evaluator now exceeds the original 50M eval/s target on this machine.
-- Last verified: Rust `native_solve_reports_plo_fast_br_metrics`, `wasm-pack build`, `pnpm --filter @gto-lab/engine-wasm test`, `pnpm --filter @gto-lab/web typecheck`, and `pnpm exec playwright test apps/web/tests/core-flows.spec.ts --grep "solver runs"` exited 0 after adding PLO Fast representative blocker metrics. Latest full verify: `bash scripts/verify.sh` exited 0 after adding conditional raise-size mixes. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
+- Last verified: Rust `native_solve_reports_plo_fast_br_metrics`, `wasm-pack build`, `pnpm --filter @gto-lab/engine-wasm test`, and `pnpm --filter @gto-lab/web typecheck` exited 0 after adding board-aware PLO Fast representative equities. Latest full verify: `bash scripts/verify.sh` exited 0 after adding conditional raise-size mixes. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
 - Git remote `origin` is set to `https://github.com/Azamarusuisan/wizard.git`; do not push until §6 is actually complete.
 
 ## Important Caveat

@@ -348,7 +348,7 @@ export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2, boar
   const potOdds = bet / (pot + 2 * bet);
   const mdf = pot / (pot + bet);
   const alpha = bet / (pot + bet);
-  if (game === "PLO4" || game === "PLO5") return solvePloFastSpot(game, pot, bet, stack, rakePct, rakeCap, potOdds, mdf, alpha, board.length, betTree, precision);
+  if (game === "PLO4" || game === "PLO5") return solvePloFastSpot(game, pot, bet, stack, rakePct, rakeCap, potOdds, mdf, alpha, board, betTree, precision);
   const betAmounts = betAmountsForSpot(game, board.length, pot, bet, stack, betTree);
   const iterations = precisionIterations(precision);
   const combos = nlhRiverCombosFromRange(heroRange, board);
@@ -482,12 +482,14 @@ function ploFastBlockers(combo: string, samples: readonly PloFastSample[]): { bl
   return { blockedCombos, blockerPct: total ? blockedCombos / total : 0 };
 }
 
-function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack: number, rakePct: number, rakeCap: number, potOdds: number, mdf: number, alpha: number, boardLen = 0, betTree = "", precision: "fast" | "balanced" | "precise" = "balanced"): SolveResult {
-  const samples = game === "PLO4" ? PLO4_FAST_SAMPLES : PLO5_FAST_SAMPLES;
-  const betAmounts = betAmountsForSpot(game, boardLen, pot, bet, stack, betTree);
+function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack: number, rakePct: number, rakeCap: number, potOdds: number, mdf: number, alpha: number, board: Card[] = [], betTree = "", precision: "fast" | "balanced" | "precise" = "balanced"): SolveResult {
+  const boardSet = new Set(board);
+  const samples = (game === "PLO4" ? PLO4_FAST_SAMPLES : PLO5_FAST_SAMPLES).filter((sample) => !parseComboCards(sample.combo).some((card) => boardSet.has(card)));
+  if (!samples.length) throw new Error("board blocks every PLO representative");
+  const betAmounts = betAmountsForSpot(game, board.length, pot, bet, stack, betTree);
   const iterations = precisionIterations(precision);
   const rows = samples.map((sample) => {
-    const eq = ploFastSampleEquity(sample);
+    const eq = ploFastSampleEquity(sample, board);
     const { callEv, raiseEv, bestRaiseAmount } = rowActionEvs(eq, pot, bet, betAmounts, rakePct, rakeCap);
     const strategy = cfrStrategyFromActionEvs(0, callEv, raiseEv, iterations);
     const ev = (strategy.call * callEv + strategy.raise * raiseEv) / 100;
@@ -507,7 +509,7 @@ function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack
       eqr: ev / Math.max(0.0001, eq * pot / 100)
     };
   });
-  const nodes = rootNodes(boardLen, pot, bet, stack, game, betTree);
+  const nodes = rootNodes(board.length, pot, bet, stack, game, betTree);
   return {
     nodes,
     informationSets: infoSetsFromNodes(nodes),
@@ -574,8 +576,8 @@ function formatBetNode(amount: number, stack: number): string {
   return Math.abs(amount - stack) <= 1e-9 ? "all-in" : Number.isInteger(amount) ? String(amount) : amount.toFixed(2);
 }
 
-function ploFastSampleEquity(row: PloFastSample): number {
-  return ploVsRandomEquity(parseComboCards(row.combo), PLO_FAST_EQUITY_SAMPLES, row.seed);
+function ploFastSampleEquity(row: PloFastSample, board: Card[] = []): number {
+  return ploVsRandomEquity(parseComboCards(row.combo), board, PLO_FAST_EQUITY_SAMPLES, row.seed);
 }
 
 function parseComboCards(combo: string): Card[] {
@@ -583,16 +585,18 @@ function parseComboCards(combo: string): Card[] {
   return Array.from({ length: combo.length / 2 }, (_, i) => parseCard(combo.slice(i * 2, i * 2 + 2)));
 }
 
-function ploVsRandomEquity(hero: Card[], samples: number, seed: number): number {
+function ploVsRandomEquity(hero: Card[], board: Card[], samples: number, seed: number): number {
   const rng = mulberry32(seed);
-  const available = deck(hero);
+  const dead = [...hero, ...board];
+  if (new Set(dead).size !== dead.length) throw new Error("duplicate PLO hero/board cards");
+  const available = deck(dead);
   let wins = 0;
   for (let i = 0; i < samples; i++) {
-    const drawn = sample(available, hero.length + 5, rng);
+    const drawn = sample(available, hero.length + (5 - board.length), rng);
     const villain = drawn.slice(0, hero.length);
-    const board = drawn.slice(hero.length);
-    const heroRank = evaluatePlo(hero, board);
-    const villainRank = evaluatePlo(villain, board);
+    const fullBoard = [...board, ...drawn.slice(hero.length)];
+    const heroRank = evaluatePlo(hero, fullBoard);
+    const villainRank = evaluatePlo(villain, fullBoard);
     wins += heroRank > villainRank ? 1 : heroRank === villainRank ? 0.5 : 0;
   }
   return wins / samples;
