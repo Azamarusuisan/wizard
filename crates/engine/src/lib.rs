@@ -2472,12 +2472,16 @@ fn filter_plo_samples(
     let filtered = samples
         .iter()
         .filter_map(|sample| {
+            let mut matched = false;
             let weight = terms
                 .iter()
                 .filter(|term| plo_sample_matches(sample.combo, term))
-                .map(|term| term.weight)
+                .map(|term| {
+                    matched = true;
+                    term.weight
+                })
                 .fold(0.0, f64::max);
-            (weight > 0.0).then_some(br::PloFastSample {
+            matched.then_some(br::PloFastSample {
                 combo: sample.combo,
                 weight: sample.weight * weight,
                 seed: sample.seed,
@@ -4934,6 +4938,23 @@ mod tests {
             plo4_aces_native.metrics[plo4_aces_native.combos.len() * 3 + 8],
             br::PLO4_FAST_SAMPLES.len() as f64
         );
+        let plo4_zero_weight = super::solve(
+            r#"{"game":"PLO4","pot":100.0,"bet":20.0,"stack":300.0,"heroRange":"AA**:ds@0"}"#,
+        )
+        .expect("zero-weight PLO range keeps matched representative");
+        let plo4_zero_weight_payload = super::serialize(plo4_zero_weight).unwrap();
+        let plo4_zero_weight_native: super::NativeSolve =
+            serde_json::from_slice(&plo4_zero_weight_payload).unwrap();
+        assert_eq!(plo4_zero_weight_native.combos, vec!["AsAhKsKh"]);
+        assert_eq!(plo4_zero_weight_native.weights, vec![0.0]);
+        assert_eq!(
+            plo4_zero_weight_native.metrics[plo4_zero_weight_native.combos.len() * 3 + 4],
+            0.0
+        );
+        assert!(plo4_zero_weight_native
+            .progress
+            .iter()
+            .all(|point| point.exploitability_pct == 0.0));
         let plo4_aces_vs_rundown = super::solve(
             r#"{"game":"PLO4","pot":100.0,"bet":20.0,"stack":300.0,"heroRange":"AA**:ds@50","villainRange":"JT98:ds@75"}"#,
         )

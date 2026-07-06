@@ -242,6 +242,9 @@ test("TS solve fallback reports PLO Fast BR metrics", () => {
   assert.equal(plo4Aces.metrics.ploSampleCount, 1);
   assert.ok(Math.abs(plo4Aces.metrics.ploWeightCoverage! - 0.06) < 1e-12);
   assert.equal(plo4Aces.metrics.ploOpponentSampleCount, 6);
+  const plo4ZeroWeight = solveRiverSpot(100, 20, 300, "", 0, 0, "PLO4", "flop 50,200,all-in", "balanced", "AA**:ds@0");
+  assert.equal(plo4ZeroWeight.metrics.brGapPctPot, 0);
+  assert.ok(plo4ZeroWeight.exploitability.every((point) => point.value === 0));
   const plo4AcesVsRundown = solveRiverSpot(100, 20, 300, "", 0, 0, "PLO4", "flop 50,200,all-in", "balanced", "AA**:ds@50", "JT98:ds@75");
   assert.equal(plo4AcesVsRundown.metrics.ploOpponentSampleCount, 1);
   assert.ok(Math.abs(plo4AcesVsRundown.metrics.ploOpponentWeightCoverage! - 0.165) < 1e-12);

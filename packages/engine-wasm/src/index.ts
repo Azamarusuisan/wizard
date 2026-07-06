@@ -579,8 +579,11 @@ function filterPloSamples(samples: readonly PloFastSample[], game: "PLO4" | "PLO
   }
   if (!terms.length) return samples.map((sample) => ({ ...sample }));
   const filtered = samples.flatMap((sample) => {
-    const rangeWeight = Math.max(0, ...terms.filter((term) => ploSampleMatches(sample.combo, term.label)).map((term) => term.weight));
-    return rangeWeight > 0 ? [{ ...sample, weight: sample.weight * rangeWeight }] : [];
+    const matchingWeights = terms
+      .filter((term) => ploSampleMatches(sample.combo, term.label))
+      .map((term) => term.weight);
+    if (!matchingWeights.length) return [];
+    return [{ ...sample, weight: sample.weight * Math.max(0, ...matchingWeights) }];
   });
   if (!filtered.length) throw new Error("PLO range leaves no representative samples");
   return filtered;
@@ -964,6 +967,7 @@ function riverExploitabilityFromRows(rows: SolverRow[], pot: number): number {
     bestEv += row.weight * Math.max(foldEv, callEv, raiseEv);
   }
   const totalWeight = rows.reduce((sum, row) => sum + row.weight, 0);
+  if (totalWeight <= 0) return 0;
   return Math.max(0, (bestEv - strategyEv) / totalWeight / pot * 100);
 }
 
