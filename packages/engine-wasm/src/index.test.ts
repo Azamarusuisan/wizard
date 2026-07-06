@@ -156,6 +156,7 @@ test("TS river solve fallback uses custom NLH ranges", () => {
   const custom = solveRiverSpot(100, 66, 250, "Ah Kd 7c", 0, 0, "NLH", "", "balanced", "QQ, JTs", "AA");
   assert.ok(custom.rows.length > 0);
   assert.ok(custom.rows.every((row) => row.combo.startsWith("Q") || row.combo.startsWith("J") || row.combo.startsWith("T")));
+  assert.ok(custom.rows.some((row) => row.handClass === "pair"));
   const weighted = solveRiverSpot(100, 66, 250, "Ah Kd 7c", 0, 0, "NLH", "", "balanced", "QQ:0.25", "AA");
   assert.ok(weighted.rows.every((row) => row.weight === 0.25));
   const blockers = solveRiverSpot(100, 66, 250, "Kd 7c 2s", 0, 0, "NLH", "", "balanced", "AA", "AA");

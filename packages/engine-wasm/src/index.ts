@@ -324,7 +324,7 @@ function parseBetSizes(text: string): BetSize[] {
   return sizes;
 }
 
-export type SolverRow = { combo: string; weight: number; blockedCombos: number; blockerPct: number; fold: number; call: number; raise: number; foldEv: number; callEv: number; raiseEv: number; equity: number; ev: number; eqr: number };
+export type SolverRow = { combo: string; weight: number; handClass: string; blockedCombos: number; blockerPct: number; fold: number; call: number; raise: number; foldEv: number; callEv: number; raiseEv: number; equity: number; ev: number; eqr: number };
 export type SolveNode = { id: string; label: string; street: string; actions: string[]; amount?: number; pot?: number };
 export type SolveResult = { nodes: SolveNode[]; rows: SolverRow[]; exploitability: { iteration: number; value: number }[]; metrics: { spr: number; mdf: number; alpha: number; potOdds: number; brGapPctPot?: number; ploFastExploitability?: number } };
 export const DEFAULT_RIVER_SPECS = [
@@ -359,7 +359,7 @@ export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2, boar
     const { fold, call, raise } = cfrStrategyFromActionEvs(0, callEv, raiseEv, iterations);
     const ev = (call * callEv + raise * raiseEv) / 100;
     const blockers = blockerStats(holes, board, villains);
-    return { combo, weight, ...blockers, fold, call, raise, foldEv: 0, callEv: callEv / 100, raiseEv: raiseEv / 100, equity: eq, ev, eqr: ev / Math.max(0.0001, eq * pot / 100) };
+    return { combo, weight, handClass: nlhHandClass(holes, board), ...blockers, fold, call, raise, foldEv: 0, callEv: callEv / 100, raiseEv: raiseEv / 100, equity: eq, ev, eqr: ev / Math.max(0.0001, eq * pot / 100) };
   });
   return {
     nodes: rootNodes(board.length, pot, bet, stack, game, betTree),
@@ -383,6 +383,7 @@ export function solveNlhComboSpot(pot: number, bet: number, stack = pot * 4.2, b
   const row = {
     combo: holes.map(formatCard).join(""),
     weight: 1,
+    handClass: nlhHandClass(holes, board),
     blockedCombos: 0,
     blockerPct: 0,
     ...strategy,
@@ -419,7 +420,7 @@ function ploFastExploitabilityPctPot(samples: readonly PloFastSample[]): number 
   return samples.reduce((sum, row) => {
     const eq = ploFastSampleEquity(row);
     const strategy = cfrStrategy(eq, 100, 66, 0, 0, 2_048);
-    const mixed = [{ combo: row.combo, weight: row.weight, blockedCombos: 0, blockerPct: 0, equity: eq, ...strategy, foldEv: 0, callEv: 0, raiseEv: 0, ev: 0, eqr: 0 }];
+    const mixed = [{ combo: row.combo, weight: row.weight, handClass: "sample", blockedCombos: 0, blockerPct: 0, equity: eq, ...strategy, foldEv: 0, callEv: 0, raiseEv: 0, ev: 0, eqr: 0 }];
     return sum + row.weight * riverExploitability(mixed, 100, 66, 0, 0);
   }, 0) / total;
 }
@@ -456,6 +457,7 @@ function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack
     return {
       combo: sample.combo,
       weight: sample.weight,
+      handClass: "sample",
       blockedCombos: 0,
       blockerPct: 0,
       ...strategy,
@@ -647,6 +649,32 @@ function blockerStats(hero: Card[], board: Card[], villainCombos: RiverCombo[]):
   const available = villainCombos.filter((combo) => !combo.holes.some((card) => blocked.has(card))).reduce((sum, combo) => sum + combo.weight, 0);
   const blockedCombos = total - available;
   return { blockedCombos, blockerPct: total ? blockedCombos / total : 0 };
+}
+
+function nlhHandClass(holes: Card[], board: Card[]): string {
+  if (board.length < 3) return "preflop";
+  const cards = [...holes, ...board];
+  const category = Math.floor(Math.max(...combinations(cards, 5).map(evaluate5)) / CATEGORY_SHIFT);
+  if (category >= 8) return "straight flush";
+  if (category === 7) return "quads";
+  if (category === 6) return "full house";
+  if (category === 5) return "flush";
+  if (category === 4) return "straight";
+  if (category === 3) return rankOf(holes[0]!) === rankOf(holes[1]!) ? "set" : "trips";
+  if (category === 2) return "two pair";
+  if (category === 1) return holes.some((card) => rankOf(card) === Math.max(...board.map(rankOf))) ? "top pair" : "pair";
+  if (board.length < 5 && hasFlushDraw(cards)) return "flush draw";
+  if (board.length < 5 && hasStraightDraw(cards)) return "straight draw";
+  return "air";
+}
+
+function hasFlushDraw(cards: Card[]): boolean {
+  return [0, 1, 2, 3].some((suit) => cards.filter((card) => suitOf(card) === suit).length >= 4);
+}
+
+function hasStraightDraw(cards: Card[]): boolean {
+  const ranks = new Set(cards.flatMap((card) => rankOf(card) === 12 ? [12, -1] : [rankOf(card)]));
+  return Array.from({ length: 10 }, (_, start) => [-1, 0, 1, 2, 3].map((offset) => start + offset)).some((run) => run.filter((rank) => ranks.has(rank)).length >= 4);
 }
 
 function comboKey(cards: Card[]): string {

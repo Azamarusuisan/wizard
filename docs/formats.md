@@ -78,6 +78,7 @@ Solve cache records:
   "meta": { "version": 1, "createdAt": 0, "spot": {} },
   "blob": {
     "combos": ["AA"],
+    "handClasses": ["pair"],
     "weights": "Float32Array",
     "blockers": "Float32Array pairs: blocked combo weight, blocked fraction",
     "fold": "Uint16 probability table",

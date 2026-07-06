@@ -40,6 +40,8 @@ test("solver runs and displays strategy metrics", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Cancel" })).toBeEnabled();
   await expect(page.getByRole("table", { name: "strategy table" })).toContainText(/QcQd|JsTs/);
   await expect(page.getByRole("table", { name: "strategy table" })).toContainText("R EV");
+  await expect(page.getByLabel("Hand class")).toContainText("pair");
+  await page.getByLabel("Hand class").selectOption("pair");
   await expect(page.getByText("MDF")).toBeVisible();
   await expect(page.getByText("SPR")).toBeVisible();
   await expect(page.getByText("BR gap")).toBeVisible();

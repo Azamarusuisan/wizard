@@ -33,6 +33,7 @@ type WasmModule = {
 type NativeSolve = {
   nodes?: SolveNode[];
   combos: string[];
+  hand_classes?: string[];
   progress: { iter: number; exploitability_pct: number; elapsed: number }[];
   strategy: number[];
   action_evs?: number[];
@@ -251,6 +252,7 @@ function nativeToResult(native: NativeSolve): SolveResult {
     rows: combos.map((combo, i) => ({
       combo,
       weight: native.weights?.[i] ?? 1,
+      handClass: native.hand_classes?.[i] ?? "unknown",
       blockedCombos: native.blocker_metrics?.[i * 2] ?? 0,
       blockerPct: native.blocker_metrics?.[i * 2 + 1] ?? 0,
       fold: native.strategy[i * 3] ?? 0,

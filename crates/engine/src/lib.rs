@@ -1770,6 +1770,7 @@ struct NativeSolve {
     spot: NativeSpot,
     nodes: Vec<NativeNode>,
     combos: Vec<String>,
+    hand_classes: Vec<String>,
     progress: Vec<NativeProgress>,
     strategy: Vec<f64>,
     action_evs: Vec<f64>,
@@ -1824,6 +1825,10 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
     let combos = entries
         .iter()
         .map(|entry| entry.label.clone())
+        .collect::<Vec<_>>();
+    let hand_classes = entries
+        .iter()
+        .map(|entry| nlh_hand_class(entry.holes, &board))
         .collect::<Vec<_>>();
     let weights = entries.iter().map(|entry| entry.weight).collect::<Vec<_>>();
     let blocker_metrics = entries
@@ -1881,6 +1886,7 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
         spot,
         nodes,
         combos,
+        hand_classes,
         progress,
         strategy,
         action_evs,
@@ -1925,6 +1931,10 @@ fn solve_plo_fast(
     let combos = samples
         .iter()
         .map(|sample| sample.combo.to_string())
+        .collect::<Vec<_>>();
+    let hand_classes = samples
+        .iter()
+        .map(|_| "sample".to_string())
         .collect::<Vec<_>>();
     let weights = samples
         .iter()
@@ -1980,6 +1990,7 @@ fn solve_plo_fast(
         spot,
         nodes,
         combos,
+        hand_classes,
         progress,
         strategy,
         action_evs,
@@ -2399,6 +2410,97 @@ fn blocker_metrics(
         .sum();
     let blocked = total - available;
     [blocked, if total > 0.0 { blocked / total } else { 0.0 }]
+}
+
+fn nlh_hand_class(holes: [eval::Card; 2], board: &[eval::Card]) -> String {
+    if board.len() < 3 {
+        return "preflop".to_string();
+    }
+    let mut cards = vec![holes[0], holes[1]];
+    cards.extend_from_slice(board);
+    let category = best_five_category(&cards);
+    match category {
+        8 => "straight flush",
+        7 => "quads",
+        6 => "full house",
+        5 => "flush",
+        4 => "straight",
+        3 => {
+            if eval::rank(holes[0]) == eval::rank(holes[1]) {
+                "set"
+            } else {
+                "trips"
+            }
+        }
+        2 => "two pair",
+        1 => {
+            let top = board
+                .iter()
+                .map(|card| eval::rank(*card))
+                .max()
+                .unwrap_or(0);
+            if holes.iter().any(|card| eval::rank(*card) == top) {
+                "top pair"
+            } else {
+                "pair"
+            }
+        }
+        _ if board.len() < 5 && has_flush_draw(&cards) => "flush draw",
+        _ if board.len() < 5 && has_straight_draw(&cards) => "straight draw",
+        _ => "air",
+    }
+    .to_string()
+}
+
+fn best_five_category(cards: &[eval::Card]) -> u64 {
+    let mut best = 0;
+    for a in 0..cards.len() - 4 {
+        for b in a + 1..cards.len() - 3 {
+            for c in b + 1..cards.len() - 2 {
+                for d in c + 1..cards.len() - 1 {
+                    for e in d + 1..cards.len() {
+                        best = best.max(eval::evaluate5(&[
+                            cards[a], cards[b], cards[c], cards[d], cards[e],
+                        ]));
+                    }
+                }
+            }
+        }
+    }
+    best / 1_000_000 / 15_u64.pow(5)
+}
+
+fn has_flush_draw(cards: &[eval::Card]) -> bool {
+    (0..4).any(|suit| {
+        cards
+            .iter()
+            .filter(|card| eval::suit(**card) == suit)
+            .count()
+            >= 4
+    })
+}
+
+fn has_straight_draw(cards: &[eval::Card]) -> bool {
+    let mut ranks = cards
+        .iter()
+        .flat_map(|card| {
+            let rank = i16::from(eval::rank(*card));
+            if rank == 12 {
+                vec![12, -1]
+            } else {
+                vec![rank]
+            }
+        })
+        .collect::<Vec<_>>();
+    ranks.sort_unstable();
+    ranks.dedup();
+    (0..=9).any(|start| {
+        [-1, 0, 1, 2, 3]
+            .iter()
+            .filter(|offset| ranks.contains(&(start + *offset)))
+            .count()
+            >= 4
+    })
 }
 
 fn combo_key(cards: [eval::Card; 2]) -> String {
@@ -3360,6 +3462,10 @@ mod tests {
         let custom_payload = super::serialize(custom).unwrap();
         let custom_native: super::NativeSolve = serde_json::from_slice(&custom_payload).unwrap();
         assert!(!custom_native.combos.is_empty());
+        assert!(custom_native
+            .hand_classes
+            .iter()
+            .any(|class| class == "pair"));
         assert!(custom_native
             .combos
             .iter()

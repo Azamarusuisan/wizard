@@ -135,6 +135,7 @@ export function SolverStudio() {
   const [running, setRunning] = useState(false);
   const [resultKey, setResultKey] = useState("");
   const [selectedNodeId, setSelectedNodeId] = useState("root");
+  const [handClassFilter, setHandClassFilter] = useState("all");
   const cancelRef = useRef<AbortController | null>(null);
   const result = useAppStore((s) => s.result);
   const setResult = useAppStore((s) => s.setResult);
@@ -154,7 +155,9 @@ export function SolverStudio() {
   }, [game, pot, bet, stack, board, rakePct, rakeCap, betTree, precision, heroRange, villainRange]);
   const shown = preview.error ? null : result && resultKey === currentKey ? result : preview.result;
   const selectedNode = shown?.nodes.find((node) => node.id === selectedNodeId) ?? shown?.nodes[0];
-  const shownRows = shown && selectedNode ? rowsForNode(shown, selectedNode) : [];
+  const nodeRows = shown && selectedNode ? rowsForNode(shown, selectedNode) : [];
+  const handClasses = [...new Set(nodeRows.map((row) => row.handClass))].sort();
+  const shownRows = handClassFilter === "all" ? nodeRows : nodeRows.filter((row) => row.handClass === handClassFilter);
   const nodeSummary = summarizeRows(shownRows);
   return (
     <div className="split">
@@ -216,6 +219,7 @@ export function SolverStudio() {
       <section className="card">
         <h2 className="title">Strategy</h2>
         {selectedNode ? <p className="muted">Node: <span className="num">{selectedNode.id}</span></p> : null}
+        {shown ? <label className="field">Hand class<select value={handClassFilter} onChange={(event) => setHandClassFilter(event.target.value)}><option value="all">All</option>{handClasses.map((name) => <option key={name} value={name}>{name}</option>)}</select></label> : null}
         {shown ? <StrategyTable rows={shownRows} /> : <p className="muted">Fix spot inputs to preview strategy.</p>}
       </section>
       <section className="grid">

@@ -15,6 +15,7 @@ type SolveRecord = {
   blob: {
     nodes?: SolveResult["nodes"];
     combos: string[];
+    handClasses?: string[];
     weights?: Float32Array;
     blockers?: Float32Array;
     fold: Uint16Array;
@@ -161,6 +162,7 @@ function packSolve(result: SolveResult): SolveRecord["blob"] {
   return {
     nodes: result.nodes,
     combos: result.rows.map((r) => r.combo),
+    handClasses: result.rows.map((r) => r.handClass),
     weights: Float32Array.from(result.rows.map((r) => r.weight)),
     blockers: Float32Array.from(result.rows.flatMap((r) => [r.blockedCombos, r.blockerPct])),
     fold: packProb(result.rows.map((r) => r.fold)),
@@ -184,6 +186,7 @@ function unpackSolve(blob: SolveRecord["blob"]): SolveResult {
   const equity = unpackProb(blob.equity);
   const rows: SolverRow[] = blob.combos.map((combo, i) => ({
     combo,
+    handClass: blob.handClasses?.[i] ?? "unknown",
     weight: blob.weights?.[i] ?? 1,
     blockedCombos: blob.blockers?.[i * 2] ?? 0,
     blockerPct: blob.blockers?.[i * 2 + 1] ?? 0,
@@ -213,7 +216,7 @@ function countStore(store: StoreName): Promise<number> {
 
 function solveRecordBytes(rec: SolveRecord): number {
   const blob = rec.blob;
-  return JSON.stringify(rec.meta).length + JSON.stringify(blob.nodes ?? []).length + blob.combos.join("").length + (blob.weights?.byteLength ?? 0) + (blob.blockers?.byteLength ?? 0) + blob.fold.byteLength + blob.call.byteLength + blob.raise.byteLength + (blob.foldEv?.byteLength ?? 0) + (blob.callEv?.byteLength ?? 0) + (blob.raiseEv?.byteLength ?? 0) + blob.equity.byteLength + blob.ev.byteLength + blob.eqr.byteLength + blob.exploitability.length * 16 + 64;
+  return JSON.stringify(rec.meta).length + JSON.stringify(blob.nodes ?? []).length + blob.combos.join("").length + (blob.handClasses?.join("").length ?? 0) + (blob.weights?.byteLength ?? 0) + (blob.blockers?.byteLength ?? 0) + blob.fold.byteLength + blob.call.byteLength + blob.raise.byteLength + (blob.foldEv?.byteLength ?? 0) + (blob.callEv?.byteLength ?? 0) + (blob.raiseEv?.byteLength ?? 0) + blob.equity.byteLength + blob.ev.byteLength + blob.eqr.byteLength + blob.exploitability.length * 16 + 64;
 }
 
 function txDone(req: IDBRequest<any>): Promise<void> {
