@@ -68,8 +68,7 @@ class LocalEngine implements EngineAPI {
     const result = this.mustGet(handle);
     const node = nodeForId(result, nodeId);
     if (node.amount !== undefined && node.pot !== undefined) {
-      const fold = node.amount / (node.pot + node.amount);
-      const call = node.pot / (node.pot + node.amount);
+      const [fold, call] = betResponseStrategy(node.pot, node.amount);
       return { combos: result.rows.map((r) => r.combo), actions: Float64Array.from(result.rows.flatMap(() => [fold, call])) };
     }
     if (!node.actions.length) return { combos: [], actions: new Float64Array() };
@@ -82,7 +81,8 @@ class LocalEngine implements EngineAPI {
   async getHandMetrics(handle: EngineHandle, nodeId = "root"): Promise<HandMetrics> {
     const result = this.mustGet(handle);
     const node = nodeForId(result, nodeId);
-    if (!node.actions.length || node.amount !== undefined) return { ev: new Float32Array(), equity: new Float32Array(), eqr: new Float32Array() };
+    if (node.amount !== undefined && node.pot !== undefined) return betResponseMetrics(result, node.pot, node.amount);
+    if (!node.actions.length) return { ev: new Float32Array(), equity: new Float32Array(), eqr: new Float32Array() };
     return {
       ev: Float32Array.from(result.rows.map((r: SolverRow) => r.ev)),
       equity: Float32Array.from(result.rows.map((r: SolverRow) => r.equity)),
@@ -113,6 +113,21 @@ function nodeForId(result: SolveResult, nodeId: string): SolveNode {
   const node = result.nodes.find((node) => node.id === nodeId);
   if (!node) throw new Error("unknown node id");
   return node;
+}
+
+function betResponseStrategy(pot: number, amount: number): [number, number] {
+  return [amount / (pot + amount), pot / (pot + amount)];
+}
+
+function betResponseMetrics(result: SolveResult, pot: number, amount: number): HandMetrics {
+  const [foldFreq, callFreq] = betResponseStrategy(pot, amount);
+  const ev = Float32Array.from(result.rows.map((row) => {
+    const callEv = row.equity * (pot + amount) - (1 - row.equity) * amount;
+    return (foldFreq * pot + callFreq * callEv) / 100;
+  }));
+  const equity = Float32Array.from(result.rows.map((row) => row.equity));
+  const eqr = Float32Array.from(result.rows.map((row, i) => ev[i]! / Math.max(0.0001, row.equity * pot / 100)));
+  return { ev, equity, eqr };
 }
 
 class WasmPreferredEngine implements EngineAPI {

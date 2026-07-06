@@ -2171,8 +2171,7 @@ pub fn get_strategy(handle: u32, node_id: &str) -> Result<Vec<f64>, JsValue> {
     with_solve(handle, |solve| {
         let node = node_for_id(solve, node_id)?;
         if let Some(amount) = node.amount {
-            let fold = amount / (solve.spot.pot + amount);
-            let call = solve.spot.pot / (solve.spot.pot + amount);
+            let (fold, call) = bet_response_strategy(node.pot.unwrap_or(solve.spot.pot), amount);
             return Ok(std::iter::repeat_n([fold, call], solve.combos.len())
                 .flatten()
                 .collect());
@@ -2188,11 +2187,35 @@ pub fn get_strategy(handle: u32, node_id: &str) -> Result<Vec<f64>, JsValue> {
 pub fn get_hand_metrics(handle: u32, node_id: &str) -> Result<Vec<f64>, JsValue> {
     with_solve(handle, |solve| {
         let node = node_for_id(solve, node_id)?;
-        if node.actions.is_empty() || node.amount.is_some() {
+        if let Some(amount) = node.amount {
+            return Ok(bet_response_metrics(solve, node.pot.unwrap_or(solve.spot.pot), amount));
+        }
+        if node.actions.is_empty() {
             return Ok(Vec::new());
         }
         Ok(solve.metrics.clone())
     })
+}
+
+fn bet_response_strategy(pot: f64, amount: f64) -> (f64, f64) {
+    (amount / (pot + amount), pot / (pot + amount))
+}
+
+fn bet_response_metrics(solve: &NativeSolve, pot: f64, amount: f64) -> Vec<f64> {
+    let (fold_freq, call_freq) = bet_response_strategy(pot, amount);
+    let (rake_pct, rake_cap) = spot_rake(&solve.spot);
+    solve
+        .metrics
+        .chunks_exact(3)
+        .take(solve.combos.len())
+        .flat_map(|metric| {
+            let equity = metric[1];
+            let call_ev = br::action_evs(equity, pot, amount, rake_pct, rake_cap).1;
+            let ev = (fold_freq * pot + call_freq * call_ev) / 100.0;
+            let eqr = ev / (equity * pot / 100.0).max(0.0001);
+            [ev, equity, eqr]
+        })
+        .collect()
 }
 
 #[wasm_bindgen]
@@ -2706,7 +2729,10 @@ mod tests {
         assert_eq!(bet_strategy.len(), native.combos.len() * 2);
         assert!((bet_strategy[0] - 33.0 / 133.0).abs() < 1e-12);
         assert!((bet_strategy[1] - 100.0 / 133.0).abs() < 1e-12);
-        assert!(super::get_hand_metrics(handle, "root/bet-33").unwrap().is_empty());
+        let bet_metrics = super::get_hand_metrics(handle, "root/bet-33").unwrap();
+        assert_eq!(bet_metrics.len(), native.combos.len() * 3);
+        assert!(bet_metrics[0].is_finite());
+        assert!(bet_metrics[1] > 0.0);
         assert!(native.action_evs[2] >= native.action_evs[1]);
         assert!(native.metrics[(native.combos.len() - 1) * 3] >= 0.0);
         let base = native.combos.len() * 3;
