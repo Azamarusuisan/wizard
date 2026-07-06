@@ -99,8 +99,8 @@ class LocalEngine implements EngineAPI {
     if (node.amount !== undefined && node.pot !== undefined) {
       const parent = chanceParentNode(node);
       const metricResult = parent ? { ...result, rows: chanceRows(result, spot, parent) } : result;
-      if (!node.actions.length) return betResponseActionMetrics(metricResult, node.pot, node.amount, node.id.endsWith("/call"));
-      return betResponseMetrics(metricResult, node.pot, node.amount);
+      if (!node.actions.length) return betResponseActionMetrics(metricResult, node.pot, node.amount, node.id.endsWith("/call"), spot);
+      return betResponseMetrics(metricResult, node.pot, node.amount, spot);
     }
     if (isChanceNode(node)) {
       const rows = chanceRows(result, spot, node);
@@ -225,10 +225,11 @@ function actionNodeMetrics(result: SolveResult, action: "foldEv" | "callEv" | "r
   return { ev, equity, eqr };
 }
 
-function betResponseMetrics(result: SolveResult, pot: number, amount: number): HandMetrics {
+function betResponseMetrics(result: SolveResult, pot: number, amount: number, spot: LocalSpot): HandMetrics {
   const [foldFreq, callFreq] = betResponseStrategy(pot, amount);
   const ev = Float32Array.from(result.rows.map((row) => {
-    const callEv = row.equity * (pot + amount) - (1 - row.equity) * amount;
+    const rake = Math.min((pot + amount) * ((spot.rakePct ?? 0) / 100), spot.rakeCap ?? 0);
+    const callEv = row.equity * (pot + amount - rake) - (1 - row.equity) * amount;
     return (foldFreq * pot + callFreq * callEv) / 100;
   }));
   const equity = Float32Array.from(result.rows.map((row) => row.equity));
@@ -236,8 +237,11 @@ function betResponseMetrics(result: SolveResult, pot: number, amount: number): H
   return { ev, equity, eqr };
 }
 
-function betResponseActionMetrics(result: SolveResult, pot: number, amount: number, callBranch: boolean): HandMetrics {
-  const ev = Float32Array.from(result.rows.map((row) => callBranch ? (row.equity * (pot + amount) - (1 - row.equity) * amount) / 100 : pot / 100));
+function betResponseActionMetrics(result: SolveResult, pot: number, amount: number, callBranch: boolean, spot: LocalSpot): HandMetrics {
+  const ev = Float32Array.from(result.rows.map((row) => {
+    const rake = Math.min((pot + amount) * ((spot.rakePct ?? 0) / 100), spot.rakeCap ?? 0);
+    return callBranch ? (row.equity * (pot + amount - rake) - (1 - row.equity) * amount) / 100 : pot / 100;
+  }));
   const equity = Float32Array.from(result.rows.map((row) => row.equity));
   const eqr = Float32Array.from(result.rows.map((row, i) => ev[i]! / Math.max(0.0001, row.equity * pot / 100)));
   return { ev, equity, eqr };

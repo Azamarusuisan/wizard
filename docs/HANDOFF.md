@@ -88,6 +88,7 @@
 - PLO4/PLO5 bet-size nodes use the pot-limit capped concrete sizes; Rust native and TypeScript fallback tests cover a PLO4 cap example (`root/bet-160` instead of an uncapped all-in).
 - Bet-size nodes now carry `amount` and `pot`, expose `fold` / `call` actions, and EngineAPI returns MDF/alpha response strategy plus branch EV/equity/EQR hand metrics for those nodes.
 - Bet-size response terminal children such as `root/bet-33/fold` and `root/bet-33/call` are now serialized in Rust native and TypeScript fallback results, with branch metrics available through EngineAPI.
+- TypeScript fallback and Solver Studio preview now apply configured rake to bet-response node metrics and terminal call metrics, matching the Rust native path.
 - Bet-response terminal children are now covered through both node id and information-set lookup paths in Rust native and EngineAPI tests, and Playwright selects `root/bet-33/call` in the Solver Studio node list.
 - Solver Studio now renders bet-response terminal child nodes such as `root/bet-33/call` as pure branch rows instead of the parent mixed bet-response strategy. Playwright covers the selected branch table.
 - Bet-response terminal metric references now include the full node id, e.g. `response:root/bet-33/call`, so multiple bet sizes do not collide in information-set table references.
@@ -161,7 +162,7 @@
 - IndexedDB solve cache keys are canonical JSON SHA-256 via WebCrypto in the web layer.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `default_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~11.66 ns/eval, default river rows ~501.65 us. The evaluator now exceeds the original 50M eval/s target on this machine.
-- Last verified: `bash scripts/verify.sh` exited 0 after renaming compact NLH flop runout helpers/docs to exact turn/river enumeration. Targeted checks also passed: Rust `solver_gates_report_values_under_thresholds` and `pnpm --filter @gto-lab/web typecheck`. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
+- Last verified: `bash scripts/verify.sh` exited 0 after applying rake to TypeScript bet-response metrics. Targeted checks also passed: `pnpm --filter @gto-lab/engine-wasm test`, `pnpm --filter @gto-lab/web typecheck`, and `pnpm exec playwright test apps/web/tests/core-flows.spec.ts --grep "solver runs"`. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
 - Git remote `origin` is set to `https://github.com/Azamarusuisan/wizard.git`; do not push until §6 is actually complete.
 
 ## Important Caveat

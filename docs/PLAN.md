@@ -65,6 +65,7 @@ Evidence:
 - Compact NLH flop chance branches are derived from exact enumeration of all remaining turn/river runouts, then compressed into low/mid/high equity quantiles.
 - Solver payloads now expose public chance branch nodes for flop-to-turn and turn-to-river low/mid/high buckets, plus destination-street bet-response child nodes under those branches. NLH nodes derive branch-specific compact strategy/metric tables from next-street card equity quantiles and the configured turn/river bet-tree sizes while the full continuation tree remains pending.
 - Auxiliary raise-size information sets now expose size-mix EV/EQR instead of root metrics.
+- Bet-response node metrics apply configured rake in Rust native, TypeScript fallback, and Solver Studio preview.
 
 Remaining:
 - Implement full flop/turn public tree construction, card abstraction, terminal EV, strict BR, rake handling, and solve serialization for real information sets.
