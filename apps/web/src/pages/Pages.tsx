@@ -239,6 +239,7 @@ export function SolverStudio() {
           {shown.metrics.brGapPctPot !== undefined ? <Metric label="BR gap" value={`${shown.metrics.brGapPctPot.toFixed(2)}% pot`} /> : null}
           {shown.metrics.ploFastExploitability !== undefined ? <Metric label="PLO Fast BR" value={`${shown.metrics.ploFastExploitability.toFixed(2)}% pot`} /> : null}
           {shown.metrics.ploSampleCount !== undefined ? <Metric label="PLO sample set" value={`${shown.metrics.ploSampleCount.toFixed(0)} reps / ${(100 * (shown.metrics.ploWeightCoverage ?? 0)).toFixed(0)}%`} /> : null}
+          {shown.metrics.ploIterations !== undefined ? <Metric label="PLO iterations" value={shown.metrics.ploIterations.toLocaleString()} /> : null}
           <Metric label="Range EV" value={`${nodeSummary.ev.toFixed(3)}bb`} />
           <Metric label="Range Equity" value={`${(nodeSummary.equity * 100).toFixed(1)}%`} />
           <Metric label="Range EQR" value={nodeSummary.eqr.toFixed(2)} />

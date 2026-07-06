@@ -95,7 +95,8 @@ Solve cache records:
     "exploitability": [],
     "metrics": {
       "ploSampleCount": "number, PLO Fast only",
-      "ploWeightCoverage": "number, PLO Fast only"
+      "ploWeightCoverage": "number, PLO Fast only",
+      "ploIterations": "number, PLO Fast only"
     }
   }
 }

@@ -278,7 +278,8 @@ function nativeToResult(native: NativeSolve): SolveResult {
       brGapPctPot: native.metrics[combos.length * 3 + 4],
       ploFastExploitability: native.metrics[combos.length * 3 + 5],
       ploSampleCount: native.metrics[combos.length * 3 + 6],
-      ploWeightCoverage: native.metrics[combos.length * 3 + 7]
+      ploWeightCoverage: native.metrics[combos.length * 3 + 7],
+      ploIterations: native.metrics[combos.length * 3 + 8]
     }
   };
 }
