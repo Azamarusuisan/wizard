@@ -79,6 +79,12 @@ test("solver runs and displays strategy metrics", async ({ page }) => {
   await expect(page.getByText("Node: root/bet-33/call")).toBeVisible();
   await expect(page.getByText(/Tables:\s*terminal\s*\/\s*response:root\/bet-33\/call/)).toBeVisible();
   await expect(page.getByRole("table", { name: "strategy table" })).toContainText("100%");
+  const responseCallRow = page.getByRole("table", { name: "strategy table" }).locator("tbody tr").first();
+  await expect(responseCallRow.locator("td").nth(4)).toHaveText("0%");
+  await expect(responseCallRow.locator("td").nth(5)).toHaveText("100%");
+  await expect(responseCallRow.locator("td").nth(6)).toHaveText("0%");
+  await expect(responseCallRow.locator("td").nth(7)).toHaveText("0.000");
+  await expect(responseCallRow.locator("td").nth(9)).toHaveText("0.000");
   await expect(page.getByText("abstracted")).toBeVisible();
   await expect(page.getByText(/compact range abstraction/)).toBeVisible();
   await expect(page).toHaveURL(/spot=/);

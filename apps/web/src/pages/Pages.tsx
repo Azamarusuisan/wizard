@@ -311,7 +311,17 @@ function betResponseRow(row: SolverRow, pot: number, amount: number): SolverRow 
 
 function betResponseActionRow(row: SolverRow, action: "fold" | "call", pot: number, amount = 0): SolverRow {
   const ev = action === "fold" ? pot / 100 : (row.equity * (pot + amount) - (1 - row.equity) * amount) / 100;
-  return { ...row, fold: action === "fold" ? 1 : 0, call: action === "call" ? 1 : 0, raise: 0, ev, eqr: ev / Math.max(0.0001, row.equity * pot / 100) };
+  return {
+    ...row,
+    fold: action === "fold" ? 1 : 0,
+    call: action === "call" ? 1 : 0,
+    raise: 0,
+    foldEv: action === "fold" ? ev : 0,
+    callEv: action === "call" ? ev : 0,
+    raiseEv: 0,
+    ev,
+    eqr: ev / Math.max(0.0001, row.equity * pot / 100)
+  };
 }
 
 function rowEqrDenominator(row: SolverRow): number {
