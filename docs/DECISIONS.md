@@ -29,6 +29,7 @@ Decision:
 - Target card-abstraction allocation remains Fast / Balanced / Precise = 32 / 96 / 256 buckets with 6k / 25k / 100k samples when the full public tree replaces the compact continuation path.
 - Current compact flop continuation buckets turn and river chance branches by exact-equity quantiles, not deck order.
 - Current compact flop BR action utilities evaluate raise EV against representative street size sets: flop 33/66/125, turn 66/125, river 66/150, plus the active fallback bet.
+- Native NLH flop solve reports BR gap/progress from the compact flop abstraction using Fast/Balanced/Precise = 2/4/6 buckets until the full public tree is implemented.
 
 Reason:
 - Browser workers need predictable latency. The UI reports approximation status and memory estimates rather than pretending exactness.

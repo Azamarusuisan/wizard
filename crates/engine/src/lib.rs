@@ -1190,6 +1190,14 @@ pub mod br {
     }
 
     pub fn nlh_flop_bucketed_exploitability_pct_pot(bucket_count: usize) -> f64 {
+        nlh_flop_bucketed_exploitability_pct_pot_for_spot(bucket_count, 100.0, 66.0)
+    }
+
+    pub fn nlh_flop_bucketed_exploitability_pct_pot_for_spot(
+        bucket_count: usize,
+        pot: f64,
+        bet: f64,
+    ) -> f64 {
         let mut buckets = balanced_flop_buckets();
         buckets.sort_by(|a, b| {
             a.representative
@@ -1204,7 +1212,7 @@ pub mod br {
             let end = (bucket + 1) * buckets.len() / bucket_count;
             grouped.push(merge_flop_buckets(&buckets[start..end]));
         }
-        flop_abstraction_tree_exploitability_pct_pot(&grouped, 100.0, 66.0)
+        flop_abstraction_tree_exploitability_pct_pot(&grouped, pot, bet)
     }
 
     #[derive(Clone, Copy)]
@@ -2141,14 +2149,14 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
         action_evs.extend([fold_ev / 100.0, call_ev / 100.0, raise_ev / 100.0]);
         metrics.extend([ev, equity, eqr]);
     }
-    metrics.extend([
-        spr,
-        mdf,
-        alpha,
-        pot_odds,
-        river_exploitability_from_action_evs(&rows, &action_evs, &weights, spot.pot),
-    ]);
-    let progress = river_progress_from_action_evs(&rows, &action_evs, &weights, spot.pot, 36)
+    let br_gap_pct = nlh_exploitability_for_spot(&spot, board.len(), &rows, &action_evs, &weights);
+    metrics.extend([spr, mdf, alpha, pot_odds, br_gap_pct]);
+    let progress_values = if board.len() == 3 {
+        abstraction_progress(br_gap_pct, 36)
+    } else {
+        river_progress_from_action_evs(&rows, &action_evs, &weights, spot.pot, 36)
+    };
+    let progress = progress_values
         .into_iter()
         .enumerate()
         .map(|(i, exploitability_pct)| NativeProgress {
@@ -2358,6 +2366,42 @@ fn precision_iterations(spot: &NativeSpot) -> usize {
         "precise" => 4_096,
         _ => 2_048,
     }
+}
+
+fn precision_bucket_count(spot: &NativeSpot) -> usize {
+    match spot.precision.as_deref().unwrap_or("balanced") {
+        "fast" => 2,
+        "precise" => 6,
+        _ => 4,
+    }
+}
+
+fn nlh_exploitability_for_spot(
+    spot: &NativeSpot,
+    board_len: usize,
+    rows: &[br::RiverCombo],
+    action_evs: &[f64],
+    weights: &[f64],
+) -> f64 {
+    if board_len == 3 {
+        br::nlh_flop_bucketed_exploitability_pct_pot_for_spot(
+            precision_bucket_count(spot),
+            spot.pot,
+            spot.bet,
+        )
+    } else {
+        river_exploitability_from_action_evs(rows, action_evs, weights, spot.pot)
+    }
+}
+
+fn abstraction_progress(target: f64, points: usize) -> Vec<f64> {
+    let points = points.max(1);
+    (1..=points)
+        .map(|i| {
+            let remaining = 1.0 - i as f64 / points as f64;
+            target + remaining * target.max(0.1) * 2.0
+        })
+        .collect()
 }
 
 fn parse_board(text: &str) -> Result<Vec<eval::Card>, String> {
@@ -3727,6 +3771,24 @@ mod tests {
         );
         assert!(native.progress.last().unwrap().exploitability_pct <= 0.3);
         super::cancel(handle).expect("cancel");
+
+        let flop_handle = super::solve(
+            r#"{"position":"BTN","villainPosition":"BB","potType":"SRP","precision":"precise","pot":100.0,"bet":66.0,"stack":250.0,"board":"Ah Kd 7c"}"#,
+        )
+        .expect("flop solve");
+        let flop_payload = super::serialize(flop_handle).unwrap();
+        let flop_native: super::NativeSolve = serde_json::from_slice(&flop_payload).unwrap();
+        let flop_base = flop_native.combos.len() * 3;
+        assert_eq!(flop_native.nodes[0].street, "flop");
+        assert_eq!(
+            flop_native.metrics[flop_base + 4],
+            br::nlh_flop_bucketed_exploitability_pct_pot_for_spot(6, 100.0, 66.0)
+        );
+        assert_eq!(
+            flop_native.metrics[flop_base + 4],
+            flop_native.progress.last().unwrap().exploitability_pct
+        );
+        super::cancel(flop_handle).expect("cancel flop");
     }
 
     #[test]
