@@ -135,6 +135,7 @@ test("TS single NLH combo solve reports one concrete board-aware row", () => {
   assert.deepEqual(result.rows.map((row) => row.combo), ["AcAd"]);
   assert.ok(result.rows[0]!.equity > 0.5);
   assert.throws(() => solveNlhComboSpot(100, 66, 250, "Ah Kd 7c", "AcAh"), /duplicate/);
+  assert.throws(() => solveNlhComboSpot(100, 66, 250, "Ah Kd 7c", "AcA"), /bad combo/);
 });
 
 test("TS river solve fallback subtracts capped rake from showdown EV", () => {

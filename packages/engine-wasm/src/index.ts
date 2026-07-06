@@ -473,6 +473,7 @@ function ploFastSampleEquity(row: PloFastSample): number {
 }
 
 function parseComboCards(combo: string): Card[] {
+  if (!combo || combo.length % 2 !== 0) throw new Error(`bad combo: ${combo}`);
   return Array.from({ length: combo.length / 2 }, (_, i) => parseCard(combo.slice(i * 2, i * 2 + 2)));
 }
 
