@@ -2230,11 +2230,6 @@ fn solve_plo_fast(
     let combo_cap = if game == "PLO5" { 30_000.0 } else { 20_000.0 };
     let bet_amounts = bet_amounts_for_spot(&spot, board_len);
     let iterations = precision_iterations(&spot);
-    let metric = if game == "PLO5" {
-        br::plo5_fast_exploitability_pct_pot_with_iterations(iterations)
-    } else {
-        br::plo4_fast_exploitability_pct_pot_with_iterations(iterations)
-    };
     let combos = samples
         .iter()
         .map(|sample| sample.combo.to_string())
@@ -2283,13 +2278,14 @@ fn solve_plo_fast(
         action_evs.extend([fold_ev / 100.0, call_ev / 100.0, raise_ev / 100.0]);
         metrics.extend([ev, row.equity, eqr]);
     }
+    let br_gap = river_exploitability_from_action_evs(&rows, &action_evs, &weights, spot.pot);
     metrics.extend([
         spr,
         mdf,
         alpha,
         pot_odds,
-        river_exploitability_from_action_evs(&rows, &action_evs, &weights, spot.pot),
-        metric,
+        br_gap,
+        br_gap,
         samples.len() as f64,
         weights.iter().sum::<f64>(),
         iterations as f64,
@@ -4102,9 +4098,11 @@ mod tests {
             .chunks_exact(3)
             .all(|row| (row.iter().sum::<f64>() - 1.0).abs() < 1e-9));
         assert!(plo4_native.metrics[plo4_native.combos.len() * 3 + 4] >= 0.0);
-        assert_eq!(
-            plo4_native.metrics[plo4_native.combos.len() * 3 + 5],
-            br::plo4_fast_exploitability_pct_pot()
+        assert!(
+            (plo4_native.metrics[plo4_native.combos.len() * 3 + 5]
+                - plo4_native.metrics[plo4_native.combos.len() * 3 + 4])
+                .abs()
+                < 1e-12
         );
         let plo4_precise =
             super::solve(r#"{"game":"PLO4","pot":100.0,"bet":20.0,"precision":"precise"}"#)
@@ -4112,9 +4110,11 @@ mod tests {
         let plo4_precise_payload = super::serialize(plo4_precise).unwrap();
         let plo4_precise_native: super::NativeSolve =
             serde_json::from_slice(&plo4_precise_payload).unwrap();
-        assert_eq!(
-            plo4_precise_native.metrics[plo4_precise_native.combos.len() * 3 + 5],
-            br::plo4_fast_exploitability_pct_pot_with_iterations(4_096)
+        assert!(
+            (plo4_precise_native.metrics[plo4_precise_native.combos.len() * 3 + 5]
+                - plo4_precise_native.metrics[plo4_precise_native.combos.len() * 3 + 4])
+                .abs()
+                < 1e-12
         );
         assert_eq!(
             plo4_precise_native.metrics[plo4_precise_native.combos.len() * 3 + 8],
@@ -4152,9 +4152,11 @@ mod tests {
             .chunks_exact(3)
             .all(|row| (row.iter().sum::<f64>() - 1.0).abs() < 1e-9));
         assert!(plo5_native.metrics[plo5_native.combos.len() * 3 + 4] >= 0.0);
-        assert_eq!(
-            plo5_native.metrics[plo5_native.combos.len() * 3 + 5],
-            br::plo5_fast_exploitability_pct_pot()
+        assert!(
+            (plo5_native.metrics[plo5_native.combos.len() * 3 + 5]
+                - plo5_native.metrics[plo5_native.combos.len() * 3 + 4])
+                .abs()
+                < 1e-12
         );
         assert_eq!(
             plo5_native.metrics[plo5_native.combos.len() * 3 + 6],

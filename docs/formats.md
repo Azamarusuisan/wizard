@@ -96,7 +96,7 @@ Solve cache records:
     "exploitability": [],
     "metrics": {
       "brGapPctPot": "number, measured on current compact abstraction",
-      "ploFastExploitability": "number, PLO Fast only, uses active precision iterations",
+      "ploFastExploitability": "number, PLO Fast only, measured on active board-filtered representative rows",
       "ploSampleCount": "number, PLO Fast only, remaining representatives after board-card removal",
       "ploWeightCoverage": "number, PLO Fast only, remaining representative weight after board-card removal",
       "ploIterations": "number, PLO Fast only",

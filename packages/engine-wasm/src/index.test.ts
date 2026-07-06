@@ -206,10 +206,10 @@ test("TS solve fallback reports PLO Fast BR metrics", () => {
   assert.ok(!plo4.nodes.some((node) => node.id === "root/bet-300"));
   assert.ok(plo4.rows[0]!.raiseEv > solveRiverSpot(100, 20, 300, "", 0, 0, "PLO4").rows[0]!.raiseEv);
   assert.ok((plo4.metrics.brGapPctPot ?? -1) >= 0);
-  assert.equal(plo4.metrics.ploFastExploitability, plo4FastExploitabilityPctPot());
+  assert.equal(plo4.metrics.ploFastExploitability, plo4.metrics.brGapPctPot);
   const plo4Precise = solveRiverSpot(100, 20, 300, "", 0, 0, "PLO4", "flop 50,200,all-in", "precise");
   assert.equal(plo4Precise.metrics.ploIterations, 4096);
-  assert.equal(plo4Precise.metrics.ploFastExploitability, plo4FastExploitabilityPctPot(4096));
+  assert.equal(plo4Precise.metrics.ploFastExploitability, plo4Precise.metrics.brGapPctPot);
   assert.equal(plo4.metrics.ploSampleCount, 6);
   assert.ok(Math.abs(plo4.metrics.ploWeightCoverage! - 1) < 1e-12);
   assert.notEqual(solveRiverSpot(100, 20, 300, "2c 3d 4h", 0, 0, "PLO4").rows[0]!.equity, plo4.rows[0]!.equity);
@@ -220,7 +220,7 @@ test("TS solve fallback reports PLO Fast BR metrics", () => {
   const plo5 = solveRiverSpot(100, 66, 250, "", 0, 0, "PLO5");
   assert.equal(plo5.rows[0]!.combo, "AsAhKsKhQs");
   assert.ok((plo5.metrics.brGapPctPot ?? -1) >= 0);
-  assert.equal(plo5.metrics.ploFastExploitability, plo5FastExploitabilityPctPot());
+  assert.equal(plo5.metrics.ploFastExploitability, plo5.metrics.brGapPctPot);
   assert.equal(plo5.metrics.ploSampleCount, 6);
   assert.ok(Math.abs(plo5.metrics.ploWeightCoverage! - 1) < 1e-12);
   assert.equal(plo5.metrics.ploIterations, 2048);

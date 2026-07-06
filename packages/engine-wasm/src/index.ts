@@ -510,12 +510,13 @@ function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack
     };
   });
   const nodes = rootNodes(board.length, pot, bet, stack, game, betTree);
+  const brGapPctPot = riverExploitabilityFromRows(rows, pot);
   return {
     nodes,
     informationSets: infoSetsFromNodes(nodes),
     rows,
     exploitability: riverStrategyProgressFromRows(rows, pot, 36).map((value, i) => ({ iteration: (i + 1) * 50, value })),
-    metrics: { spr: stack / pot, mdf, alpha, potOdds, brGapPctPot: riverExploitabilityFromRows(rows, pot), ploFastExploitability: game === "PLO4" ? plo4FastExploitabilityPctPot(iterations) : plo5FastExploitabilityPctPot(iterations), ploSampleCount: samples.length, ploWeightCoverage: samples.reduce((sum, sample) => sum + sample.weight, 0), ploIterations: iterations, ploComboCap: PLO_COMBO_CAP[game], ploEquitySamples: PLO_FAST_EQUITY_SAMPLES }
+    metrics: { spr: stack / pot, mdf, alpha, potOdds, brGapPctPot, ploFastExploitability: brGapPctPot, ploSampleCount: samples.length, ploWeightCoverage: samples.reduce((sum, sample) => sum + sample.weight, 0), ploIterations: iterations, ploComboCap: PLO_COMBO_CAP[game], ploEquitySamples: PLO_FAST_EQUITY_SAMPLES }
   };
 }
 
