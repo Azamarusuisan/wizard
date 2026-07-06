@@ -2040,6 +2040,7 @@ struct NativeSolve {
     progress: Vec<NativeProgress>,
     strategy: Vec<f64>,
     action_evs: Vec<f64>,
+    best_raise_amounts: Vec<f64>,
     weights: Vec<f64>,
     blocker_metrics: Vec<f64>,
     metrics: Vec<f64>,
@@ -2105,7 +2106,7 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
     let mut action_evs = Vec::with_capacity(entries.len() * 3);
     let mut metrics = Vec::with_capacity(entries.len() * 3 + 4);
     let mut equity_cache = HashMap::new();
-    let rows = entries
+    let (rows, best_raise_amounts): (Vec<_>, Vec<_>) = entries
         .iter()
         .map(|entry| {
             let equity = combo_equity_cached(
@@ -2117,10 +2118,14 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
             );
             let (fold_ev, call_ev, _) =
                 br::action_evs(equity, spot.pot, spot.bet, rake_pct, rake_cap);
-            let raise_ev = best_raise_ev(equity, spot.pot, &bet_amounts, rake_pct, rake_cap);
-            br::cfr_combo_from_action_evs(equity, fold_ev, call_ev, raise_ev, iterations)
+            let (best_raise_amount, raise_ev) =
+                best_raise(equity, spot.pot, &bet_amounts, rake_pct, rake_cap);
+            (
+                br::cfr_combo_from_action_evs(equity, fold_ev, call_ev, raise_ev, iterations),
+                best_raise_amount,
+            )
         })
-        .collect::<Vec<_>>();
+        .unzip();
     for row in &rows {
         let equity = row.equity;
         let (fold_ev, call_ev, raise_ev) =
@@ -2158,6 +2163,7 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
         progress,
         strategy,
         action_evs,
+        best_raise_amounts,
         weights,
         blocker_metrics,
         metrics,
@@ -2210,15 +2216,20 @@ fn solve_plo_fast(
         .map(|sample| sample.weight)
         .collect::<Vec<_>>();
     let blocker_metrics = vec![0.0; samples.len() * 2];
-    let rows = samples
+    let (rows, best_raise_amounts): (Vec<_>, Vec<_>) = samples
         .iter()
         .map(|sample| {
             let equity = sample.equity();
-            let (fold_ev, call_ev, raise_ev) =
+            let (fold_ev, call_ev, _) =
                 row_action_evs(equity, spot.pot, spot.bet, &bet_amounts, rake_pct, rake_cap);
-            br::cfr_combo_from_action_evs(equity, fold_ev, call_ev, raise_ev, iterations)
+            let (best_raise_amount, raise_ev) =
+                best_raise(equity, spot.pot, &bet_amounts, rake_pct, rake_cap);
+            (
+                br::cfr_combo_from_action_evs(equity, fold_ev, call_ev, raise_ev, iterations),
+                best_raise_amount,
+            )
         })
-        .collect::<Vec<_>>();
+        .unzip();
     let mut strategy = Vec::with_capacity(rows.len() * 3);
     let mut action_evs = Vec::with_capacity(rows.len() * 3);
     let mut metrics = Vec::with_capacity(rows.len() * 3 + 8);
@@ -2270,6 +2281,7 @@ fn solve_plo_fast(
         progress,
         strategy,
         action_evs,
+        best_raise_amounts,
         weights,
         blocker_metrics,
         metrics,
@@ -2998,9 +3010,19 @@ fn bet_amounts_for_spot(spot: &NativeSpot, board_len: usize) -> Vec<f64> {
 }
 
 fn best_raise_ev(equity: f64, pot: f64, bets: &[f64], rake_pct: f64, rake_cap: f64) -> f64 {
+    best_raise(equity, pot, bets, rake_pct, rake_cap).1
+}
+
+fn best_raise(equity: f64, pot: f64, bets: &[f64], rake_pct: f64, rake_cap: f64) -> (f64, f64) {
     bets.iter()
-        .map(|amount| br::action_evs(equity, pot, *amount, rake_pct, rake_cap).2)
-        .fold(f64::NEG_INFINITY, f64::max)
+        .map(|amount| {
+            (
+                *amount,
+                br::action_evs(equity, pot, *amount, rake_pct, rake_cap).2,
+            )
+        })
+        .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
+        .unwrap_or((0.0, f64::NEG_INFINITY))
 }
 
 fn row_action_evs(
@@ -3703,6 +3725,7 @@ mod tests {
         let first = br::cfr_combo_from_action_evs(equity, fold_ev, call_ev, raise_ev, 2_048);
         assert_eq!(native.combos[0], "AcAd");
         assert_eq!(native.combos.len(), 28);
+        assert_eq!(native.best_raise_amounts[0], 250.0);
         assert_eq!(
             &native.strategy[0..3],
             &[first.fold, first.call, first.raise]

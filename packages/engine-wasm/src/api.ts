@@ -31,6 +31,7 @@ type WasmModule = {
 };
 
 type NativeSolve = {
+  spot?: { bet?: number };
   nodes?: SolveNode[];
   information_sets?: SolveInfoSet[];
   combos: string[];
@@ -38,6 +39,7 @@ type NativeSolve = {
   progress: { iter: number; exploitability_pct: number; elapsed: number }[];
   strategy: number[];
   action_evs?: number[];
+  best_raise_amounts?: number[];
   metrics: number[];
   weights?: number[];
   blocker_metrics?: number[];
@@ -273,6 +275,7 @@ function nativeToResult(native: NativeSolve): SolveResult {
       foldEv: native.action_evs?.[i * 3] ?? 0,
       callEv: native.action_evs?.[i * 3 + 1] ?? 0,
       raiseEv: native.action_evs?.[i * 3 + 2] ?? 0,
+      bestRaiseAmount: native.best_raise_amounts?.[i] ?? native.spot?.bet ?? 0,
       ev: metrics.ev[i] ?? 0,
       equity: metrics.equity[i] ?? 0,
       eqr: metrics.eqr[i] ?? 0

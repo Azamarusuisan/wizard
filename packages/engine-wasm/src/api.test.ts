@@ -17,6 +17,7 @@ test("EngineAPI prefers generated wasm package when present", async () => {
   assert.ok(result.nodes.some((node) => node.id === "root/call"));
   assert.equal(result.rows[0]?.combo, "AcAd");
   assert.ok(result.rows[0]!.raiseEv >= result.rows[0]!.callEv);
+  assert.equal(result.rows[0]!.bestRaiseAmount, 66);
   assert.ok(result.exploitability.length > 0);
   assert.equal(result.metrics.brGapPctPot, result.exploitability.at(-1)?.value);
   const rootStrategy = await engine.getStrategy(handle, "root");

@@ -89,6 +89,7 @@ Solve cache records:
     "foldEv": "Float32Array",
     "callEv": "Float32Array",
     "raiseEv": "Float32Array",
+    "bestRaiseAmount": "Float32Array",
     "equity": "Uint16 probability table",
     "ev": "Float32Array",
     "eqr": "Float32Array",

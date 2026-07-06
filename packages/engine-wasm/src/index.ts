@@ -324,7 +324,7 @@ function parseBetSizes(text: string): BetSize[] {
   return sizes;
 }
 
-export type SolverRow = { combo: string; weight: number; handClass: string; blockedCombos: number; blockerPct: number; fold: number; call: number; raise: number; foldEv: number; callEv: number; raiseEv: number; equity: number; ev: number; eqr: number };
+export type SolverRow = { combo: string; weight: number; handClass: string; blockedCombos: number; blockerPct: number; fold: number; call: number; raise: number; foldEv: number; callEv: number; raiseEv: number; bestRaiseAmount: number; equity: number; ev: number; eqr: number };
 export type SolveNode = { id: string; label: string; street: string; actions: string[]; infoSet?: string; amount?: number; pot?: number };
 export type SolveInfoSet = { key: string; nodeId: string; street: string; actions: string[]; strategyRef: string; metricRef: string };
 export type SolveResult = { nodes: SolveNode[]; informationSets: SolveInfoSet[]; rows: SolverRow[]; exploitability: { iteration: number; value: number }[]; metrics: { spr: number; mdf: number; alpha: number; potOdds: number; brGapPctPot?: number; ploFastExploitability?: number; ploSampleCount?: number; ploWeightCoverage?: number; ploIterations?: number; ploComboCap?: number; ploEquitySamples?: number } };
@@ -356,11 +356,11 @@ export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2, boar
   const equityCache = new Map<string, number>();
   const rows = combos.map(({ combo, fallback, holes, weight }) => {
     const eq = comboEquity(holes, fallback, board, villains, equityCache);
-    const { callEv, raiseEv } = rowActionEvs(eq, pot, bet, betAmounts, rakePct, rakeCap);
+    const { callEv, raiseEv, bestRaiseAmount } = rowActionEvs(eq, pot, bet, betAmounts, rakePct, rakeCap);
     const { fold, call, raise } = cfrStrategyFromActionEvs(0, callEv, raiseEv, iterations);
     const ev = (call * callEv + raise * raiseEv) / 100;
     const blockers = blockerStats(holes, board, villains);
-    return { combo, weight, handClass: nlhHandClass(holes, board), ...blockers, fold, call, raise, foldEv: 0, callEv: callEv / 100, raiseEv: raiseEv / 100, equity: eq, ev, eqr: ev / Math.max(0.0001, eq * pot / 100) };
+    return { combo, weight, handClass: nlhHandClass(holes, board), ...blockers, fold, call, raise, foldEv: 0, callEv: callEv / 100, raiseEv: raiseEv / 100, bestRaiseAmount, equity: eq, ev, eqr: ev / Math.max(0.0001, eq * pot / 100) };
   });
   const nodes = rootNodes(board.length, pot, bet, stack, game, betTree);
   const brGapPctPot = nlhFallbackExploitability(rows, pot);
@@ -394,6 +394,7 @@ export function solveNlhComboSpot(pot: number, bet: number, stack = pot * 4.2, b
     foldEv: 0,
     callEv: callEv / 100,
     raiseEv: raiseEv / 100,
+    bestRaiseAmount: bet,
     equity: eq,
     ev: (strategy.call * callEv + strategy.raise * raiseEv) / 100,
     eqr: 0
@@ -426,7 +427,7 @@ function ploFastExploitabilityPctPot(samples: readonly PloFastSample[], iteratio
   return samples.reduce((sum, row) => {
     const eq = ploFastSampleEquity(row);
     const strategy = cfrStrategy(eq, 100, 66, 0, 0, iterations);
-    const mixed = [{ combo: row.combo, weight: row.weight, handClass: "sample", blockedCombos: 0, blockerPct: 0, equity: eq, ...strategy, foldEv: 0, callEv: 0, raiseEv: 0, ev: 0, eqr: 0 }];
+    const mixed = [{ combo: row.combo, weight: row.weight, handClass: "sample", blockedCombos: 0, blockerPct: 0, equity: eq, ...strategy, foldEv: 0, callEv: 0, raiseEv: 0, bestRaiseAmount: 66, ev: 0, eqr: 0 }];
     return sum + row.weight * riverExploitability(mixed, 100, 66, 0, 0);
   }, 0) / total;
 }
@@ -460,7 +461,7 @@ function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack
   const iterations = precisionIterations(precision);
   const rows = samples.map((sample) => {
     const eq = ploFastSampleEquity(sample);
-    const { callEv, raiseEv } = rowActionEvs(eq, pot, bet, betAmounts, rakePct, rakeCap);
+    const { callEv, raiseEv, bestRaiseAmount } = rowActionEvs(eq, pot, bet, betAmounts, rakePct, rakeCap);
     const strategy = cfrStrategyFromActionEvs(0, callEv, raiseEv, iterations);
     const ev = (strategy.call * callEv + strategy.raise * raiseEv) / 100;
     return {
@@ -473,6 +474,7 @@ function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack
       foldEv: 0,
       callEv: callEv / 100,
       raiseEv: raiseEv / 100,
+      bestRaiseAmount,
       equity: eq,
       ev,
       eqr: ev / Math.max(0.0001, eq * pot / 100)
@@ -589,10 +591,12 @@ function cfrStrategyFromActionEvs(foldEv: number, callEv: number, raiseEv: numbe
   return { fold: sum[0]! / total, call: sum[1]! / total, raise: sum[2]! / total };
 }
 
-function rowActionEvs(equityValue: number, pot: number, callBet: number, raiseBets: number[], rakePct: number, rakeCap: number): { callEv: number; raiseEv: number } {
+function rowActionEvs(equityValue: number, pot: number, callBet: number, raiseBets: number[], rakePct: number, rakeCap: number): { callEv: number; raiseEv: number; bestRaiseAmount: number } {
   const { callEv } = actionEvs(equityValue, pot, callBet, rakePct, rakeCap);
-  const raiseEv = Math.max(...raiseBets.map((amount) => actionEvs(equityValue, pot, amount, rakePct, rakeCap).raiseEv));
-  return { callEv, raiseEv };
+  const [bestRaiseAmount, raiseEv] = raiseBets
+    .map((amount) => [amount, actionEvs(equityValue, pot, amount, rakePct, rakeCap).raiseEv] as const)
+    .reduce((best, next) => next[1] > best[1] ? next : best, [0, Number.NEGATIVE_INFINITY] as const);
+  return { callEv, raiseEv, bestRaiseAmount };
 }
 
 function regretMatching(regrets: number[]): number[] {
