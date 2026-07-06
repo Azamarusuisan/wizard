@@ -466,8 +466,10 @@ function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack
 function rootNodes(boardLen: number, pot: number, bet: number, stack: number, game: Game, betTree = ""): SolveNode[] {
   const street = boardLen === 0 ? "preflop" : boardLen === 3 ? "flop" : boardLen === 4 ? "turn" : "river";
   const actions = ["fold", "call", "raise"];
-  const betNodes = betTree.trim()
-    ? (game === "NLH" ? concreteBets(parseBetTree(betTree).flop, pot, stack) : concretePotLimitBets(parseBetTree(betTree).flop, pot, bet, stack))
+  const parsedBetTree = betTree.trim() ? parseBetTree(betTree) : null;
+  const sizes = parsedBetTree ? boardLen === 4 ? parsedBetTree.turn : boardLen === 5 ? parsedBetTree.river : parsedBetTree.flop : [];
+  const betNodes = sizes.length
+    ? (game === "NLH" ? concreteBets(sizes, pot, stack) : concretePotLimitBets(sizes, pot, bet, stack))
       .map((amount) => formatBetNode(amount, stack))
     : [];
   return [

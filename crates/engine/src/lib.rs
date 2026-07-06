@@ -2221,10 +2221,11 @@ fn root_nodes_for_spot(spot: &NativeSpot, board_len: usize) -> Vec<NativeNode> {
         .as_deref()
         .and_then(|text| tree::parse_bet_tree(text).ok())
         .map(|bet_tree| {
+            let sizes = bet_sizes_for_board(&bet_tree, board_len);
             let amounts = if matches!(spot.game.as_deref().unwrap_or("NLH"), "PLO4" | "PLO5") {
-                tree::concrete_pot_limit_bets(&bet_tree.flop, spot.pot, spot.bet, stack)
+                tree::concrete_pot_limit_bets(sizes, spot.pot, spot.bet, stack)
             } else {
-                tree::concrete_bets(&bet_tree.flop, spot.pot, stack)
+                tree::concrete_bets(sizes, spot.pot, stack)
             };
             amounts
                 .into_iter()
@@ -2233,6 +2234,14 @@ fn root_nodes_for_spot(spot: &NativeSpot, board_len: usize) -> Vec<NativeNode> {
         })
         .unwrap_or_default();
     root_nodes(board_len, &bet_nodes)
+}
+
+fn bet_sizes_for_board(tree: &tree::BetTree, board_len: usize) -> &[tree::BetSize] {
+    match board_len {
+        4 => &tree.turn,
+        5 => &tree.river,
+        _ => &tree.flop,
+    }
 }
 
 fn root_nodes(board_len: usize, bet_nodes: &[String]) -> Vec<NativeNode> {
@@ -2700,6 +2709,20 @@ mod tests {
         assert!(raked_native.action_evs[2] < no_rake_native.action_evs[2]);
         super::cancel(no_rake).unwrap();
         super::cancel(raked).unwrap();
+    }
+
+    #[test]
+    fn native_solve_nodes_use_current_street_bet_sizes() {
+        super::init(None);
+        let handle = super::solve(
+            r#"{"pot":100.0,"bet":66.0,"stack":250.0,"board":"Ah Kd 7c 2s","betTree":"flop 33; turn 66; river 150"}"#,
+        )
+        .unwrap();
+        let payload = super::serialize(handle).unwrap();
+        let native: super::NativeSolve = serde_json::from_slice(&payload).unwrap();
+        assert!(super::has_node_id(&native, "root/bet-66"));
+        assert!(!super::has_node_id(&native, "root/bet-33"));
+        super::cancel(handle).unwrap();
     }
 
     #[test]

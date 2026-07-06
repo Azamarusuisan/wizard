@@ -115,6 +115,16 @@ test("TS river solve fallback emits CFR-trained rows", () => {
   assert.equal(result.metrics.brGapPctPot, result.exploitability.at(-1)!.value);
 });
 
+test("TS solve nodes use bet sizes for the current board street", () => {
+  const tree = "flop 33; turn 66; river 150";
+  const turn = solveRiverSpot(100, 66, 250, "Ah Kd 7c 2s", 0, 0, "NLH", tree);
+  assert.ok(turn.nodes.some((node) => node.id === "root/bet-66"));
+  assert.ok(!turn.nodes.some((node) => node.id === "root/bet-33"));
+  const river = solveRiverSpot(100, 66, 250, "Ah Kd 7c 2s 3d", 0, 0, "NLH", tree);
+  assert.ok(river.nodes.some((node) => node.id === "root/bet-150"));
+  assert.ok(!river.nodes.some((node) => node.id === "root/bet-66"));
+});
+
 test("TS river solve fallback rejects invalid spots", () => {
   assert.throws(() => solveRiverSpot(0, 66), /pot/);
   assert.throws(() => solveRiverSpot(100, -1), /bet/);
