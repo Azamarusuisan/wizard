@@ -1846,9 +1846,10 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
                 elapsed: 0.0,
             })
             .collect();
+    let nodes = root_nodes_for_spot(&spot, board.len());
     let solve = NativeSolve {
         spot,
-        nodes: root_nodes(board.len()),
+        nodes,
         combos,
         progress,
         strategy,
@@ -1936,9 +1937,10 @@ fn solve_plo_fast(
                 elapsed: 0.0,
             })
             .collect();
+    let nodes = root_nodes_for_spot(&spot, board_len);
     let solve = NativeSolve {
         spot,
-        nodes: root_nodes(board_len),
+        nodes,
         combos,
         progress,
         strategy,
@@ -2212,7 +2214,28 @@ fn with_solve<T>(
     f(solve)
 }
 
-fn root_nodes(board_len: usize) -> Vec<NativeNode> {
+fn root_nodes_for_spot(spot: &NativeSpot, board_len: usize) -> Vec<NativeNode> {
+    let stack = spot.stack.unwrap_or(spot.pot * 4.2);
+    let bet_nodes = spot
+        .bet_tree
+        .as_deref()
+        .and_then(|text| tree::parse_bet_tree(text).ok())
+        .map(|bet_tree| {
+            let amounts = if matches!(spot.game.as_deref().unwrap_or("NLH"), "PLO4" | "PLO5") {
+                tree::concrete_pot_limit_bets(&bet_tree.flop, spot.pot, spot.bet, stack)
+            } else {
+                tree::concrete_bets(&bet_tree.flop, spot.pot, stack)
+            };
+            amounts
+                .into_iter()
+                .map(|amount| format_bet_node(amount, stack))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    root_nodes(board_len, &bet_nodes)
+}
+
+fn root_nodes(board_len: usize, bet_nodes: &[String]) -> Vec<NativeNode> {
     let street = street_for_board(board_len);
     let actions = ["fold", "call", "raise"];
     let mut nodes = vec![NativeNode {
@@ -2227,7 +2250,23 @@ fn root_nodes(board_len: usize) -> Vec<NativeNode> {
         street: street.to_string(),
         actions: Vec::new(),
     }));
+    nodes.extend(bet_nodes.iter().map(|label| NativeNode {
+        id: format!("root/bet-{label}"),
+        label: format!("BET {label}"),
+        street: street.to_string(),
+        actions: Vec::new(),
+    }));
     nodes
+}
+
+fn format_bet_node(amount: f64, stack: f64) -> String {
+    if (amount - stack).abs() <= 1e-9 {
+        "all-in".to_string()
+    } else if amount.fract().abs() <= 1e-9 {
+        format!("{}", amount as u64)
+    } else {
+        format!("{amount:.2}")
+    }
 }
 
 fn street_for_board(board_len: usize) -> &'static str {
@@ -2614,6 +2653,8 @@ mod tests {
         assert_eq!(native.nodes[0].id, "root");
         assert_eq!(native.nodes[0].street, "preflop");
         assert!(super::has_node_id(&native, "root/call"));
+        assert!(super::has_node_id(&native, "root/bet-33"));
+        assert!(super::has_node_id(&native, "root/bet-all-in"));
         let first = br::cfr_combo(br::DEFAULT_RIVER_SPECS[0].1, 100.0, 66.0, 2_048);
         assert_eq!(native.combos[0], "AcAd");
         assert_eq!(native.combos.len(), 28);

@@ -358,7 +358,7 @@ export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2, boar
     return { combo, fold, call, raise, foldEv: 0, callEv: callEv / 100, raiseEv: raiseEv / 100, equity: eq, ev, eqr: ev / Math.max(0.0001, eq * pot / 100) };
   });
   return {
-    nodes: rootNodes(board.length),
+    nodes: rootNodes(board.length, pot, bet, stack, game, betTree),
     rows,
     exploitability: riverStrategyProgress(rows, pot, bet, 36, rakePct, rakeCap).map((value, i) => ({ iteration: (i + 1) * 50, value })),
     metrics: { spr: stack / pot, mdf, alpha, potOdds, brGapPctPot: riverExploitability(rows, pot, bet, rakePct, rakeCap) }
@@ -392,7 +392,7 @@ export function solveNlhComboSpot(pot: number, bet: number, stack = pot * 4.2, b
   const mdf = pot / (pot + bet);
   const alpha = bet / (pot + bet);
   return {
-    nodes: rootNodes(board.length),
+    nodes: rootNodes(board.length, pot, bet, stack, "NLH"),
     rows,
     exploitability: riverStrategyProgress(rows, pot, bet, 36, rakePct, rakeCap).map((value, i) => ({ iteration: (i + 1) * 50, value })),
     metrics: { spr: stack / pot, mdf, alpha, potOdds, brGapPctPot: riverExploitability(rows, pot, bet, rakePct, rakeCap) }
@@ -456,20 +456,29 @@ function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack
     };
   });
   return {
-    nodes: rootNodes(boardLen),
+    nodes: rootNodes(boardLen, pot, bet, stack, game),
     rows,
     exploitability: riverStrategyProgress(rows, pot, bet, 36, rakePct, rakeCap).map((value, i) => ({ iteration: (i + 1) * 50, value })),
     metrics: { spr: stack / pot, mdf, alpha, potOdds, brGapPctPot: riverExploitability(rows, pot, bet, rakePct, rakeCap), ploFastExploitability: game === "PLO4" ? plo4FastExploitabilityPctPot() : plo5FastExploitabilityPctPot() }
   };
 }
 
-function rootNodes(boardLen: number): SolveNode[] {
+function rootNodes(boardLen: number, pot: number, bet: number, stack: number, game: Game, betTree = ""): SolveNode[] {
   const street = boardLen === 0 ? "preflop" : boardLen === 3 ? "flop" : boardLen === 4 ? "turn" : "river";
   const actions = ["fold", "call", "raise"];
+  const betNodes = betTree.trim()
+    ? (game === "NLH" ? concreteBets(parseBetTree(betTree).flop, pot, stack) : concretePotLimitBets(parseBetTree(betTree).flop, pot, bet, stack))
+      .map((amount) => formatBetNode(amount, stack))
+    : [];
   return [
     { id: "root", label: "Root", street, actions },
-    ...actions.map((action) => ({ id: `root/${action}`, label: action.toUpperCase(), street, actions: [] }))
+    ...actions.map((action) => ({ id: `root/${action}`, label: action.toUpperCase(), street, actions: [] })),
+    ...betNodes.map((label) => ({ id: `root/bet-${label}`, label: `BET ${label}`, street, actions: [] }))
   ];
+}
+
+function formatBetNode(amount: number, stack: number): string {
+  return Math.abs(amount - stack) <= 1e-9 ? "all-in" : Number.isInteger(amount) ? String(amount) : amount.toFixed(2);
 }
 
 function ploFastSampleEquity(row: PloFastSample): number {
