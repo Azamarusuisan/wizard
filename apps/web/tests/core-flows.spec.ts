@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 test("solver runs and displays strategy metrics", async ({ page }) => {
   await page.goto("/solver");
   await expect(page.getByRole("button", { name: "Cancel" })).toBeDisabled();
+  await expect(page.getByText("Memory estimate:")).toBeVisible();
   await page.getByLabel("Board").fill("Ah Ah Kd");
   await expect(page.getByRole("alert")).toContainText("duplicate");
   await expect(page.getByRole("button", { name: "Start solve" })).toBeDisabled();

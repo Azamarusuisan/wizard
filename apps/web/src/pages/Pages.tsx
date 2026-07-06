@@ -154,6 +154,7 @@ export function SolverStudio() {
     }
   }, [game, pot, bet, stack, board, rakePct, rakeCap, betTree, precision, heroRange, villainRange]);
   const shown = preview.error ? null : result && resultKey === currentKey ? result : preview.result;
+  const memoryEstimate = estimateSolverMemory(game, precision, board);
   const selectedNode = shown?.nodes.find((node) => node.id === selectedNodeId) ?? shown?.nodes[0];
   const selectedInfoSet = selectedNode ? shown?.informationSets.find((infoSet) => infoSet.nodeId === selectedNode.id || infoSet.key === selectedNode.infoSet) : null;
   const nodeRows = shown && selectedNode ? rowsForNode(shown, selectedNode) : [];
@@ -173,6 +174,7 @@ export function SolverStudio() {
           <label className="field">Pot type<select value={potType} onChange={(e) => setPotType(e.target.value as "SRP" | "3bet" | "4bet")}><option>SRP</option><option>3bet</option><option>4bet</option></select></label>
         </div>
         <label className="field">Precision<select value={precision} onChange={(e) => setPrecision(e.target.value as "fast" | "balanced" | "precise")}><option value="fast">Fast</option><option value="balanced">Balanced</option><option value="precise">Precise</option></select></label>
+        <p className="muted">Memory estimate: <span className="num">{memoryEstimate}</span></p>
         <label className="field">Pot<input type="number" min="1" value={pot} onChange={(e) => setPot(Number(e.target.value))} /></label>
         <label className="field">Bet amount<input type="number" min="0" value={bet} onChange={(e) => setBet(Number(e.target.value))} /></label>
         <label className="field">Stack<input type="number" min="1" value={stack} onChange={(e) => setStack(Number(e.target.value))} /></label>
@@ -354,6 +356,22 @@ function flopBetSizes(text: string, pot: number, call: number, stack: number, ga
 
 function randomFlop(): string {
   return [...deck()].sort(() => Math.random() - 0.5).slice(0, 3).map(formatCard).join(" ");
+}
+
+function estimateSolverMemory(game: Game, precision: "fast" | "balanced" | "precise", board: string): string {
+  const cards = board.trim() ? board.trim().split(/\s+/).length : 0;
+  const multiplier = precision === "fast" ? 0.6 : precision === "precise" ? 1.5 : 1;
+  const baseMb = game === "PLO5"
+    ? 1104
+    : game === "PLO4"
+      ? 1216
+      : cards === 4
+        ? 256
+        : cards === 3
+          ? 702
+          : 30;
+  const mb = baseMb * multiplier;
+  return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${Math.round(mb)} MB`;
 }
 
 function validateSolverInputs(game: Game, pot: number, bet: number, stack: number, board: string, rakePct: number, rakeCap: number, betTree: string): void {
