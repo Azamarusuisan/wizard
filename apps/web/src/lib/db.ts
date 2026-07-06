@@ -190,7 +190,7 @@ function unpackSolve(blob: SolveRecord["blob"]): SolveResult {
     ev: blob.ev[i]!,
     eqr: blob.eqr[i]!
   }));
-  return { nodes: blob.nodes ?? [{ id: "root", label: "Root", street: "river" }], rows, exploitability: blob.exploitability, metrics: blob.metrics };
+  return { nodes: blob.nodes ?? [{ id: "root", label: "Root", street: "river", actions: ["fold", "call", "raise"] }], rows, exploitability: blob.exploitability, metrics: blob.metrics };
 }
 
 function reqResult<T>(req: IDBRequest<T>): Promise<T> {

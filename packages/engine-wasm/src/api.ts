@@ -200,7 +200,7 @@ function nativeToResult(native: NativeSolve): SolveResult {
   const combos = native.combos.length ? native.combos : FALLBACK_COMBOS;
     const metrics = splitMetrics(native.metrics, combos.length);
   return {
-    nodes: native.nodes?.length ? native.nodes : [{ id: "root", label: "Root", street: "river" }],
+    nodes: native.nodes?.length ? native.nodes : [{ id: "root", label: "Root", street: "river", actions: ["fold", "call", "raise"] }],
     rows: combos.map((combo, i) => ({
       combo,
       fold: native.strategy[i * 3] ?? 0,

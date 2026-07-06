@@ -1738,6 +1738,7 @@ struct NativeNode {
     id: String,
     label: String,
     street: String,
+    actions: Vec<String>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -2160,6 +2161,7 @@ fn root_nodes() -> Vec<NativeNode> {
         id: "root".to_string(),
         label: "Root".to_string(),
         street: "river".to_string(),
+        actions: vec!["fold".to_string(), "call".to_string(), "raise".to_string()],
     }]
 }
 

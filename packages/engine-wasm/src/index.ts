@@ -325,7 +325,7 @@ function parseBetSizes(text: string): BetSize[] {
 }
 
 export type SolverRow = { combo: string; fold: number; call: number; raise: number; foldEv: number; callEv: number; raiseEv: number; equity: number; ev: number; eqr: number };
-export type SolveNode = { id: string; label: string; street: string };
+export type SolveNode = { id: string; label: string; street: string; actions: string[] };
 export type SolveResult = { nodes: SolveNode[]; rows: SolverRow[]; exploitability: { iteration: number; value: number }[]; metrics: { spr: number; mdf: number; alpha: number; potOdds: number; brGapPctPot?: number; ploFastExploitability?: number } };
 export const DEFAULT_RIVER_SPECS = [
   ["AA", 0.82],
@@ -427,7 +427,7 @@ function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack
   };
 }
 
-const ROOT_NODES: SolveNode[] = [{ id: "root", label: "Root", street: "river" }];
+const ROOT_NODES: SolveNode[] = [{ id: "root", label: "Root", street: "river", actions: ["fold", "call", "raise"] }];
 
 function ploFastSampleEquity(row: PloFastSample): number {
   return ploVsRandomEquity(parseComboCards(row.combo), 512, row.seed);
