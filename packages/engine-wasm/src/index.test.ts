@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { concreteBets, concretePotLimitBets, evaluateNlh7, evaluatePlo, equity, equityAuto, estimateEquityEvaluations, kuhnCfr, parseBetTree, parseCard, parseNlhRange, parsePloRange, plo4FastExploitabilityPctPot, plo5FastExploitabilityPctPot, potLimitMaxRaise, serializeRange, solveRiverSpot } from "./index.js";
+import { concreteBets, concretePotLimitBets, evaluateNlh7, evaluatePlo, equity, equityAuto, estimateEquityEvaluations, kuhnCfr, parseBetTree, parseCard, parseNlhRange, parsePloRange, plo4FastExploitabilityPctPot, plo5FastExploitabilityPctPot, potLimitMaxRaise, serializeRange, solveNlhComboSpot, solveRiverSpot } from "./index.js";
 
 const cs = (s: string) => s.split(/\s+/).map(parseCard);
 
@@ -127,6 +127,14 @@ test("TS river solve fallback uses board in concrete combo equities", () => {
   assert.equal(boarded.nodes[0]!.street, "flop");
   assert.notEqual(empty.rows[0]!.equity, boarded.rows[0]!.equity);
   assert.ok(!boarded.rows.some((r) => r.combo.includes("Ah")));
+});
+
+test("TS single NLH combo solve reports one concrete board-aware row", () => {
+  const result = solveNlhComboSpot(100, 66, 250, "Ah Kd 7c", "AcAd");
+  assert.equal(result.nodes[0]!.street, "flop");
+  assert.deepEqual(result.rows.map((row) => row.combo), ["AcAd"]);
+  assert.ok(result.rows[0]!.equity > 0.5);
+  assert.throws(() => solveNlhComboSpot(100, 66, 250, "Ah Kd 7c", "AcAh"), /duplicate/);
 });
 
 test("TS river solve fallback subtracts capped rake from showdown EV", () => {

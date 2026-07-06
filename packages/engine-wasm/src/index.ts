@@ -363,6 +363,40 @@ export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2, boar
   };
 }
 
+export function solveNlhComboSpot(pot: number, bet: number, stack = pot * 4.2, boardText = "", comboText = "AcAd", rakePct = 0, rakeCap = 0): SolveResult {
+  if (!Number.isFinite(pot) || pot <= 0) throw new Error("pot must be positive");
+  if (!Number.isFinite(bet) || bet < 0) throw new Error("bet must be non-negative");
+  if (!Number.isFinite(stack) || stack <= 0) throw new Error("stack must be positive");
+  const board = parseBoardText(boardText);
+  const holes = parseComboCards(comboText);
+  if (holes.length !== 2) throw new Error("NLH combo must have exactly two cards");
+  if (holes.some((card) => board.includes(card)) || new Set(holes).size !== holes.length) throw new Error("duplicate combo card");
+  const eq = comboEquity(holes, 0.5, board);
+  const { callEv, raiseEv } = actionEvs(eq, pot, bet, rakePct, rakeCap);
+  const strategy = cfrStrategy(eq, pot, bet, rakePct, rakeCap, 2_048);
+  const row = {
+    combo: holes.map(formatCard).join(""),
+    ...strategy,
+    foldEv: 0,
+    callEv: callEv / 100,
+    raiseEv: raiseEv / 100,
+    equity: eq,
+    ev: (strategy.call * callEv + strategy.raise * raiseEv) / 100,
+    eqr: 0
+  };
+  row.eqr = row.ev / Math.max(0.0001, eq * pot / 100);
+  const rows = [row];
+  const potOdds = bet / (pot + 2 * bet);
+  const mdf = pot / (pot + bet);
+  const alpha = bet / (pot + bet);
+  return {
+    nodes: rootNodes(board.length),
+    rows,
+    exploitability: riverStrategyProgress(rows, pot, bet, 36, rakePct, rakeCap).map((value, i) => ({ iteration: (i + 1) * 50, value })),
+    metrics: { spr: stack / pot, mdf, alpha, potOdds, brGapPctPot: riverExploitability(rows, pot, bet, rakePct, rakeCap) }
+  };
+}
+
 export function plo4FastExploitabilityPctPot(): number {
   return ploFastExploitabilityPctPot(PLO4_FAST_SAMPLES);
 }

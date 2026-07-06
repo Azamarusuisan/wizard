@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { EXACT_EQUITY_EVAL_THRESHOLD, HAND_CATEGORIES, concreteBets, concretePotLimitBets, deck, estimateEquityEvaluations, formatCard, parseBetTree, parseCard, equity, parseNlhRange, parsePloRange, serializeRange, solveRiverSpot, type Game } from "@gto-lab/engine-wasm";
+import { EXACT_EQUITY_EVAL_THRESHOLD, HAND_CATEGORIES, concreteBets, concretePotLimitBets, deck, estimateEquityEvaluations, formatCard, parseBetTree, parseCard, equity, parseNlhRange, parsePloRange, serializeRange, solveNlhComboSpot, solveRiverSpot, type Game } from "@gto-lab/engine-wasm";
 import { CardView } from "../components/CardView";
 import { Metric } from "../components/Metric";
 import { StrategyTable } from "../components/StrategyTable";
@@ -245,7 +245,7 @@ export function EquityLab() {
 }
 
 export function Trainer() {
-  const spot = useMemo(() => solveRiverSpot(100, 66, 420, "Ah Kd 7c"), []);
+  const spot = useMemo(() => solveNlhComboSpot(100, 66, 420, "Ah Kd 7c", "AcAd"), []);
   const node = spot.nodes[0]!;
   const row = spot.rows[0]!;
   const bestEv = Math.max(row.foldEv, row.callEv, row.raiseEv);
