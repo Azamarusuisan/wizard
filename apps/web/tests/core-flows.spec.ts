@@ -76,9 +76,10 @@ test("equity lab shows AA vs KK", async ({ page }) => {
 test("trainer displays decision controls", async ({ page }) => {
   await page.goto("/trainer");
   await expect(page.getByText("BTN vs BB")).toBeVisible();
+  await expect(page.locator('[aria-label="Street: flop"]')).toBeVisible();
   await page.keyboard.press("B");
-  await expect(page.getByText("EV loss")).toBeVisible();
-  await expect(page.getByText("Perfect")).toBeVisible();
+  await expect(page.locator('[aria-label="EV loss: 0.000bb"]')).toBeVisible();
+  await expect(page.locator('[aria-label="Grade: Perfect"]')).toBeVisible();
   await expect(page.locator('[aria-label="Attempts: 1"]')).toBeVisible();
   await page.goto("/");
   await expect(page.locator('[aria-label^="Average EV loss:"]')).not.toContainText("No sessions");

@@ -245,7 +245,7 @@ export function EquityLab() {
 }
 
 export function Trainer() {
-  const spot = solveRiverSpot(100, 66);
+  const spot = useMemo(() => solveRiverSpot(100, 66, 420, "Ah Kd 7c"), []);
   const node = spot.nodes[0]!;
   const row = spot.rows[0]!;
   const bestEv = Math.max(row.foldEv, row.callEv, row.raiseEv);
