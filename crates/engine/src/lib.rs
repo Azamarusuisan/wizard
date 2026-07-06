@@ -1677,6 +1677,8 @@ pub mod br {
         pub seed: u64,
     }
 
+    pub const PLO_FAST_EQUITY_SAMPLES: usize = 512;
+
     pub const PLO4_FAST_SAMPLES: [PloFastSample; 6] = [
         PloFastSample {
             combo: "AsAhKsKh",
@@ -1780,7 +1782,7 @@ pub mod br {
     impl PloFastSample {
         pub fn equity(self) -> f64 {
             let cards = parse_combo_cards(self.combo);
-            equity::plo_vs_random_equity_mc(&cards, 512, self.seed).equity
+            equity::plo_vs_random_equity_mc(&cards, PLO_FAST_EQUITY_SAMPLES, self.seed).equity
         }
     }
 
@@ -2220,6 +2222,7 @@ fn solve_plo_fast(
         weights.iter().sum::<f64>(),
         iterations as f64,
         combo_cap,
+        br::PLO_FAST_EQUITY_SAMPLES as f64,
     ]);
     let progress = river_progress_from_action_evs(&rows, &action_evs, &weights, spot.pot, 36)
         .into_iter()
@@ -3761,6 +3764,10 @@ mod tests {
             plo4_native.metrics[plo4_native.combos.len() * 3 + 9],
             20_000.0
         );
+        assert_eq!(
+            plo4_native.metrics[plo4_native.combos.len() * 3 + 10],
+            br::PLO_FAST_EQUITY_SAMPLES as f64
+        );
         let plo5 = super::solve(r#"{"game":"PLO5","pot":100.0,"bet":66.0,"stack":250.0}"#).unwrap();
         let plo5_payload = super::serialize(plo5).unwrap();
         let plo5_native: super::NativeSolve = serde_json::from_slice(&plo5_payload).unwrap();
@@ -3786,6 +3793,10 @@ mod tests {
         assert_eq!(
             plo5_native.metrics[plo5_native.combos.len() * 3 + 9],
             30_000.0
+        );
+        assert_eq!(
+            plo5_native.metrics[plo5_native.combos.len() * 3 + 10],
+            br::PLO_FAST_EQUITY_SAMPLES as f64
         );
         super::cancel(plo4).unwrap();
         super::cancel(plo4_plain).unwrap();

@@ -99,7 +99,8 @@ Solve cache records:
       "ploSampleCount": "number, PLO Fast only",
       "ploWeightCoverage": "number, PLO Fast only",
       "ploIterations": "number, PLO Fast only",
-      "ploComboCap": "number, PLO Fast only"
+      "ploComboCap": "number, PLO Fast only",
+      "ploEquitySamples": "number, PLO Fast only, MC samples per representative equity"
     }
   }
 }

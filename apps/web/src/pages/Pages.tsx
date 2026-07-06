@@ -241,6 +241,7 @@ export function SolverStudio() {
           {shown.metrics.ploSampleCount !== undefined ? <Metric label="PLO sample set" value={`${shown.metrics.ploSampleCount.toFixed(0)} reps / ${(100 * (shown.metrics.ploWeightCoverage ?? 0)).toFixed(0)}%`} /> : null}
           {shown.metrics.ploIterations !== undefined ? <Metric label="PLO iterations" value={shown.metrics.ploIterations.toLocaleString()} /> : null}
           {shown.metrics.ploComboCap !== undefined ? <Metric label="PLO combo cap" value={shown.metrics.ploComboCap.toLocaleString()} /> : null}
+          {shown.metrics.ploEquitySamples !== undefined ? <Metric label="PLO equity MC" value={`${shown.metrics.ploEquitySamples.toLocaleString()} samples`} /> : null}
           <Metric label="Range EV" value={`${nodeSummary.ev.toFixed(3)}bb`} />
           <Metric label="Range Equity" value={`${(nodeSummary.equity * 100).toFixed(1)}%`} />
           <Metric label="Range EQR" value={nodeSummary.eqr.toFixed(2)} />
