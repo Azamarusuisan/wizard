@@ -35,6 +35,7 @@ Reason:
 - Browser workers need predictable latency. The UI reports approximation status and memory estimates rather than pretending exactness.
 - Bucketing uses fixed-seed k-means++ over ten features: eight equity quantiles plus EHS and EHS2. The seed makes test and cache behavior reproducible.
 - Equity-quantile chance branches preserve the intended low / medium / high runout meaning and are closer to the target EHS-style abstraction while the full public tree is still pending.
+- Root raise EVs use an MDF-style response approximation (`fold = B/(P+B)`, `call = P/(P+B)`) until full opponent response trees replace the compact row model. This reuses the existing bet-response math and avoids the older arbitrary equity bonus.
 - Multi-size raise utilities are a stepping stone toward the configured bet tree without allocating the final full public game tree yet.
 
 ## Class Counts

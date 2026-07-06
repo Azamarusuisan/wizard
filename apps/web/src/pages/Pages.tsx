@@ -322,7 +322,9 @@ function chanceRow(row: SolverRow, nodeId: string, spot: { game: Game; pot: numb
   const raiseEv = Math.max(...betAmounts.map((amount) => {
     const raiseRake = Math.min((nextPot + amount) * (spot.rakePct / 100), spot.rakeCap);
     const base = equity * (nextPot + amount - raiseRake) - (1 - equity) * amount;
-    return (base + equity * amount * 0.15) / 100;
+    const foldResponse = amount / (nextPot + amount);
+    const callResponse = nextPot / (nextPot + amount);
+    return (foldResponse * nextPot + callResponse * base) / 100;
   }));
   const { fold, call, raise } = regretMix([0, callEv, raiseEv]);
   const ev = call * callEv + raise * raiseEv;
@@ -334,7 +336,9 @@ function raiseSizeRow(row: SolverRow, actions: string[], spot: { pot: number; st
     const amount = action === "all-in" ? spot.stack : Number(action);
     const rake = Math.min((spot.pot + amount) * (spot.rakePct / 100), spot.rakeCap);
     const callEv = row.equity * (spot.pot + amount - rake) - (1 - row.equity) * amount;
-    return callEv + row.equity * amount * 0.15;
+    const foldResponse = amount / (spot.pot + amount);
+    const callResponse = spot.pot / (spot.pot + amount);
+    return foldResponse * spot.pot + callResponse * callEv;
   });
   const mix = cfrAverage(evs, 256);
   const ev = mix.reduce((sum, frequency, i) => sum + frequency * row.raise * (evs[i] ?? 0), 0) / 100;

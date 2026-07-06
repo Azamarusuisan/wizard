@@ -769,7 +769,9 @@ function regretMatching(regrets: number[]): number[] {
 function actionEvs(equityValue: number, pot: number, bet: number, rakePct: number, rakeCap: number): { callEv: number; raiseEv: number } {
   const winPot = pot + bet - rakeAmount(pot + bet, rakePct, rakeCap);
   const callEv = equityValue * winPot - (1 - equityValue) * bet;
-  return { callEv, raiseEv: callEv + equityValue * bet * 0.15 };
+  const foldResponse = bet / (pot + bet);
+  const callResponse = pot / (pot + bet);
+  return { callEv, raiseEv: foldResponse * pot + callResponse * callEv };
 }
 
 function rakeAmount(potAfterCall: number, rakePct: number, rakeCap: number): number {

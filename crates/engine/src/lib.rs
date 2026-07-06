@@ -1741,7 +1741,9 @@ pub mod br {
         let fold_ev = 0.0;
         let win_pot = pot + bet - rake_amount(pot + bet, rake_pct, rake_cap);
         let call_ev = equity * win_pot - (1.0 - equity) * bet;
-        let raise_ev = call_ev + equity * bet * 0.15;
+        let fold_response = bet / (pot + bet);
+        let call_response = pot / (pot + bet);
+        let raise_ev = fold_response * pot + call_response * call_ev;
         (fold_ev, call_ev, raise_ev)
     }
 

@@ -203,7 +203,9 @@ function regretMatching(regrets: number[]): number[] {
 function actionEvs(equityValue: number, pot: number, bet: number, rakePct: number, rakeCap: number): { raiseEv: number } {
   const winPot = pot + bet - Math.min((pot + bet) * (rakePct / 100), rakeCap);
   const callEv = equityValue * winPot - (1 - equityValue) * bet;
-  return { raiseEv: callEv + equityValue * bet * 0.15 };
+  const foldResponse = bet / (pot + bet);
+  const callResponse = pot / (pot + bet);
+  return { raiseEv: foldResponse * pot + callResponse * callEv };
 }
 
 function nodeActionKey(nodeId: string): "foldEv" | "callEv" | "raiseEv" | null {
@@ -435,7 +437,9 @@ function localActionEvs(equity: number, pot: number, bet: number, rakePct: numbe
   const raiseEv = Math.max(...raiseBets.map((amount) => {
     const raiseRake = Math.min((pot + amount) * (rakePct / 100), rakeCap);
     const base = equity * (pot + amount - raiseRake) - (1 - equity) * amount;
-    return base + equity * amount * 0.15;
+    const foldResponse = amount / (pot + amount);
+    const callResponse = pot / (pot + amount);
+    return foldResponse * pot + callResponse * base;
   }));
   return { callEv, raiseEv };
 }
