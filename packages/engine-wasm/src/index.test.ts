@@ -158,8 +158,11 @@ test("TS river solve fallback rejects invalid spots", () => {
 test("TS river solve fallback uses board in concrete combo equities", () => {
   const empty = solveRiverSpot(100, 66, 250);
   const boarded = solveRiverSpot(100, 66, 250, "Ah Kd 7c");
+  const boardedWithTree = solveRiverSpot(100, 66, 250, "Ah Kd 7c", 0, 0, "NLH", "flop 33; turn 66; river 75");
   assert.equal(boarded.nodes[0]!.street, "flop");
   assert.ok(boarded.nodes.some((node) => node.id === "root/turn-low" && node.street === "turn"));
+  assert.ok(boardedWithTree.nodes.some((node) => node.id.startsWith("root/turn-low/bet-") && node.street === "turn" && node.actions.join(",") === "fold,call"));
+  assert.ok(boardedWithTree.nodes.some((node) => node.id.startsWith("root/turn-low/bet-") && node.id.endsWith("/call")));
   assert.equal(boarded.informationSets.find((infoSet) => infoSet.nodeId === "root/turn-low")?.strategyRef, "root/turn-low");
   assert.notEqual(empty.rows[0]!.equity, boarded.rows[0]!.equity);
   assert.equal(boarded.metrics.brGapPctPot, boarded.exploitability.at(-1)!.value);

@@ -588,12 +588,8 @@ function ploSuitedness(combo: string): "ds" | "ss" | "r" {
 function rootNodes(boardLen: number, pot: number, bet: number, stack: number, game: Game, betTree = ""): SolveNode[] {
   const street = boardLen === 0 ? "preflop" : boardLen === 3 ? "flop" : boardLen === 4 ? "turn" : "river";
   const actions = ["fold", "call", "raise"];
-  const parsedBetTree = betTree.trim() ? parseBetTree(betTree) : null;
-  const sizes = parsedBetTree ? boardLen === 4 ? parsedBetTree.turn : boardLen === 5 ? parsedBetTree.river : parsedBetTree.flop : [];
-  const betNodes = sizes.length
-    ? (game === "NLH" ? concreteBets(sizes, pot, stack) : concretePotLimitBets(sizes, pot, bet, stack))
-      .map((amount) => ({ label: formatBetNode(amount, stack), amount, pot }))
-    : [];
+  const betNodes = betNodesForContext(game, boardLen, pot, bet, stack, betTree);
+  const chanceBetNodes = boardLen === 3 || boardLen === 4 ? betNodesForContext(game, boardLen + 1, pot + bet * 2, bet, stack, betTree) : [];
   return [
     withInfoSet({ id: "root", label: "Root", street, actions }),
     ...actions.map((action) => withInfoSet({ id: `root/${action}`, label: action.toUpperCase(), street, actions: [] })),
@@ -606,19 +602,35 @@ function rootNodes(boardLen: number, pot: number, bet: number, stack: number, ga
         withInfoSet({ id: `${id}/call`, label: "CALL", street, actions: [], amount: bet.amount, pot: bet.pot })
       ];
     }),
-    ...chanceNodes(boardLen, actions)
+    ...chanceNodes(boardLen, actions, chanceBetNodes)
   ];
 }
 
-function chanceNodes(boardLen: number, actions: string[]): SolveNode[] {
+function betNodesForContext(game: Game, boardLen: number, pot: number, bet: number, stack: number, betTree: string): { label: string; amount: number; pot: number }[] {
+  if (!betTree.trim()) return [];
+  const parsedBetTree = parseBetTree(betTree);
+  const sizes = boardLen === 4 ? parsedBetTree.turn : boardLen === 5 ? parsedBetTree.river : parsedBetTree.flop;
+  return (game === "NLH" ? concreteBets(sizes, pot, stack) : concretePotLimitBets(sizes, pot, bet, stack))
+    .map((amount) => ({ label: formatBetNode(amount, stack), amount, pot }));
+}
+
+function chanceNodes(boardLen: number, actions: string[], betNodes: { label: string; amount: number; pot: number }[]): SolveNode[] {
   const nextStreet = boardLen === 3 ? "turn" : boardLen === 4 ? "river" : "";
   if (!nextStreet) return [];
-  return ["low", "mid", "high"].map((bucket) => withInfoSet({
-    id: `root/${nextStreet}-${bucket}`,
-    label: `${nextStreet.toUpperCase()} ${bucket.toUpperCase()}`,
-    street: nextStreet,
-    actions
-  }));
+  return ["low", "mid", "high"].flatMap((bucket) => {
+    const id = `root/${nextStreet}-${bucket}`;
+    return [
+      withInfoSet({ id, label: `${nextStreet.toUpperCase()} ${bucket.toUpperCase()}`, street: nextStreet, actions }),
+      ...betNodes.flatMap((bet) => {
+        const betId = `${id}/bet-${bet.label}`;
+        return [
+          withInfoSet({ id: betId, label: `BET ${bet.label}`, street: nextStreet, actions: ["fold", "call"], amount: bet.amount, pot: bet.pot }),
+          withInfoSet({ id: `${betId}/fold`, label: "FOLD", street: nextStreet, actions: [], amount: bet.amount, pot: bet.pot }),
+          withInfoSet({ id: `${betId}/call`, label: "CALL", street: nextStreet, actions: [], amount: bet.amount, pot: bet.pot })
+        ];
+      })
+    ];
+  });
 }
 
 function withInfoSet<T extends SolveNode>(node: T): T {

@@ -3364,7 +3364,11 @@ fn chance_node_bet_amounts(solve: &NativeSolve, node: &NativeNode, pot: f64) -> 
 }
 
 fn chance_node_pot(solve: &NativeSolve) -> f64 {
-    solve.spot.pot + solve.spot.bet * 2.0
+    chance_node_pot_for_spot(&solve.spot)
+}
+
+fn chance_node_pot_for_spot(spot: &NativeSpot) -> f64 {
+    spot.pot + spot.bet * 2.0
 }
 
 fn nlh_chance_node_equity(solve: &NativeSolve, combo: &str, fallback: f64, node_id: &str) -> f64 {
@@ -3623,35 +3627,39 @@ fn river_progress_from_action_evs(
 }
 
 fn root_nodes_for_spot(spot: &NativeSpot, board_len: usize) -> Vec<NativeNode> {
-    let stack = spot.stack.unwrap_or(spot.pot * 4.2);
-    let bet_nodes = spot
-        .bet_tree
-        .as_deref()
-        .and_then(|text| tree::parse_bet_tree(text).ok())
-        .map(|bet_tree| {
-            let sizes = bet_sizes_for_board(&bet_tree, board_len);
-            let amounts = if matches!(spot.game.as_deref().unwrap_or("NLH"), "PLO4" | "PLO5") {
-                tree::concrete_pot_limit_bets(sizes, spot.pot, spot.bet, stack)
-            } else {
-                tree::concrete_bets(sizes, spot.pot, stack)
-            };
-            amounts
-                .into_iter()
-                .map(|amount| BetNode {
-                    label: format_bet_node(amount, stack),
-                    amount,
-                    pot: spot.pot,
-                })
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default();
-    root_nodes(board_len, &bet_nodes)
+    let bet_nodes = bet_nodes_for_context(spot, board_len, spot.pot, spot.bet);
+    let chance_bet_nodes = match board_len {
+        3 | 4 => bet_nodes_for_context(
+            spot,
+            board_len + 1,
+            chance_node_pot_for_spot(spot),
+            spot.bet,
+        ),
+        _ => Vec::new(),
+    };
+    root_nodes(board_len, &bet_nodes, &chance_bet_nodes)
 }
 
 struct BetNode {
     label: String,
     amount: f64,
     pot: f64,
+}
+
+fn bet_nodes_for_context(spot: &NativeSpot, board_len: usize, pot: f64, call: f64) -> Vec<BetNode> {
+    let stack = spot.stack.unwrap_or(spot.pot * 4.2);
+    spot.bet_tree
+        .as_deref()
+        .and_then(|text| tree::parse_bet_tree(text).ok())
+        .map(|_| bet_amounts_for_context(spot, board_len, pot, call))
+        .unwrap_or_default()
+        .into_iter()
+        .map(|amount| BetNode {
+            label: format_bet_node(amount, stack),
+            amount,
+            pot,
+        })
+        .collect()
 }
 
 fn bet_sizes_for_board(tree: &tree::BetTree, board_len: usize) -> &[tree::BetSize] {
@@ -3662,7 +3670,11 @@ fn bet_sizes_for_board(tree: &tree::BetTree, board_len: usize) -> &[tree::BetSiz
     }
 }
 
-fn root_nodes(board_len: usize, bet_nodes: &[BetNode]) -> Vec<NativeNode> {
+fn root_nodes(
+    board_len: usize,
+    bet_nodes: &[BetNode],
+    chance_bet_nodes: &[BetNode],
+) -> Vec<NativeNode> {
     let street = street_for_board(board_len);
     let actions = ["fold", "call", "raise"];
     let mut nodes = vec![native_node(
@@ -3714,11 +3726,11 @@ fn root_nodes(board_len: usize, bet_nodes: &[BetNode]) -> Vec<NativeNode> {
             ));
         }
     }
-    nodes.extend(chance_nodes(board_len, &actions));
+    nodes.extend(chance_nodes(board_len, &actions, chance_bet_nodes));
     nodes
 }
 
-fn chance_nodes(board_len: usize, actions: &[&str; 3]) -> Vec<NativeNode> {
+fn chance_nodes(board_len: usize, actions: &[&str; 3], bet_nodes: &[BetNode]) -> Vec<NativeNode> {
     let Some(next_street) = (match board_len {
         3 => Some("turn"),
         4 => Some("river"),
@@ -3728,9 +3740,10 @@ fn chance_nodes(board_len: usize, actions: &[&str; 3]) -> Vec<NativeNode> {
     };
     ["low", "mid", "high"]
         .iter()
-        .map(|bucket| {
-            native_node(
-                format!("root/{next_street}-{bucket}"),
+        .flat_map(|bucket| {
+            let id = format!("root/{next_street}-{bucket}");
+            let mut nodes = vec![native_node(
+                id.clone(),
                 format!(
                     "{} {}",
                     next_street.to_ascii_uppercase(),
@@ -3740,7 +3753,29 @@ fn chance_nodes(board_len: usize, actions: &[&str; 3]) -> Vec<NativeNode> {
                 actions.iter().map(|action| action.to_string()).collect(),
                 None,
                 None,
-            )
+            )];
+            for bet in bet_nodes {
+                let bet_id = format!("{id}/bet-{}", bet.label);
+                nodes.push(native_node(
+                    bet_id.clone(),
+                    format!("BET {}", bet.label),
+                    next_street,
+                    vec!["fold".to_string(), "call".to_string()],
+                    Some(bet.amount),
+                    Some(bet.pot),
+                ));
+                for action in ["fold", "call"] {
+                    nodes.push(native_node(
+                        format!("{bet_id}/{action}"),
+                        action.to_ascii_uppercase(),
+                        next_street,
+                        Vec::new(),
+                        Some(bet.amount),
+                        Some(bet.pot),
+                    ));
+                }
+            }
+            nodes
         })
         .collect()
 }
@@ -4323,9 +4358,10 @@ mod tests {
         );
         assert!(super::has_node_id(&native, "root"));
         assert!(!super::has_node_id(&native, "turn:blank"));
-        let flop_handle =
-            super::solve(r#"{"pot":100.0,"bet":66.0,"stack":250.0,"board":"Ah Kd 7c"}"#)
-                .expect("flop solve starts");
+        let flop_handle = super::solve(
+            r#"{"pot":100.0,"bet":66.0,"stack":250.0,"board":"Ah Kd 7c","betTree":"flop 33,66,all-in; turn 66,125; river 75,all-in"}"#,
+        )
+        .expect("flop solve starts");
         let flop_payload = super::serialize(flop_handle).expect("flop serializes");
         let flop_native: super::NativeSolve =
             serde_json::from_slice(&flop_payload).expect("flop solve json");
@@ -4339,6 +4375,23 @@ mod tests {
                 .strategy_ref,
             "root/turn-low"
         );
+        let turn_low_bet_node = flop_native
+            .nodes
+            .iter()
+            .find(|node| {
+                node.id.starts_with("root/turn-low/bet-")
+                    && !node.id.ends_with("/fold")
+                    && !node.id.ends_with("/call")
+            })
+            .expect("turn low bet node");
+        assert_eq!(turn_low_bet_node.actions, ["fold", "call"]);
+        assert!(super::has_node_id(
+            &flop_native,
+            &format!("{}/call", turn_low_bet_node.id)
+        ));
+        let turn_low_bet_strategy =
+            super::get_strategy(flop_handle, &format!("turn:{}", turn_low_bet_node.id)).unwrap();
+        assert_eq!(turn_low_bet_strategy.len(), flop_native.combos.len() * 2);
         let turn_low_strategy = super::get_strategy(flop_handle, "turn:root/turn-low").unwrap();
         let flop_root_strategy = super::get_strategy(flop_handle, "root").unwrap();
         assert_ne!(&turn_low_strategy[0..3], &flop_root_strategy[0..3]);
