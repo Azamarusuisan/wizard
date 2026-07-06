@@ -472,6 +472,16 @@ function ploFastHandClass(combo: string): string {
   return "unpaired";
 }
 
+function ploFastBlockers(combo: string, samples: readonly PloFastSample[]): { blockedCombos: number; blockerPct: number } {
+  const hero = new Set<string>(combo.match(/../g) ?? []);
+  const total = samples.reduce((sum, sample) => sum + sample.weight, 0);
+  const available = samples
+    .filter((sample) => !(sample.combo.match(/../g) ?? []).some((card) => hero.has(card)))
+    .reduce((sum, sample) => sum + sample.weight, 0);
+  const blockedCombos = total - available;
+  return { blockedCombos, blockerPct: total ? blockedCombos / total : 0 };
+}
+
 function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack: number, rakePct: number, rakeCap: number, potOdds: number, mdf: number, alpha: number, boardLen = 0, betTree = "", precision: "fast" | "balanced" | "precise" = "balanced"): SolveResult {
   const samples = game === "PLO4" ? PLO4_FAST_SAMPLES : PLO5_FAST_SAMPLES;
   const betAmounts = betAmountsForSpot(game, boardLen, pot, bet, stack, betTree);
@@ -481,12 +491,12 @@ function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack
     const { callEv, raiseEv, bestRaiseAmount } = rowActionEvs(eq, pot, bet, betAmounts, rakePct, rakeCap);
     const strategy = cfrStrategyFromActionEvs(0, callEv, raiseEv, iterations);
     const ev = (strategy.call * callEv + strategy.raise * raiseEv) / 100;
+    const blockers = ploFastBlockers(sample.combo, samples);
     return {
       combo: sample.combo,
       weight: sample.weight,
       handClass: ploFastHandClass(sample.combo),
-      blockedCombos: 0,
-      blockerPct: 0,
+      ...blockers,
       ...strategy,
       foldEv: 0,
       callEv: callEv / 100,

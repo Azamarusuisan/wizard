@@ -2215,7 +2215,10 @@ fn solve_plo_fast(
         .iter()
         .map(|sample| sample.weight)
         .collect::<Vec<_>>();
-    let blocker_metrics = vec![0.0; samples.len() * 2];
+    let blocker_metrics = samples
+        .iter()
+        .flat_map(|sample| plo_fast_blocker_metrics(sample.combo, samples))
+        .collect::<Vec<_>>();
     let (rows, best_raise_amounts): (Vec<_>, Vec<_>) = samples
         .iter()
         .map(|sample| {
@@ -2337,6 +2340,29 @@ fn plo_fast_hand_class(combo: &str) -> String {
         (_, _, _, true) => "pair".to_string(),
         _ => "unpaired".to_string(),
     }
+}
+
+fn plo_fast_blocker_metrics(combo: &str, samples: &[br::PloFastSample]) -> [f64; 2] {
+    let hero = plo_fast_combo_cards(combo);
+    let total: f64 = samples.iter().map(|sample| sample.weight).sum();
+    let available: f64 = samples
+        .iter()
+        .filter(|sample| {
+            let villain = plo_fast_combo_cards(sample.combo);
+            !villain.iter().any(|card| hero.contains(card))
+        })
+        .map(|sample| sample.weight)
+        .sum();
+    let blocked = total - available;
+    [blocked, if total > 0.0 { blocked / total } else { 0.0 }]
+}
+
+fn plo_fast_combo_cards(combo: &str) -> Vec<[u8; 2]> {
+    combo
+        .as_bytes()
+        .chunks_exact(2)
+        .map(|card| [card[0], card[1]])
+        .collect()
 }
 
 fn validate_spot(spot: &NativeSpot) -> Result<(), String> {
@@ -4033,6 +4059,8 @@ mod tests {
             .hand_classes
             .iter()
             .any(|class| class.contains("rundown")));
+        assert!(plo4_native.blocker_metrics[0] > 0.0);
+        assert!(plo4_native.blocker_metrics[1] > 0.0);
         assert!(super::has_node_id(&plo4_native, "root/bet-160"));
         assert!(!super::has_node_id(&plo4_native, "root/bet-300"));
         assert!(plo4_native.action_evs[2] > plo4_plain_native.action_evs[2]);
