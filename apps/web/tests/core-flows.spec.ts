@@ -29,6 +29,7 @@ test("solver runs and displays strategy metrics", async ({ page }) => {
   await page.getByLabel("Bet tree").fill("flop 33,66,125,all-in; turn 66,125,all-in; river 66,150,all-in");
   await page.getByRole("button", { name: "33% pot" }).click();
   await expect(page.getByLabel("Bet amount")).toHaveValue("33");
+  await page.getByLabel("Board").fill("2c 3d 4h");
   await page.getByLabel("Game").selectOption("PLO5");
   await expect(page.getByRole("table", { name: "strategy table" })).toContainText("AsAhKsKhQs");
   await expect(page.getByLabel("Hand class")).toContainText("AA double-suited");
@@ -41,6 +42,9 @@ test("solver runs and displays strategy metrics", async ({ page }) => {
   await expect(page.getByText(/combo cap limits range representation/)).toBeVisible();
   await expect(page.getByText(/CFR iterations over the capped representative set/)).toBeVisible();
   await expect(page.getByText(/full external-sampling MCCFR.*still pending/)).toBeVisible();
+  await page.getByLabel("Board").fill("As Kd 7c");
+  await expect(page.getByRole("table", { name: "strategy table" })).not.toContainText("AsAhKsKhQs");
+  await page.getByLabel("Board").fill("2c 3d 4h");
   await page.getByLabel("Game").selectOption("PLO4");
   await expect(page.getByRole("table", { name: "strategy table" })).toContainText("AsAhKsKh");
   await expect(page.getByText("PLO Fast BR")).toBeVisible();
