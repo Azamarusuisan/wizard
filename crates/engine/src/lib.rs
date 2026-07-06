@@ -2728,10 +2728,15 @@ mod tests {
     #[test]
     fn native_solve_reports_plo_fast_br_metrics() {
         super::init(None);
-        let plo4 = super::solve(r#"{"game":"PLO4","pot":100.0,"bet":66.0,"stack":250.0}"#).unwrap();
+        let plo4 = super::solve(
+            r#"{"game":"PLO4","pot":100.0,"bet":20.0,"stack":300.0,"betTree":"flop 50,200,all-in"}"#,
+        )
+        .unwrap();
         let plo4_payload = super::serialize(plo4).unwrap();
         let plo4_native: super::NativeSolve = serde_json::from_slice(&plo4_payload).unwrap();
         assert_eq!(plo4_native.combos[0], "AsAhKsKh");
+        assert!(super::has_node_id(&plo4_native, "root/bet-160"));
+        assert!(!super::has_node_id(&plo4_native, "root/bet-300"));
         assert_eq!(plo4_native.combos.len(), br::PLO4_FAST_SAMPLES.len());
         assert!(plo4_native
             .strategy

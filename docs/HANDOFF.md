@@ -49,6 +49,7 @@
 - Solver payloads now preserve `betTree` through the worker type and Rust native serialized spot so cached/native results retain the original betting-tree text.
 - Solve node serialization now also surfaces configured flop bet-tree concrete sizes as terminal child nodes such as `root/bet-33` and `root/bet-all-in` while the current three-column abstract strategy remains unchanged.
 - Bet-size node serialization now selects the configured sizes for the current board street (`flop` / `turn` / `river`) instead of always using flop sizes. Rust native and TypeScript fallback tests cover turn/river selection.
+- PLO4/PLO5 bet-size nodes use the pot-limit capped concrete sizes; Rust native and TypeScript fallback tests cover a PLO4 cap example (`root/bet-160` instead of an uncapped all-in).
 - Rust native spot validation now parses `flop` / `turn` / `river` bet-tree text with numeric `% pot` sizes and `all-in`, rejecting malformed trees before solve creation.
 - Rust bet-tree utilities now expand `% pot` / `all-in` sizes into concrete bet amounts, applying the spec's 85% stack all-in rounding and de-duplicating equivalent all-ins.
 - Rust bet-tree utilities now also expose pot-limit capped concrete sizes using the existing `pot + 3 * call` formula; tests cover a capped all-in/oversized PLO size.
@@ -93,7 +94,7 @@
 - IndexedDB solve cache keys are canonical JSON SHA-256 via WebCrypto in the web layer.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `default_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~11.66 ns/eval, default river rows ~501.65 us. The evaluator now exceeds the original 50M eval/s target on this machine.
-- Last verified: `bash scripts/verify.sh` exited 0 after making bet-size nodes street-aware. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
+- Last verified: `bash scripts/verify.sh` exited 0 after covering PLO pot-limit capped bet-size nodes. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
 - Git remote `origin` is set to `https://github.com/Azamarusuisan/wizard.git`; do not push until §6 is actually complete.
 
 ## Important Caveat
