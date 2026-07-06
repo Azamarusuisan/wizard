@@ -41,9 +41,10 @@ describe("IndexedDB cache", () => {
 
   it("persists training results", async () => {
     await clearAllData();
-    await saveTrainingResult({ spot: "BTN vs BB", hand: "AcAd", action: "raise", evLoss: 0, grade: "Perfect" });
+    await saveTrainingResult({ spot: "BTN vs BB", nodeId: "root", street: "preflop", hand: "AcAd", action: "raise", evLoss: 0, grade: "Perfect" });
     const [result] = await listTrainingResults();
     expect(result?.hand).toBe("AcAd");
+    expect(result?.nodeId).toBe("root");
     expect((await cacheStats()).training).toBe(1);
   });
 });

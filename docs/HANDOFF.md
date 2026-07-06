@@ -28,6 +28,7 @@
 - Solve rows now carry fold/call/raise action EVs through native WASM, TS fallback, and IndexedDB cache.
 - Strategy table now displays fold/call/raise action EV columns alongside aggregate EV/EQR.
 - Trainer now scores the selected action from solve-row action EVs, persists attempts to IndexedDB training history, and displays EV loss, grade, GTO raise frequency, attempts, average loss, and last action. Keyboard shortcuts are wired: `F`/`X` fold, `C` call, `B`/`R` bet/raise, with Playwright coverage.
+- Trainer history now stores `nodeId` and `street` with each attempt so later multi-node drills can reuse the same records.
 - Solver worker/client/UI now expose a cancel path wired to `EngineAPI.cancel`.
 - Solver Studio guards against duplicate solve clicks while a run is active; Playwright waits for the cancel button lifecycle before asserting same-spot cache hits.
 - Solver spot payload now carries optional effective stack, and native/TS fallback/UI compute SPR as `stack / pot` instead of using a fixed display value.
@@ -80,7 +81,7 @@
 - IndexedDB solve cache keys are canonical JSON SHA-256 via WebCrypto in the web layer.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `default_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~11.66 ns/eval, default river rows ~501.65 us. The evaluator now exceeds the original 50M eval/s target on this machine.
-- Last verified: `bash scripts/verify.sh` exited 0 after deriving root node street from board length. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
+- Last verified: `bash scripts/verify.sh` exited 0 after storing Trainer node metadata. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
 - Git remote `origin` is set to `https://github.com/Azamarusuisan/wizard.git`; do not push until §6 is actually complete.
 
 ## Important Caveat

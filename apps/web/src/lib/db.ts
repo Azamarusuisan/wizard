@@ -8,7 +8,7 @@ const STORES = ["solves", "ranges", "training"] as const;
 type StoreName = (typeof STORES)[number];
 export type CacheStats = Record<StoreName, number>;
 export type SolveSummary = { key: string; createdAt: number; spot: unknown };
-export type TrainingResult = { key: string; createdAt: number; spot: string; hand: string; action: string; evLoss: number; grade: string };
+export type TrainingResult = { key: string; createdAt: number; spot: string; nodeId: string; street: string; hand: string; action: string; evLoss: number; grade: string };
 type SolveRecord = {
   key: string;
   meta: { version: number; createdAt: number; spot: unknown };

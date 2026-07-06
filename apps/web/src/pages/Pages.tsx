@@ -246,6 +246,7 @@ export function EquityLab() {
 
 export function Trainer() {
   const spot = solveRiverSpot(100, 66);
+  const node = spot.nodes[0]!;
   const row = spot.rows[0]!;
   const bestEv = Math.max(row.foldEv, row.callEv, row.raiseEv);
   const [choice, setChoice] = useState<"fold" | "call" | "raise" | null>(null);
@@ -255,7 +256,7 @@ export function Trainer() {
     const evLoss = bestEv - ev;
     const nextGrade = gradeForLoss(evLoss);
     setChoice(action);
-    void saveTrainingResult({ spot: "BTN vs BB SRP Ah Kd 7c", hand: row.combo, action, evLoss, grade: nextGrade })
+    void saveTrainingResult({ spot: "BTN vs BB SRP Ah Kd 7c", nodeId: node.id, street: node.street, hand: row.combo, action, evLoss, grade: nextGrade })
       .then(() => listTrainingResults())
       .then(setHistory);
   };
@@ -272,7 +273,7 @@ export function Trainer() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [bestEv, row.callEv, row.combo, row.foldEv, row.raiseEv]);
+  }, [bestEv, node.id, node.street, row.callEv, row.combo, row.foldEv, row.raiseEv]);
   const chosenEv = choice === "fold" ? row.foldEv : choice === "call" ? row.callEv : choice === "raise" ? row.raiseEv : null;
   const loss = chosenEv === null ? null : bestEv - chosenEv;
   const grade = loss === null ? "Choose an action" : gradeForLoss(loss);
@@ -293,6 +294,7 @@ export function Trainer() {
           <Metric label="Attempts" value={history.length} />
           <Metric label="Average loss" value={avgLoss === null ? "-" : `${avgLoss.toFixed(3)}bb`} />
           <Metric label="Last action" value={history[0]?.action ?? "-"} />
+          <Metric label="Node" value={history[0]?.nodeId ?? node.id} />
         </div>
       </div>
     </div>
