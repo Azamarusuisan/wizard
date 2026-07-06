@@ -44,10 +44,11 @@ type NativeSolve = {
   weights?: number[];
   blocker_metrics?: number[];
 };
+type LocalSpot = { game?: "NLH" | "PLO4" | "PLO5"; pot: number; bet: number; stack?: number; board?: string; rakePct?: number; rakeCap?: number; betTree?: string; precision?: "fast" | "balanced" | "precise"; heroRange?: string; villainRange?: string };
 
 class LocalEngine implements EngineAPI {
   private nextHandle = 1;
-  private solves = new Map<EngineHandle, SolveResult>();
+  private solves = new Map<EngineHandle, { result: SolveResult; spot: LocalSpot }>();
 
   async init(_threads?: number): Promise<void> {
     await Promise.resolve();
@@ -58,9 +59,9 @@ class LocalEngine implements EngineAPI {
   }
 
   async solve(spotJson: string): Promise<EngineHandle> {
-    const spot = JSON.parse(spotJson) as { game?: "NLH" | "PLO4" | "PLO5"; pot: number; bet: number; stack?: number; board?: string; rakePct?: number; rakeCap?: number; betTree?: string; precision?: "fast" | "balanced" | "precise"; heroRange?: string; villainRange?: string };
+    const spot = JSON.parse(spotJson) as LocalSpot;
     const handle = this.nextHandle++;
-    this.solves.set(handle, solveRiverSpot(spot.pot, spot.bet, spot.stack, spot.board, spot.rakePct, spot.rakeCap, spot.game, spot.betTree, spot.precision, spot.heroRange, spot.villainRange));
+    this.solves.set(handle, { result: solveRiverSpot(spot.pot, spot.bet, spot.stack, spot.board, spot.rakePct, spot.rakeCap, spot.game, spot.betTree, spot.precision, spot.heroRange, spot.villainRange), spot });
     return handle;
   }
 
@@ -71,7 +72,7 @@ class LocalEngine implements EngineAPI {
   }
 
   async getStrategy(handle: EngineHandle, nodeId = "root"): Promise<StrategyTable> {
-    const result = this.mustGet(handle);
+    const { result, spot } = this.mustGetSolve(handle);
     const node = nodeForId(result, nodeId);
     if (!node.actions.length) return { combos: [], actions: new Float64Array() };
     if (node.amount !== undefined && node.pot !== undefined) {
@@ -80,7 +81,7 @@ class LocalEngine implements EngineAPI {
     }
     if (node.id === "root/raise-sizes") return {
       combos: result.rows.map((r) => r.combo),
-      actions: Float64Array.from(result.rows.flatMap((row) => raiseSizeActions(row, node.actions)))
+      actions: Float64Array.from(result.rows.flatMap((row) => raiseSizeActions(row, node.actions, spot)))
     };
     return {
       combos: result.rows.map((r: SolverRow) => r.combo),
@@ -116,9 +117,13 @@ class LocalEngine implements EngineAPI {
   }
 
   private mustGet(handle: EngineHandle): SolveResult {
-    const result = this.solves.get(handle);
-    if (!result) throw new Error(`unknown solve handle ${handle}`);
-    return result;
+    return this.mustGetSolve(handle).result;
+  }
+
+  private mustGetSolve(handle: EngineHandle): { result: SolveResult; spot: LocalSpot } {
+    const solve = this.solves.get(handle);
+    if (!solve) throw new Error(`unknown solve handle ${handle}`);
+    return solve;
   }
 }
 
@@ -132,14 +137,42 @@ function betResponseStrategy(pot: number, amount: number): [number, number] {
   return [amount / (pot + amount), pot / (pot + amount)];
 }
 
-function formatBetNode(amount: number): string {
-  return Number.isInteger(amount) ? String(amount) : amount.toFixed(2);
+function raiseSizeActions(row: SolverRow, actions: string[], spot: LocalSpot): number[] {
+  const stack = spot.stack ?? spot.pot * 4.2;
+  const evs = actions.map((action) => actionEvs(row.equity, spot.pot, raiseActionAmount(action, stack), spot.rakePct ?? 0, spot.rakeCap ?? 0).raiseEv);
+  const mix = cfrAverageStrategy(evs, 256);
+  return mix.map((frequency) => frequency * row.raise);
 }
 
-function raiseSizeActions(row: SolverRow, actions: string[]): number[] {
-  const exact = formatBetNode(row.bestRaiseAmount);
-  const target = actions.includes(exact) ? exact : actions.includes("all-in") ? "all-in" : exact;
-  return actions.map((action) => action === target ? row.raise : 0);
+function raiseActionAmount(action: string, stack: number): number {
+  return action === "all-in" ? stack : Number(action);
+}
+
+function cfrAverageStrategy(utils: number[], iterations: number): number[] {
+  const regrets = Array.from({ length: utils.length }, () => 0);
+  const strategySum = Array.from({ length: utils.length }, () => 0);
+  for (let iter = 0; iter < iterations; iter++) {
+    const strategy = regretMatching(regrets);
+    const nodeEv = strategy.reduce((sum, value, i) => sum + value * (utils[i] ?? 0), 0);
+    for (let i = 0; i < utils.length; i++) {
+      regrets[i] += (utils[i] ?? 0) - nodeEv;
+      strategySum[i] += strategy[i] ?? 0;
+    }
+  }
+  const total = strategySum.reduce((sum, value) => sum + value, 0);
+  return total > 0 ? strategySum.map((value) => value / total) : strategySum;
+}
+
+function regretMatching(regrets: number[]): number[] {
+  const positives = regrets.map((value) => Math.max(0, value));
+  const total = positives.reduce((sum, value) => sum + value, 0);
+  return total > 0 ? positives.map((value) => value / total) : positives.map(() => 1 / positives.length);
+}
+
+function actionEvs(equityValue: number, pot: number, bet: number, rakePct: number, rakeCap: number): { raiseEv: number } {
+  const winPot = pot + bet - Math.min((pot + bet) * (rakePct / 100), rakeCap);
+  const callEv = equityValue * winPot - (1 - equityValue) * bet;
+  return { raiseEv: callEv + equityValue * bet * 0.15 };
 }
 
 function nodeActionKey(nodeId: string): "foldEv" | "callEv" | "raiseEv" | null {

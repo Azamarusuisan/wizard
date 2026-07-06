@@ -2864,17 +2864,81 @@ pub fn get_strategy(handle: u32, node_id: &str) -> Result<Vec<f64>, JsValue> {
 
 fn raise_size_strategy(solve: &NativeSolve, node: &NativeNode) -> Vec<f64> {
     let stack = solve.spot.stack.unwrap_or(solve.spot.pot * 4.2);
+    let rake_pct = solve.spot.rake_pct.unwrap_or(0.0);
+    let rake_cap = solve.spot.rake_cap.unwrap_or(0.0);
     solve
-        .best_raise_amounts
-        .iter()
+        .metrics
+        .chunks_exact(3)
         .zip(solve.strategy.chunks_exact(3))
-        .flat_map(|(amount, strategy)| {
-            let label = format_bet_node(*amount, stack);
-            node.actions
-                .iter()
-                .map(move |action| if *action == label { strategy[2] } else { 0.0 })
+        .flat_map(|(metric, strategy)| {
+            let conditional = raise_size_mix(
+                metric[1],
+                solve.spot.pot,
+                stack,
+                rake_pct,
+                rake_cap,
+                &node.actions,
+            );
+            conditional
+                .into_iter()
+                .map(move |frequency| frequency * strategy[2])
         })
         .collect()
+}
+
+fn raise_size_mix(
+    equity: f64,
+    pot: f64,
+    stack: f64,
+    rake_pct: f64,
+    rake_cap: f64,
+    actions: &[String],
+) -> Vec<f64> {
+    let evs = actions
+        .iter()
+        .map(|action| raise_action_amount(action, stack))
+        .map(|amount| br::action_evs(equity, pot, amount, rake_pct, rake_cap).2)
+        .collect::<Vec<_>>();
+    let mut regrets = vec![0.0; evs.len()];
+    let mut strategy_sum = vec![0.0; evs.len()];
+    for _ in 0..256 {
+        let strategy = regret_matching_vec(&regrets);
+        let node_ev = strategy.iter().zip(&evs).map(|(s, ev)| s * ev).sum::<f64>();
+        for i in 0..evs.len() {
+            regrets[i] += evs[i] - node_ev;
+            strategy_sum[i] += strategy[i];
+        }
+    }
+    let total: f64 = strategy_sum.iter().sum();
+    if total > 0.0 {
+        strategy_sum
+            .into_iter()
+            .map(|value| value / total)
+            .collect()
+    } else {
+        vec![1.0 / actions.len().max(1) as f64; actions.len()]
+    }
+}
+
+fn regret_matching_vec(regrets: &[f64]) -> Vec<f64> {
+    let positives = regrets
+        .iter()
+        .map(|value| value.max(0.0))
+        .collect::<Vec<_>>();
+    let total: f64 = positives.iter().sum();
+    if total > 0.0 {
+        positives.into_iter().map(|value| value / total).collect()
+    } else {
+        vec![1.0 / regrets.len().max(1) as f64; regrets.len()]
+    }
+}
+
+fn raise_action_amount(action: &str, stack: f64) -> f64 {
+    if action == "all-in" {
+        stack
+    } else {
+        action.parse::<f64>().unwrap_or(0.0)
+    }
 }
 
 #[wasm_bindgen]
@@ -3811,9 +3875,20 @@ mod tests {
             raise_size_strategy.len(),
             native.combos.len() * raise_size_node.actions.len()
         );
-        assert_eq!(
-            raise_size_strategy[raise_size_node.actions.len() - 1],
-            native.strategy[2]
+        assert!(
+            (raise_size_strategy[..raise_size_node.actions.len()]
+                .iter()
+                .sum::<f64>()
+                - native.strategy[2])
+                .abs()
+                < 1e-12
+        );
+        assert!(
+            raise_size_strategy[..raise_size_node.actions.len()]
+                .iter()
+                .filter(|frequency| **frequency > 0.0)
+                .count()
+                > 1
         );
         let bet_metrics = super::get_hand_metrics(handle, "root/bet-33").unwrap();
         assert_eq!(bet_metrics.len(), native.combos.len() * 3);

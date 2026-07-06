@@ -229,7 +229,7 @@ export function SolverStudio() {
         <h2 className="title">Strategy</h2>
         {selectedNode ? <p className="muted">Node: <span className="num">{selectedNode.id}</span>{selectedInfoSet ? <> / Info set: <span className="num">{selectedInfoSet.key}</span> / Tables: <span className="num">{selectedInfoSet.strategyRef}</span> / <span className="num">{selectedInfoSet.metricRef}</span></> : null}</p> : null}
         {shown ? <label className="field">Hand class<select value={handClassFilter} onChange={(event) => setHandClassFilter(event.target.value)}><option value="all">All</option>{handClasses.map((name) => <option key={name} value={name}>{name}</option>)}</select></label> : null}
-        {shown ? <StrategyTable rows={shownRows} sizeActions={selectedNode?.id === "root/raise-sizes" ? selectedNode.actions : undefined} /> : <p className="muted">Fix spot inputs to preview strategy.</p>}
+        {shown ? <StrategyTable rows={shownRows} sizeActions={selectedNode?.id === "root/raise-sizes" ? selectedNode.actions : undefined} raiseSizeSpot={{ pot, stack, rakePct, rakeCap }} /> : <p className="muted">Fix spot inputs to preview strategy.</p>}
       </section>
       <section className="grid">
         {shown ? <>
