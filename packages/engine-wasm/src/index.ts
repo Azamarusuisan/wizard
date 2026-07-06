@@ -326,7 +326,7 @@ function parseBetSizes(text: string): BetSize[] {
 
 export type SolverRow = { combo: string; weight: number; handClass: string; blockedCombos: number; blockerPct: number; fold: number; call: number; raise: number; foldEv: number; callEv: number; raiseEv: number; equity: number; ev: number; eqr: number };
 export type SolveNode = { id: string; label: string; street: string; actions: string[]; infoSet?: string; amount?: number; pot?: number };
-export type SolveInfoSet = { key: string; nodeId: string; street: string; actions: string[] };
+export type SolveInfoSet = { key: string; nodeId: string; street: string; actions: string[]; strategyRef: string; metricRef: string };
 export type SolveResult = { nodes: SolveNode[]; informationSets: SolveInfoSet[]; rows: SolverRow[]; exploitability: { iteration: number; value: number }[]; metrics: { spr: number; mdf: number; alpha: number; potOdds: number; brGapPctPot?: number; ploFastExploitability?: number; ploSampleCount?: number; ploWeightCoverage?: number } };
 export const DEFAULT_RIVER_SPECS = [
   ["AA", 0.82],
@@ -505,7 +505,14 @@ function withInfoSet<T extends SolveNode>(node: T): T {
 }
 
 function infoSetsFromNodes(nodes: SolveNode[]): SolveInfoSet[] {
-  return nodes.map((node) => ({ key: node.infoSet ?? `${node.street}:${node.id}`, nodeId: node.id, street: node.street, actions: node.actions }));
+  return nodes.map((node) => ({ key: node.infoSet ?? `${node.street}:${node.id}`, nodeId: node.id, street: node.street, actions: node.actions, ...infoSetRefs(node) }));
+}
+
+function infoSetRefs(node: SolveNode): Pick<SolveInfoSet, "strategyRef" | "metricRef"> {
+  if (node.amount !== undefined) return { strategyRef: "bet-response", metricRef: "bet-response" };
+  if (node.id === "root") return { strategyRef: "root", metricRef: "root" };
+  if (node.id.startsWith("root/")) return { strategyRef: "terminal", metricRef: `action:${node.id.slice("root/".length)}` };
+  return { strategyRef: node.id, metricRef: node.id };
 }
 
 function betAmountsForSpot(game: Game, boardLen: number, pot: number, call: number, stack: number, betTree: string): number[] {

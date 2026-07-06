@@ -286,5 +286,12 @@ function nativeToResult(native: NativeSolve): SolveResult {
 export const engine: EngineAPI = new WasmPreferredEngine();
 
 function infoSetsFromNodes(nodes: SolveNode[]): SolveInfoSet[] {
-  return nodes.map((node) => ({ key: node.infoSet ?? `${node.street}:${node.id}`, nodeId: node.id, street: node.street, actions: node.actions }));
+  return nodes.map((node) => ({ key: node.infoSet ?? `${node.street}:${node.id}`, nodeId: node.id, street: node.street, actions: node.actions, ...infoSetRefs(node) }));
+}
+
+function infoSetRefs(node: SolveNode): Pick<SolveInfoSet, "strategyRef" | "metricRef"> {
+  if (node.amount !== undefined) return { strategyRef: "bet-response", metricRef: "bet-response" };
+  if (node.id === "root") return { strategyRef: "root", metricRef: "root" };
+  if (node.id.startsWith("root/")) return { strategyRef: "terminal", metricRef: `action:${node.id.slice("root/".length)}` };
+  return { strategyRef: node.id, metricRef: node.id };
 }

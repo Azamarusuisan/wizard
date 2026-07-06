@@ -78,7 +78,7 @@ Solve cache records:
   "meta": { "version": 1, "createdAt": 0, "spot": {} },
   "blob": {
     "nodes": [{"id": "root", "infoSet": "flop:root", "street": "flop", "actions": ["fold", "call", "raise"]}],
-    "informationSets": [{"key": "flop:root", "nodeId": "root", "street": "flop", "actions": ["fold", "call", "raise"]}],
+    "informationSets": [{"key": "flop:root", "nodeId": "root", "street": "flop", "actions": ["fold", "call", "raise"], "strategyRef": "root", "metricRef": "root"}],
     "combos": ["AA"],
     "handClasses": ["pair"],
     "weights": "Float32Array",

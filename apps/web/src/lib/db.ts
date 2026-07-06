@@ -207,7 +207,14 @@ function unpackSolve(blob: SolveRecord["blob"]): SolveResult {
 }
 
 function infoSetsFromNodes(nodes: SolveResult["nodes"]): SolveResult["informationSets"] {
-  return nodes.map((node) => ({ key: node.infoSet ?? `${node.street}:${node.id}`, nodeId: node.id, street: node.street, actions: node.actions }));
+  return nodes.map((node) => ({ key: node.infoSet ?? `${node.street}:${node.id}`, nodeId: node.id, street: node.street, actions: node.actions, ...infoSetRefs(node) }));
+}
+
+function infoSetRefs(node: SolveResult["nodes"][number]): Pick<SolveResult["informationSets"][number], "strategyRef" | "metricRef"> {
+  if (node.amount !== undefined) return { strategyRef: "bet-response", metricRef: "bet-response" };
+  if (node.id === "root") return { strategyRef: "root", metricRef: "root" };
+  if (node.id.startsWith("root/")) return { strategyRef: "terminal", metricRef: `action:${node.id.slice("root/".length)}` };
+  return { strategyRef: node.id, metricRef: node.id };
 }
 
 function reqResult<T>(req: IDBRequest<T>): Promise<T> {

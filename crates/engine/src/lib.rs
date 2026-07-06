@@ -1859,6 +1859,10 @@ struct NativeInfoSet {
     node_id: String,
     street: String,
     actions: Vec<String>,
+    #[serde(rename = "strategyRef")]
+    strategy_ref: String,
+    #[serde(rename = "metricRef")]
+    metric_ref: String,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -2915,13 +2919,31 @@ fn native_node(
 fn information_sets_from_nodes(nodes: &[NativeNode]) -> Vec<NativeInfoSet> {
     nodes
         .iter()
-        .map(|node| NativeInfoSet {
-            key: node.info_set.clone(),
-            node_id: node.id.clone(),
-            street: node.street.clone(),
-            actions: node.actions.clone(),
+        .map(|node| {
+            let (strategy_ref, metric_ref) = info_set_refs(node);
+            NativeInfoSet {
+                key: node.info_set.clone(),
+                node_id: node.id.clone(),
+                street: node.street.clone(),
+                actions: node.actions.clone(),
+                strategy_ref,
+                metric_ref,
+            }
         })
         .collect()
+}
+
+fn info_set_refs(node: &NativeNode) -> (String, String) {
+    if node.amount.is_some() {
+        return ("bet-response".to_string(), "bet-response".to_string());
+    }
+    if node.id == "root" {
+        return ("root".to_string(), "root".to_string());
+    }
+    if let Some(action) = node.id.strip_prefix("root/") {
+        return ("terminal".to_string(), format!("action:{action}"));
+    }
+    (node.id.clone(), node.id.clone())
 }
 
 fn format_bet_node(amount: f64, stack: f64) -> String {
@@ -3358,6 +3380,16 @@ mod tests {
         assert_eq!(native.nodes[0].info_set, "preflop:root");
         assert_eq!(native.information_sets[0].key, "preflop:root");
         assert_eq!(native.information_sets[0].node_id, "root");
+        assert_eq!(native.information_sets[0].strategy_ref, "root");
+        assert_eq!(
+            native
+                .information_sets
+                .iter()
+                .find(|info_set| info_set.node_id == "root/call")
+                .unwrap()
+                .metric_ref,
+            "action:call"
+        );
         assert!(super::has_node_id(&native, "root/call"));
         assert!(super::has_node_id(&native, "root/bet-33"));
         assert_eq!(

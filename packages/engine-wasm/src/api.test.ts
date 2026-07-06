@@ -13,6 +13,7 @@ test("EngineAPI prefers generated wasm package when present", async () => {
   assert.equal(result.nodes[0]?.id, "root");
   assert.equal(result.nodes[0]?.infoSet, "preflop:root");
   assert.equal(result.informationSets[0]?.key, "preflop:root");
+  assert.equal(result.informationSets[0]?.strategyRef, "root");
   assert.ok(result.nodes.some((node) => node.id === "root/call"));
   assert.equal(result.rows[0]?.combo, "AcAd");
   assert.ok(result.rows[0]!.raiseEv >= result.rows[0]!.callEv);

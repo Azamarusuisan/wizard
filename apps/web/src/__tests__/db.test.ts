@@ -18,6 +18,7 @@ describe("IndexedDB cache", () => {
     const restored = await loadSolve({ pot: 100, bet: 66 });
     expect(restored?.nodes[0]?.id).toBe("root");
     expect(restored?.informationSets[0]?.key).toBe("preflop:root");
+    expect(restored?.informationSets[0]?.strategyRef).toBe("root");
     expect(restored?.nodes.some((node) => node.id === "root/call")).toBe(true);
     expect(restored?.rows[0]?.combo).toBe(result.rows[0]?.combo);
     expect(restored?.rows[0]?.fold).toBeCloseTo(result.rows[0]!.fold, 4);
