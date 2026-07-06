@@ -222,6 +222,11 @@ test("TS solve fallback reports PLO Fast BR metrics", () => {
   assert.equal(plo4.metrics.ploComboCap, 20000);
   assert.equal(plo4.metrics.ploEquitySamples, 512);
   assert.ok(plo4.rows.every((row) => row.fold + row.call + row.raise === 1));
+  const plo4Aces = solveRiverSpot(100, 20, 300, "", 0, 0, "PLO4", "flop 50,200,all-in", "balanced", "AA**:ds@50");
+  assert.deepEqual(plo4Aces.rows.map((row) => row.combo), ["AsAhKsKh"]);
+  assert.equal(plo4Aces.metrics.ploSampleCount, 1);
+  assert.ok(Math.abs(plo4Aces.metrics.ploWeightCoverage! - 0.06) < 1e-12);
+  assert.throws(() => solveRiverSpot(100, 20, 300, "", 0, 0, "PLO4", "", "balanced", "AA**:bad@50"), /suitedness/);
   const plo5 = solveRiverSpot(100, 66, 250, "", 0, 0, "PLO5");
   assert.equal(plo5.rows[0]!.combo, "AsAhKsKhQs");
   assert.ok((plo5.metrics.brGapPctPot ?? -1) >= 0);

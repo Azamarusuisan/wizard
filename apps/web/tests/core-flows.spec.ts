@@ -47,7 +47,10 @@ test("solver runs and displays strategy metrics", async ({ page }) => {
   await expect(page.getByRole("table", { name: "strategy table" })).not.toContainText("AsAhKsKhQs");
   await boardInput.fill("2c 3d 4h");
   await page.getByLabel("Game").selectOption("PLO4");
+  await page.getByLabel("Hero range").fill("AA**:ds@50");
   await expect(page.getByRole("table", { name: "strategy table" })).toContainText("AsAhKsKh");
+  await expect(page.getByRole("table", { name: "strategy table" })).not.toContainText("AsKsQhJh");
+  await expect(page.locator('[aria-label^="PLO sample set:"]')).toContainText("1 reps after board / 6%");
   await expect(page.getByText("PLO Fast BR")).toBeVisible();
   await page.getByLabel("Game").selectOption("NLH");
   await page.getByLabel("Hero position").selectOption("CO");

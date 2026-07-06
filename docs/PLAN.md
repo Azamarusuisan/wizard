@@ -72,6 +72,7 @@ Remaining:
 Evidence:
 - PLO evaluator and PLO4/PLO5 Fast capped representative CFR/BR reporting exist.
 - PLO4 AAxx double-suited-over-rainbow monotonicity is tested.
+- PLO Fast now applies the Solver Studio Hero range PLO syntax as a category filter and weight multiplier over the capped representative sample set.
 
 Remaining:
 - Replace capped representative Fast reporting with external-sampling MCCFR, stratified range caps, PLO bucket tables, and full UI approximation disclosure.

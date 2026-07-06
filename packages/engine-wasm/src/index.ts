@@ -348,7 +348,7 @@ export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2, boar
   const potOdds = bet / (pot + 2 * bet);
   const mdf = pot / (pot + bet);
   const alpha = bet / (pot + bet);
-  if (game === "PLO4" || game === "PLO5") return solvePloFastSpot(game, pot, bet, stack, rakePct, rakeCap, potOdds, mdf, alpha, board, betTree, precision);
+  if (game === "PLO4" || game === "PLO5") return solvePloFastSpot(game, pot, bet, stack, rakePct, rakeCap, potOdds, mdf, alpha, board, betTree, precision, heroRange);
   const betAmounts = betAmountsForSpot(game, board.length, pot, bet, stack, betTree);
   const iterations = precisionIterations(precision);
   const combos = nlhRiverCombosFromRange(heroRange, board);
@@ -482,9 +482,9 @@ function ploFastBlockers(combo: string, samples: readonly PloFastSample[]): { bl
   return { blockedCombos, blockerPct: total ? blockedCombos / total : 0 };
 }
 
-function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack: number, rakePct: number, rakeCap: number, potOdds: number, mdf: number, alpha: number, board: Card[] = [], betTree = "", precision: "fast" | "balanced" | "precise" = "balanced"): SolveResult {
+function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack: number, rakePct: number, rakeCap: number, potOdds: number, mdf: number, alpha: number, board: Card[] = [], betTree = "", precision: "fast" | "balanced" | "precise" = "balanced", heroRange = ""): SolveResult {
   const boardSet = new Set(board);
-  const samples = (game === "PLO4" ? PLO4_FAST_SAMPLES : PLO5_FAST_SAMPLES).filter((sample) => !parseComboCards(sample.combo).some((card) => boardSet.has(card)));
+  const samples = filterPloSamples(game === "PLO4" ? PLO4_FAST_SAMPLES : PLO5_FAST_SAMPLES, heroRange).filter((sample) => !parseComboCards(sample.combo).some((card) => boardSet.has(card)));
   if (!samples.length) throw new Error("board blocks every PLO representative");
   const betAmounts = betAmountsForSpot(game, board.length, pot, bet, stack, betTree);
   const iterations = precisionIterations(precision);
@@ -518,6 +518,40 @@ function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack
     exploitability: riverStrategyProgressFromRows(rows, pot, 36).map((value, i) => ({ iteration: (i + 1) * 50, value })),
     metrics: { spr: stack / pot, mdf, alpha, potOdds, brGapPctPot, ploFastExploitability: brGapPctPot, ploSampleCount: samples.length, ploWeightCoverage: samples.reduce((sum, sample) => sum + sample.weight, 0), ploIterations: iterations, ploComboCap: PLO_COMBO_CAP[game], ploEquitySamples: PLO_FAST_EQUITY_SAMPLES }
   };
+}
+
+function filterPloSamples(samples: readonly PloFastSample[], rangeText = ""): PloFastSample[] {
+  const terms = rangeText.trim() ? parsePloRange(rangeText) : [];
+  if (!terms.length) return samples.map((sample) => ({ ...sample }));
+  const filtered = samples.flatMap((sample) => {
+    const rangeWeight = Math.max(0, ...terms.filter((term) => ploSampleMatches(sample.combo, term.label)).map((term) => term.weight));
+    return rangeWeight > 0 ? [{ ...sample, weight: sample.weight * rangeWeight }] : [];
+  });
+  if (!filtered.length) throw new Error("PLO range leaves no representative samples");
+  return filtered;
+}
+
+function ploSampleMatches(combo: string, label: string): boolean {
+  const [pattern, suitedness] = label.split(":");
+  const cards = combo.match(/../g) ?? [];
+  const ranks = cards.map((card) => card[0]!);
+  const rankCounts = new Map<string, number>();
+  for (const rank of ranks) rankCounts.set(rank, (rankCounts.get(rank) ?? 0) + 1);
+  for (const rank of pattern ?? "") {
+    if (rank === "*") continue;
+    const count = rankCounts.get(rank) ?? 0;
+    if (count <= 0) return false;
+    rankCounts.set(rank, count - 1);
+  }
+  return !suitedness || ploSuitedness(combo) === suitedness;
+}
+
+function ploSuitedness(combo: string): "ds" | "ss" | "r" {
+  const suits = (combo.match(/../g) ?? []).map((card) => card[1]!);
+  const pairedSuits = new Set(suits.filter((suit) => suits.filter((candidate) => candidate === suit).length >= 2)).size;
+  if (pairedSuits >= 2) return "ds";
+  if (pairedSuits === 1) return "ss";
+  return "r";
 }
 
 function rootNodes(boardLen: number, pot: number, bet: number, stack: number, game: Game, betTree = ""): SolveNode[] {

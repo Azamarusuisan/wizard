@@ -11,8 +11,8 @@ import { useAppStore } from "../state/store";
 
 const ranks = "AKQJT98765432";
 const DEFAULT_BET_TREE = "flop 33,66,125,all-in; turn 66,125,all-in; river 66,150,all-in";
-const DEFAULT_HERO_RANGE = "AA, KQs, A5s:0.5";
-const DEFAULT_VILLAIN_RANGE = "AA, KQs, QQ, JTs";
+const DEFAULT_HERO_RANGE = "";
+const DEFAULT_VILLAIN_RANGE = "";
 const POSITIONS = ["UTG", "HJ", "CO", "BTN", "SB", "BB"] as const;
 
 export function Dashboard() {

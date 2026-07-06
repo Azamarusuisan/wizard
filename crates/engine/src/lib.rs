@@ -2219,9 +2219,9 @@ fn solve_plo_fast(
     } else {
         &br::PLO4_FAST_SAMPLES
     };
-    let samples = sample_pool
-        .iter()
-        .copied()
+    let samples = filter_plo_samples(sample_pool, spot.hero_range.as_deref())
+        .map_err(|err| JsValue::from_str(&err))?
+        .into_iter()
         .filter(|sample| !sample.conflicts_board(&board))
         .collect::<Vec<_>>();
     if samples.is_empty() {
@@ -2370,6 +2370,120 @@ fn plo_fast_hand_class(combo: &str) -> String {
     }
 }
 
+#[derive(Clone)]
+struct PloRangeTerm {
+    pattern: String,
+    suitedness: Option<String>,
+    weight: f64,
+}
+
+fn filter_plo_samples(
+    samples: &[br::PloFastSample],
+    range_text: Option<&str>,
+) -> Result<Vec<br::PloFastSample>, String> {
+    let Some(range_text) = range_text.filter(|value| !value.trim().is_empty()) else {
+        return Ok(samples.to_vec());
+    };
+    let terms = parse_plo_range_terms(range_text)?;
+    let filtered = samples
+        .iter()
+        .filter_map(|sample| {
+            let weight = terms
+                .iter()
+                .filter(|term| plo_sample_matches(sample.combo, term))
+                .map(|term| term.weight)
+                .fold(0.0, f64::max);
+            (weight > 0.0).then_some(br::PloFastSample {
+                combo: sample.combo,
+                weight: sample.weight * weight,
+                seed: sample.seed,
+            })
+        })
+        .collect::<Vec<_>>();
+    if filtered.is_empty() {
+        Err("PLO range leaves no representative samples".to_string())
+    } else {
+        Ok(filtered)
+    }
+}
+
+fn parse_plo_range_terms(text: &str) -> Result<Vec<PloRangeTerm>, String> {
+    text.split(',')
+        .map(str::trim)
+        .filter(|term| !term.is_empty())
+        .map(|term| {
+            let (left, pct) = term.split_once('@').unwrap_or((term, "100"));
+            let weight = pct
+                .parse::<f64>()
+                .map_err(|_| format!("bad PLO weight: {term}"))?
+                / 100.0;
+            if !(0.0..=1.0).contains(&weight) {
+                return Err(format!("bad PLO weight: {term}"));
+            }
+            let (pattern, suitedness) = left.split_once(':').unwrap_or((left, ""));
+            if pattern.len() < 4
+                || pattern.len() > 5
+                || !pattern
+                    .bytes()
+                    .all(|rank| b"23456789TJQKA*".contains(&rank.to_ascii_uppercase()))
+            {
+                return Err(format!("bad PLO pattern: {term}"));
+            }
+            let suitedness = if suitedness.is_empty() {
+                None
+            } else if matches!(suitedness, "ds" | "ss" | "r") {
+                Some(suitedness.to_string())
+            } else {
+                return Err(format!("bad PLO suitedness: {term}"));
+            };
+            Ok(PloRangeTerm {
+                pattern: pattern.to_ascii_uppercase(),
+                suitedness,
+                weight,
+            })
+        })
+        .collect()
+}
+
+fn plo_sample_matches(combo: &str, term: &PloRangeTerm) -> bool {
+    let mut ranks = combo
+        .as_bytes()
+        .chunks_exact(2)
+        .map(|card| card[0].to_ascii_uppercase())
+        .collect::<Vec<_>>();
+    for rank in term.pattern.bytes() {
+        if rank == b'*' {
+            continue;
+        }
+        let Some(index) = ranks.iter().position(|candidate| *candidate == rank) else {
+            return false;
+        };
+        ranks.remove(index);
+    }
+    term.suitedness
+        .as_deref()
+        .is_none_or(|suitedness| plo_fast_suitedness(combo) == suitedness)
+}
+
+fn plo_fast_suitedness(combo: &str) -> &'static str {
+    let suits = combo
+        .as_bytes()
+        .chunks_exact(2)
+        .map(|card| card[1])
+        .collect::<Vec<_>>();
+    let paired_suits = suits
+        .iter()
+        .collect::<std::collections::HashSet<_>>()
+        .iter()
+        .filter(|suit| suits.iter().filter(|candidate| candidate == *suit).count() >= 2)
+        .count();
+    match paired_suits {
+        0 => "r",
+        1 => "ss",
+        _ => "ds",
+    }
+}
+
 fn plo_fast_blocker_metrics(combo: &str, samples: &[br::PloFastSample]) -> [f64; 2] {
     let hero = plo_fast_combo_cards(combo);
     let total: f64 = samples.iter().map(|sample| sample.weight).sum();
@@ -2441,6 +2555,12 @@ fn validate_spot(spot: &NativeSpot) -> Result<(), String> {
     if spot.game.as_deref().unwrap_or("NLH") == "NLH" {
         nlh_river_entries_from_range(spot.hero_range.as_deref(), &board)?;
         nlh_river_entries_from_range(spot.villain_range.as_deref(), &board)?;
+    } else if spot
+        .hero_range
+        .as_deref()
+        .is_some_and(|range| !range.trim().is_empty())
+    {
+        parse_plo_range_terms(spot.hero_range.as_deref().unwrap_or_default())?;
     }
     if let Some(bet_tree) = spot.bet_tree.as_deref() {
         tree::parse_bet_tree(bet_tree)?;
@@ -4254,6 +4374,26 @@ mod tests {
             plo4_native.metrics[plo4_native.combos.len() * 3 + 10],
             br::PLO_FAST_EQUITY_SAMPLES as f64
         );
+        let plo4_aces = super::solve(
+            r#"{"game":"PLO4","pot":100.0,"bet":20.0,"stack":300.0,"heroRange":"AA**:ds@50"}"#,
+        )
+        .expect("PLO range filtered solve starts");
+        let plo4_aces_payload = super::serialize(plo4_aces).unwrap();
+        let plo4_aces_native: super::NativeSolve =
+            serde_json::from_slice(&plo4_aces_payload).unwrap();
+        assert_eq!(plo4_aces_native.combos, vec!["AsAhKsKh"]);
+        assert_eq!(
+            plo4_aces_native.metrics[plo4_aces_native.combos.len() * 3 + 6],
+            1.0
+        );
+        assert!(
+            (plo4_aces_native.metrics[plo4_aces_native.combos.len() * 3 + 7] - 0.06).abs() < 1e-12
+        );
+        let bad_plo_range: super::NativeSpot = serde_json::from_str(
+            r#"{"game":"PLO4","pot":100.0,"bet":20.0,"heroRange":"AA**:bad@50"}"#,
+        )
+        .unwrap();
+        assert!(super::validate_spot(&bad_plo_range).is_err());
         let plo4_board =
             super::solve(r#"{"game":"PLO4","pot":100.0,"bet":20.0,"board":"2c 3d 4h"}"#).unwrap();
         let plo4_board_payload = super::serialize(plo4_board).unwrap();

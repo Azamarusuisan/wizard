@@ -38,7 +38,7 @@ See `docs/ARCHITECTURE.md`.
 
 ## Accuracy and Limits
 
-- Implemented: NLH/PLO hand evaluation, exact-two PLO evaluation, exact and Monte Carlo equity with 2-6 players and dead cards, range parsers, pot-limit sizing, Kuhn/Leduc gates, compact NLH river range rows, PLO4/PLO5 Fast representative CFR/BR reporting, IndexedDB solve cache, and Playwright flows.
+- Implemented: NLH/PLO hand evaluation, exact-two PLO evaluation, exact and Monte Carlo equity with 2-6 players and dead cards, range parsers, pot-limit sizing, Kuhn/Leduc gates, compact NLH river range rows, PLO4/PLO5 Fast representative CFR/BR reporting with PLO syntax filtering over the capped sample set, IndexedDB solve cache, and Playwright flows.
 - Current limitation: the production solve path is still compact NLH range row solving, not the required full postflop CFR tree. NLH and PLO Fast root rows now consider configured bet-tree raise sizes for the abstract raise EV, and flop/turn payloads expose low/mid/high public chance branch nodes with branch-derived strategy/metric tables, but these remain compact abstractions rather than independent full-tree information sets. NLH flop Balanced and PLO Fast gates currently use compact abstractions/proxies.
 - PLO5 is computationally expensive; current Fast reporting is capped and sampled, and full external-sampling MCCFR for the uncapped game tree must replace it before completion.
 
