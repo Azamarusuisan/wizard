@@ -28,11 +28,13 @@ Decision:
 - Current flop abstraction quality gate uses 2 / 4 / 6 representative buckets to prove the direction of improvement.
 - Target card-abstraction allocation remains Fast / Balanced / Precise = 32 / 96 / 256 buckets with 6k / 25k / 100k samples when the full public tree replaces the compact continuation path.
 - Current compact flop continuation buckets turn and river chance branches by exact-equity quantiles, not deck order.
+- Current compact flop BR action utilities evaluate raise EV against representative street size sets: flop 33/66/125, turn 66/125, river 66/150, plus the active fallback bet.
 
 Reason:
 - Browser workers need predictable latency. The UI reports approximation status and memory estimates rather than pretending exactness.
 - Bucketing uses fixed-seed k-means++ over ten features: eight equity quantiles plus EHS and EHS2. The seed makes test and cache behavior reproducible.
 - Equity-quantile chance branches preserve the intended low / medium / high runout meaning and are closer to the target EHS-style abstraction while the full public tree is still pending.
+- Multi-size raise utilities are a stepping stone toward the configured bet tree without allocating the final full public game tree yet.
 
 ## Class Counts
 

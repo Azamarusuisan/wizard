@@ -1470,8 +1470,14 @@ pub mod br {
         }
 
         fn best_response_gap_pct(&self) -> f64 {
-            let row = cfr_combo(self.equity, self.pot, self.bet, 512);
             let utilities = self.action_utilities();
+            let row = cfr_combo_from_action_evs(
+                self.equity,
+                utilities[0],
+                utilities[1],
+                utilities[2],
+                512,
+            );
             let strategy_ev =
                 row.fold * utilities[0] + row.call * utilities[1] + row.raise * utilities[2];
             let local_gap =
@@ -1484,9 +1490,13 @@ pub mod br {
             local_gap.max(0.0) / self.pot * 100.0 + continuation_gap
         }
 
-        fn action_utilities(&self) -> [f64; 3] {
+        pub(super) fn action_utilities(&self) -> [f64; 3] {
             let fold_ev = 0.0;
-            let (_, call_ev, raise_ev) = action_evs(self.equity, self.pot, self.bet, 0.0, 0.0);
+            let (_, call_ev, _) = action_evs(self.equity, self.pot, self.bet, 0.0, 0.0);
+            let raise_ev = abstract_raise_bets(self.street, self.pot, self.bet)
+                .into_iter()
+                .map(|amount| action_evs(self.equity, self.pot, amount, 0.0, 0.0).2)
+                .fold(f64::NEG_INFINITY, f64::max);
             [fold_ev, call_ev, raise_ev]
         }
 
@@ -1537,6 +1547,25 @@ pub mod br {
                 })
                 .collect()
         }
+    }
+
+    fn abstract_raise_bets(street: u8, pot: f64, fallback: f64) -> Vec<f64> {
+        let percents: &[f64] = match street {
+            0 => &[33.0, 66.0, 125.0],
+            1 => &[66.0, 125.0],
+            _ => &[66.0, 150.0],
+        };
+        let mut bets = percents
+            .iter()
+            .map(|percent| pot * percent / 100.0)
+            .filter(|amount| amount.is_finite() && *amount > 0.0)
+            .collect::<Vec<_>>();
+        if fallback.is_finite() && fallback > 0.0 {
+            bets.push(fallback);
+        }
+        bets.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        bets.dedup_by(|a, b| (*a - *b).abs() <= 1e-9);
+        bets
     }
 
     pub fn flop_bucket_exploitability_pct_pot(buckets: &[FlopBucket], pot: f64, bet: f64) -> f64 {
@@ -3427,7 +3456,7 @@ mod tests {
         assert!(br::nlh_river_exploitability_pct_pot() <= 0.3);
         let flop_tree = br::nlh_flop_balanced_exploitability_pct_pot();
         assert!(flop_tree <= 3.0, "{flop_tree}");
-        let branch_probe = br::StreetAbstractionState {
+        let action_probe = br::StreetAbstractionState {
             equity: 0.55,
             chance_equities: None,
             chance_weights: None,
@@ -3436,8 +3465,11 @@ mod tests {
             pot: 100.0,
             bet: 66.0,
             street: 0,
-        }
-        .next_chance_branches();
+        };
+        let action_utilities = action_probe.action_utilities();
+        let single_raise = br::action_evs(0.55, 100.0, 66.0, 0.0, 0.0).2;
+        assert!(action_utilities[2] > single_raise);
+        let branch_probe = action_probe.next_chance_branches();
         assert_eq!(branch_probe.len(), 3);
         assert!((branch_probe.iter().map(|(p, _)| *p).sum::<f64>() - 1.0).abs() < 1e-12);
         let card_derived_probe = br::StreetAbstractionState {
