@@ -2029,6 +2029,7 @@ fn solve_plo_fast(
     } else {
         br::plo4_fast_exploitability_pct_pot()
     };
+    let combo_cap = if game == "PLO5" { 30_000.0 } else { 20_000.0 };
     let bet_amounts = bet_amounts_for_spot(&spot, board_len);
     let iterations = precision_iterations(&spot);
     let combos = samples
@@ -2081,6 +2082,7 @@ fn solve_plo_fast(
         samples.len() as f64,
         weights.iter().sum::<f64>(),
         iterations as f64,
+        combo_cap,
     ]);
     let progress = river_progress_from_action_evs(&rows, &action_evs, &weights, spot.pot, 36)
         .into_iter()
@@ -3525,6 +3527,10 @@ mod tests {
             plo4_native.metrics[plo4_native.combos.len() * 3 + 8],
             2_048.0
         );
+        assert_eq!(
+            plo4_native.metrics[plo4_native.combos.len() * 3 + 9],
+            20_000.0
+        );
         let plo5 = super::solve(r#"{"game":"PLO5","pot":100.0,"bet":66.0,"stack":250.0}"#).unwrap();
         let plo5_payload = super::serialize(plo5).unwrap();
         let plo5_native: super::NativeSolve = serde_json::from_slice(&plo5_payload).unwrap();
@@ -3546,6 +3552,10 @@ mod tests {
         assert_eq!(
             plo5_native.metrics[plo5_native.combos.len() * 3 + 8],
             2_048.0
+        );
+        assert_eq!(
+            plo5_native.metrics[plo5_native.combos.len() * 3 + 9],
+            30_000.0
         );
         super::cancel(plo4).unwrap();
         super::cancel(plo4_plain).unwrap();

@@ -96,7 +96,8 @@ Solve cache records:
     "metrics": {
       "ploSampleCount": "number, PLO Fast only",
       "ploWeightCoverage": "number, PLO Fast only",
-      "ploIterations": "number, PLO Fast only"
+      "ploIterations": "number, PLO Fast only",
+      "ploComboCap": "number, PLO Fast only"
     }
   }
 }

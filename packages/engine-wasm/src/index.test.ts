@@ -199,6 +199,7 @@ test("TS solve fallback reports PLO Fast BR metrics", () => {
   assert.equal(plo4.metrics.ploSampleCount, 6);
   assert.ok(Math.abs(plo4.metrics.ploWeightCoverage! - 1) < 1e-12);
   assert.equal(plo4.metrics.ploIterations, 2048);
+  assert.equal(plo4.metrics.ploComboCap, 20000);
   assert.ok(plo4.rows.every((row) => row.fold + row.call + row.raise === 1));
   const plo5 = solveRiverSpot(100, 66, 250, "", 0, 0, "PLO5");
   assert.equal(plo5.rows[0]!.combo, "AsAhKsKhQs");
@@ -207,5 +208,6 @@ test("TS solve fallback reports PLO Fast BR metrics", () => {
   assert.equal(plo5.metrics.ploSampleCount, 6);
   assert.ok(Math.abs(plo5.metrics.ploWeightCoverage! - 1) < 1e-12);
   assert.equal(plo5.metrics.ploIterations, 2048);
+  assert.equal(plo5.metrics.ploComboCap, 30000);
   assert.ok(plo5.rows.every((row) => row.fold + row.call + row.raise === 1));
 });

@@ -279,7 +279,8 @@ function nativeToResult(native: NativeSolve): SolveResult {
       ploFastExploitability: native.metrics[combos.length * 3 + 5],
       ploSampleCount: native.metrics[combos.length * 3 + 6],
       ploWeightCoverage: native.metrics[combos.length * 3 + 7],
-      ploIterations: native.metrics[combos.length * 3 + 8]
+      ploIterations: native.metrics[combos.length * 3 + 8],
+      ploComboCap: native.metrics[combos.length * 3 + 9]
     }
   };
 }

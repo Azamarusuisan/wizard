@@ -327,7 +327,7 @@ function parseBetSizes(text: string): BetSize[] {
 export type SolverRow = { combo: string; weight: number; handClass: string; blockedCombos: number; blockerPct: number; fold: number; call: number; raise: number; foldEv: number; callEv: number; raiseEv: number; equity: number; ev: number; eqr: number };
 export type SolveNode = { id: string; label: string; street: string; actions: string[]; infoSet?: string; amount?: number; pot?: number };
 export type SolveInfoSet = { key: string; nodeId: string; street: string; actions: string[]; strategyRef: string; metricRef: string };
-export type SolveResult = { nodes: SolveNode[]; informationSets: SolveInfoSet[]; rows: SolverRow[]; exploitability: { iteration: number; value: number }[]; metrics: { spr: number; mdf: number; alpha: number; potOdds: number; brGapPctPot?: number; ploFastExploitability?: number; ploSampleCount?: number; ploWeightCoverage?: number; ploIterations?: number } };
+export type SolveResult = { nodes: SolveNode[]; informationSets: SolveInfoSet[]; rows: SolverRow[]; exploitability: { iteration: number; value: number }[]; metrics: { spr: number; mdf: number; alpha: number; potOdds: number; brGapPctPot?: number; ploFastExploitability?: number; ploSampleCount?: number; ploWeightCoverage?: number; ploIterations?: number; ploComboCap?: number } };
 export const DEFAULT_RIVER_SPECS = [
   ["AA", 0.82],
   ["AKs", 0.72],
@@ -450,6 +450,8 @@ const PLO5_FAST_SAMPLES = [
   { combo: "Ac9d6s2h2c", weight: 0.13, seed: 53 }
 ] as const;
 
+const PLO_COMBO_CAP = { PLO4: 20_000, PLO5: 30_000 } as const;
+
 function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack: number, rakePct: number, rakeCap: number, potOdds: number, mdf: number, alpha: number, boardLen = 0, betTree = "", precision: "fast" | "balanced" | "precise" = "balanced"): SolveResult {
   const samples = game === "PLO4" ? PLO4_FAST_SAMPLES : PLO5_FAST_SAMPLES;
   const betAmounts = betAmountsForSpot(game, boardLen, pot, bet, stack, betTree);
@@ -480,7 +482,7 @@ function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack
     informationSets: infoSetsFromNodes(nodes),
     rows,
     exploitability: riverStrategyProgressFromRows(rows, pot, 36).map((value, i) => ({ iteration: (i + 1) * 50, value })),
-    metrics: { spr: stack / pot, mdf, alpha, potOdds, brGapPctPot: riverExploitabilityFromRows(rows, pot), ploFastExploitability: game === "PLO4" ? plo4FastExploitabilityPctPot() : plo5FastExploitabilityPctPot(), ploSampleCount: samples.length, ploWeightCoverage: samples.reduce((sum, sample) => sum + sample.weight, 0), ploIterations: iterations }
+    metrics: { spr: stack / pot, mdf, alpha, potOdds, brGapPctPot: riverExploitabilityFromRows(rows, pot), ploFastExploitability: game === "PLO4" ? plo4FastExploitabilityPctPot() : plo5FastExploitabilityPctPot(), ploSampleCount: samples.length, ploWeightCoverage: samples.reduce((sum, sample) => sum + sample.weight, 0), ploIterations: iterations, ploComboCap: PLO_COMBO_CAP[game] }
   };
 }
 
