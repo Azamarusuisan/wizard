@@ -157,7 +157,7 @@ export function SolverStudio() {
   const memoryEstimate = estimateSolverMemory(game, precision, board);
   const selectedNode = shown?.nodes.find((node) => node.id === selectedNodeId) ?? shown?.nodes[0];
   const selectedInfoSet = selectedNode ? shown?.informationSets.find((infoSet) => infoSet.nodeId === selectedNode.id || infoSet.key === selectedNode.infoSet) : null;
-  const nodeRows = shown && selectedNode ? rowsForNode(shown, selectedNode) : [];
+  const nodeRows = shown && selectedNode ? rowsForNode(shown, selectedNode, { pot, bet, rakePct, rakeCap }) : [];
   const handClasses = [...new Set(nodeRows.map((row) => row.handClass))].sort();
   const shownRows = handClassFilter === "all" ? nodeRows : nodeRows.filter((row) => row.handClass === handClassFilter);
   const nodeSummary = summarizeRows(shownRows);
@@ -288,17 +288,45 @@ function parseBoardCards(value: string): number[] {
   }
 }
 
-function rowsForNode(result: SolveResult, node: SolveNode): SolverRow[] {
+function rowsForNode(result: SolveResult, node: SolveNode, spot: { pot: number; bet: number; rakePct: number; rakeCap: number }): SolverRow[] {
   if (node.id === "root") return result.rows;
   if (node.id === "root/fold") return result.rows.map((row) => actionRow(row, "fold", row.foldEv));
   if (node.id === "root/call") return result.rows.map((row) => actionRow(row, "call", row.callEv));
   if (node.id === "root/raise") return result.rows.map((row) => actionRow(row, "raise", row.raiseEv));
   if (node.id === "root/raise-sizes") return result.rows;
-  if (node.id.startsWith("root/turn-") || node.id.startsWith("root/river-")) return result.rows;
+  if (node.id.startsWith("root/turn-") || node.id.startsWith("root/river-")) return result.rows.map((row) => chanceRow(row, node.id, spot));
   if (node.amount !== undefined && node.pot !== undefined && node.id.endsWith("/fold")) return result.rows.map((row) => betResponseActionRow(row, "fold", node.pot!));
   if (node.amount !== undefined && node.pot !== undefined && node.id.endsWith("/call")) return result.rows.map((row) => betResponseActionRow(row, "call", node.pot!, node.amount!));
   if (node.amount !== undefined && node.pot !== undefined) return result.rows.map((row) => betResponseRow(row, node.pot!, node.amount!));
   return [];
+}
+
+function chanceRow(row: SolverRow, nodeId: string, spot: { pot: number; bet: number; rakePct: number; rakeCap: number }): SolverRow {
+  const equity = Math.min(0.98, Math.max(0.02, row.equity + (nodeId.includes("-low") ? -0.12 : nodeId.includes("-high") ? 0.12 : 0)));
+  const nextPot = spot.pot + spot.bet * 2;
+  const rake = Math.min((nextPot + spot.bet) * (spot.rakePct / 100), spot.rakeCap);
+  const callEv = (equity * (nextPot + spot.bet - rake) - (1 - equity) * spot.bet) / 100;
+  const raiseEv = callEv + (equity * spot.bet * 0.15) / 100;
+  const { fold, call, raise } = regretMix([0, callEv, raiseEv]);
+  const ev = call * callEv + raise * raiseEv;
+  return { ...row, fold, call, raise, equity, callEv, raiseEv, ev, eqr: ev / Math.max(0.0001, equity * nextPot / 100) };
+}
+
+function regretMix(evs: [number, number, number]): Pick<SolverRow, "fold" | "call" | "raise"> {
+  const regrets = [0, 0, 0];
+  const sums = [0, 0, 0];
+  for (let i = 0; i < 256; i++) {
+    const positives = regrets.map((value) => Math.max(0, value));
+    const total = positives.reduce((sum, value) => sum + value, 0);
+    const strategy = total > 0 ? positives.map((value) => value / total) : [1 / 3, 1 / 3, 1 / 3];
+    const nodeEv = strategy.reduce((sum, value, idx) => sum + value * evs[idx]!, 0);
+    for (let idx = 0; idx < 3; idx++) {
+      regrets[idx]! += evs[idx]! - nodeEv;
+      sums[idx]! += strategy[idx]!;
+    }
+  }
+  const total = sums.reduce((sum, value) => sum + value, 0);
+  return { fold: sums[0]! / total, call: sums[1]! / total, raise: sums[2]! / total };
 }
 
 function actionRow(row: SolverRow, action: "fold" | "call" | "raise", ev: number): SolverRow {

@@ -2956,6 +2956,12 @@ pub fn get_strategy(handle: u32, node_id: &str) -> Result<Vec<f64>, JsValue> {
         if node.id == "root/raise-sizes" {
             return Ok(raise_size_strategy(solve, node));
         }
+        if is_chance_node(node) {
+            return Ok(chance_node_rows(solve, node)
+                .into_iter()
+                .flat_map(|row| [row.fold, row.call, row.raise])
+                .collect());
+        }
         Ok(solve.strategy.clone())
     })
 }
@@ -3061,6 +3067,9 @@ pub fn get_hand_metrics(handle: u32, node_id: &str) -> Result<Vec<f64>, JsValue>
         if let Some(action_idx) = node_action_index(&node.id) {
             return Ok(action_node_metrics(solve, action_idx));
         }
+        if is_chance_node(node) {
+            return Ok(chance_node_metrics(solve, node));
+        }
         if node.actions.is_empty() {
             return Ok(Vec::new());
         }
@@ -3090,6 +3099,56 @@ fn action_node_metrics(solve: &NativeSolve, action_idx: usize) -> Vec<f64> {
             [ev, equity, eqr]
         })
         .collect()
+}
+
+fn is_chance_node(node: &NativeNode) -> bool {
+    node.id.starts_with("root/turn-") || node.id.starts_with("root/river-")
+}
+
+fn chance_node_rows(solve: &NativeSolve, node: &NativeNode) -> Vec<br::RiverCombo> {
+    let pot = chance_node_pot(solve);
+    let (rake_pct, rake_cap) = spot_rake(&solve.spot);
+    solve
+        .metrics
+        .chunks_exact(3)
+        .take(solve.combos.len())
+        .map(|metric| {
+            let equity = chance_node_equity(metric[1], &node.id);
+            let (fold_ev, call_ev, raise_ev) =
+                br::action_evs(equity, pot, solve.spot.bet, rake_pct, rake_cap);
+            br::cfr_combo_from_action_evs(equity, fold_ev, call_ev, raise_ev, 256)
+        })
+        .collect()
+}
+
+fn chance_node_metrics(solve: &NativeSolve, node: &NativeNode) -> Vec<f64> {
+    let pot = chance_node_pot(solve);
+    let (rake_pct, rake_cap) = spot_rake(&solve.spot);
+    chance_node_rows(solve, node)
+        .into_iter()
+        .flat_map(|row| {
+            let (fold_ev, call_ev, raise_ev) =
+                br::action_evs(row.equity, pot, solve.spot.bet, rake_pct, rake_cap);
+            let ev = (row.fold * fold_ev + row.call * call_ev + row.raise * raise_ev) / 100.0;
+            let eqr = ev / (row.equity * pot / 100.0).max(0.0001);
+            [ev, row.equity, eqr]
+        })
+        .collect()
+}
+
+fn chance_node_pot(solve: &NativeSolve) -> f64 {
+    solve.spot.pot + solve.spot.bet * 2.0
+}
+
+fn chance_node_equity(equity: f64, node_id: &str) -> f64 {
+    let delta = if node_id.contains("-low") {
+        -0.12
+    } else if node_id.contains("-high") {
+        0.12
+    } else {
+        0.0
+    };
+    (equity + delta).clamp(0.02, 0.98)
 }
 
 fn bet_response_strategy(pot: f64, amount: f64) -> (f64, f64) {
@@ -3438,7 +3497,7 @@ fn info_set_refs(node: &NativeNode) -> (String, String) {
         return ("raise-sizes".to_string(), "raise-sizes".to_string());
     }
     if node.id.starts_with("root/turn-") || node.id.starts_with("root/river-") {
-        return ("root".to_string(), "root".to_string());
+        return (node.id.clone(), node.id.clone());
     }
     if let Some(action) = node.id.strip_prefix("root/") {
         return ("terminal".to_string(), format!("action:{action}"));
@@ -3980,8 +4039,11 @@ mod tests {
                 .find(|info_set| info_set.node_id == "root/turn-low")
                 .unwrap()
                 .strategy_ref,
-            "root"
+            "root/turn-low"
         );
+        let turn_low_strategy = super::get_strategy(flop_handle, "turn:root/turn-low").unwrap();
+        let flop_root_strategy = super::get_strategy(flop_handle, "root").unwrap();
+        assert_ne!(&turn_low_strategy[0..3], &flop_root_strategy[0..3]);
         let turn_handle =
             super::solve(r#"{"pot":100.0,"bet":66.0,"stack":250.0,"board":"Ah Kd 7c 2s"}"#)
                 .expect("turn solve starts");

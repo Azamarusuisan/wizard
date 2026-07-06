@@ -75,6 +75,10 @@ class LocalEngine implements EngineAPI {
     const { result, spot } = this.mustGetSolve(handle);
     const node = nodeForId(result, nodeId);
     if (!node.actions.length) return { combos: [], actions: new Float64Array() };
+    if (isChanceNode(node)) {
+      const rows = chanceRows(result, spot, node);
+      return { combos: rows.map((r) => r.combo), actions: Float64Array.from(rows.flatMap((r) => [r.fold, r.call, r.raise])) };
+    }
     if (node.amount !== undefined && node.pot !== undefined) {
       const [fold, call] = betResponseStrategy(node.pot, node.amount);
       return { combos: result.rows.map((r) => r.combo), actions: Float64Array.from(result.rows.flatMap(() => [fold, call])) };
@@ -92,6 +96,15 @@ class LocalEngine implements EngineAPI {
   async getHandMetrics(handle: EngineHandle, nodeId = "root"): Promise<HandMetrics> {
     const result = this.mustGet(handle);
     const node = nodeForId(result, nodeId);
+    if (isChanceNode(node)) {
+      const spot = this.mustGetSolve(handle).spot;
+      const rows = chanceRows(result, spot, node);
+      return {
+        ev: Float32Array.from(rows.map((r) => r.ev)),
+        equity: Float32Array.from(rows.map((r) => r.equity)),
+        eqr: Float32Array.from(rows.map((r) => r.eqr))
+      };
+    }
     if (node.amount !== undefined && node.pot !== undefined && !node.actions.length) return betResponseActionMetrics(result, node.pot, node.amount, node.id.endsWith("/call"));
     if (node.amount !== undefined && node.pot !== undefined) return betResponseMetrics(result, node.pot, node.amount);
     const action = nodeActionKey(node.id);
@@ -355,7 +368,52 @@ function infoSetRefs(node: SolveNode): Pick<SolveInfoSet, "strategyRef" | "metri
   if (node.amount !== undefined) return { strategyRef: "terminal", metricRef: `response:${node.id}` };
   if (node.id === "root") return { strategyRef: "root", metricRef: "root" };
   if (node.id === "root/raise-sizes") return { strategyRef: "raise-sizes", metricRef: "raise-sizes" };
-  if (node.id.startsWith("root/turn-") || node.id.startsWith("root/river-")) return { strategyRef: "root", metricRef: "root" };
+  if (node.id.startsWith("root/turn-") || node.id.startsWith("root/river-")) return { strategyRef: node.id, metricRef: node.id };
   if (node.id.startsWith("root/")) return { strategyRef: "terminal", metricRef: `action:${node.id.slice("root/".length)}` };
   return { strategyRef: node.id, metricRef: node.id };
+}
+
+function isChanceNode(node: SolveNode): boolean {
+  return node.id.startsWith("root/turn-") || node.id.startsWith("root/river-");
+}
+
+function chanceRows(result: SolveResult, spot: LocalSpot, node: SolveNode): SolverRow[] {
+  const pot = node.pot ?? spot.pot + spot.bet * 2;
+  const bet = spot.bet;
+  return result.rows.map((row) => {
+    const equity = chanceEquity(row.equity, node.id);
+    const { callEv, raiseEv } = localActionEvs(equity, pot, bet, spot.rakePct ?? 0, spot.rakeCap ?? 0);
+    const strategy = localCfrStrategy(0, callEv, raiseEv);
+    const ev = (strategy.call * callEv + strategy.raise * raiseEv) / 100;
+    return { ...row, ...strategy, equity, callEv: callEv / 100, raiseEv: raiseEv / 100, ev, eqr: ev / Math.max(0.0001, equity * pot / 100) };
+  });
+}
+
+function chanceEquity(equity: number, nodeId: string): number {
+  const delta = nodeId.includes("-low") ? -0.12 : nodeId.includes("-high") ? 0.12 : 0;
+  return Math.min(0.98, Math.max(0.02, equity + delta));
+}
+
+function localActionEvs(equity: number, pot: number, bet: number, rakePct: number, rakeCap: number): { callEv: number; raiseEv: number } {
+  const rake = Math.min((pot + bet) * (rakePct / 100), rakeCap);
+  const callEv = equity * (pot + bet - rake) - (1 - equity) * bet;
+  return { callEv, raiseEv: callEv + equity * bet * 0.15 };
+}
+
+function localCfrStrategy(foldEv: number, callEv: number, raiseEv: number): Pick<SolverRow, "fold" | "call" | "raise"> {
+  const evs = [foldEv, callEv, raiseEv];
+  const regrets = [0, 0, 0];
+  const sums = [0, 0, 0];
+  for (let i = 0; i < 256; i++) {
+    const positives = regrets.map((value) => Math.max(0, value));
+    const total = positives.reduce((sum, value) => sum + value, 0);
+    const strategy = total > 0 ? positives.map((value) => value / total) : [1 / 3, 1 / 3, 1 / 3];
+    const nodeEv = strategy.reduce((sum, value, idx) => sum + value * evs[idx]!, 0);
+    for (let idx = 0; idx < 3; idx++) {
+      regrets[idx]! += evs[idx]! - nodeEv;
+      sums[idx]! += strategy[idx]!;
+    }
+  }
+  const total = sums.reduce((sum, value) => sum + value, 0);
+  return { fold: sums[0]! / total, call: sums[1]! / total, raise: sums[2]! / total };
 }

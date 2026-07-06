@@ -82,7 +82,7 @@ test("solver runs and displays strategy metrics", async ({ page }) => {
   await page.getByRole("button", { name: /TURN LOW \(root\/turn-low/ }).click();
   await expect(page.getByText("Node: root/turn-low")).toBeVisible();
   await expect(page.getByText(/Info set:\s*turn:root\/turn-low/)).toBeVisible();
-  await expect(page.getByText(/Tables:\s*root\s*\/\s*root/)).toBeVisible();
+  await expect(page.getByText(/Tables:\s*root\/turn-low\s*\/\s*root\/turn-low/)).toBeVisible();
   await page.getByRole("button", { name: /RAISE SIZES \(root\/raise-sizes/ }).click();
   await expect(page.getByText("Node: root/raise-sizes")).toBeVisible();
   await expect(page.getByText(/Tables:\s*raise-sizes\s*\/\s*raise-sizes/)).toBeVisible();
