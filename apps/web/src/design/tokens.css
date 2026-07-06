@@ -74,6 +74,10 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .cards { display: flex; gap: 8px; flex-wrap: wrap; }
 .playing-card { width: 44px; height: 60px; border-radius: 7px; background: linear-gradient(160deg, #f8fafc, #cbd5e1); color: #0f172a; display: grid; place-items: center; font: 700 15px var(--mono); box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
 .hearts { color: #f0546c; } .diamonds { color: #4da3ff; } .clubs { color: #41c98d; }
+.card-picker { display: grid; grid-template-columns: repeat(13, 32px); gap: 5px; align-items: center; overflow-x: auto; padding-bottom: 2px; }
+.card-button { border: 1px solid transparent; background: transparent; padding: 0; border-radius: 7px; cursor: pointer; }
+.card-button .playing-card { width: 32px; height: 44px; font-size: 11px; }
+.card-button.active { border-color: var(--focus); box-shadow: 0 0 0 1px rgba(56,189,248,.2), 0 8px 18px rgba(0,0,0,.25); }
 :root[data-deck="two"] .diamonds, :root[data-deck="two"] .hearts { color: #d92d4a; }
 :root[data-deck="two"] .clubs { color: #0f172a; }
 table { width: 100%; border-collapse: collapse; }

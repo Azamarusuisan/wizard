@@ -177,6 +177,7 @@ export function SolverStudio() {
         <label className="field">Rake %<input type="number" min="0" max="100" step="0.1" value={rakePct} onChange={(e) => setRakePct(Number(e.target.value))} /></label>
         <label className="field">Rake cap<input type="number" min="0" step="0.1" value={rakeCap} onChange={(e) => setRakeCap(Number(e.target.value))} /></label>
         <label className="field">Board<input value={board} onChange={(e) => setBoard(e.target.value)} /></label>
+        <BoardPicker value={board} onChange={setBoard} />
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button className="btn" onClick={() => setBoard(randomFlop())}>Random flop</button>
           <button className="btn" onClick={() => setBoard("As Ks 7s")}>Monotone</button>
@@ -244,6 +245,35 @@ export function SolverStudio() {
       </section>
     </div>
   );
+}
+
+function BoardPicker({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const selected = parseBoardCards(value);
+  const selectedSet = new Set(selected);
+  const toggle = (card: number) => {
+    const next = selectedSet.has(card) ? selected.filter((c) => c !== card) : selected.length < 5 ? [...selected, card] : selected;
+    onChange(next.map(formatCard).join(" "));
+  };
+  return (
+    <div className="card-picker" aria-label="Card picker">
+      {deck().map((card) => {
+        const active = selectedSet.has(card);
+        return (
+          <button className={active ? "card-button active" : "card-button"} key={card} type="button" aria-label={`${active ? "Remove" : "Add"} ${formatCard(card)}`} onClick={() => toggle(card)}>
+            <CardView card={card} />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function parseBoardCards(value: string): number[] {
+  try {
+    return value.trim() ? value.trim().split(/\s+/).map(parseCard) : [];
+  } catch {
+    return [];
+  }
 }
 
 function rowsForNode(result: SolveResult, node: SolveNode): SolverRow[] {

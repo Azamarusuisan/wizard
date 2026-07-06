@@ -14,6 +14,10 @@ test("solver runs and displays strategy metrics", async ({ page }) => {
   await page.getByRole("button", { name: "Random flop" }).click();
   await expect(page.getByLabel("Board")).toHaveValue(/^[2-9TJQKA][cdhs] [2-9TJQKA][cdhs] [2-9TJQKA][cdhs]$/);
   await page.getByLabel("Board").fill("Ah Kd 7c");
+  await page.getByRole("button", { name: "Add Qs" }).click();
+  await expect(page.getByLabel("Board")).toHaveValue("Ah Kd 7c Qs");
+  await page.getByRole("button", { name: "Remove Qs" }).click();
+  await expect(page.getByLabel("Board")).toHaveValue("Ah Kd 7c");
   await expect(page.getByLabel("Bet tree")).toContainText("flop 33,66,125,all-in");
   await page.getByLabel("Bet tree").fill("turn 66");
   await expect(page.getByRole("alert")).toContainText("bet tree");
