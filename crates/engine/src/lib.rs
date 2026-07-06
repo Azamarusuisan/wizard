@@ -1269,29 +1269,29 @@ pub mod br {
         let deck = (0..52)
             .filter(|card| !dead.contains(card))
             .collect::<Vec<_>>();
-        let picks = [deck[0], deck[deck.len() / 2], deck[deck.len() - 1]];
+        let turn_partitions = sampled_chance_partitions(deck.len());
+        let turn_picks = turn_partitions.map(|partition| deck[representative_index(partition)]);
         let turn_weights = sampled_chance_weights(deck.len());
-        let turn_equities = picks.map(|turn| {
-            let next_board = [board[0], board[1], board[2], turn];
-            equity::heads_up_nlh_equity_exact(hero, villain, &next_board)
+        let turn_equities = turn_partitions.map(|(start, end)| {
+            average_equity(&deck[start..end], |turn| {
+                let next_board = [board[0], board[1], board[2], turn];
+                equity::heads_up_nlh_equity_exact(hero, villain, &next_board)
+            })
         });
-        let river_equities = picks.map(|turn| {
+        let river_equities = turn_picks.map(|turn| {
             let river_deck = deck
                 .iter()
                 .copied()
                 .filter(|card| *card != turn)
                 .collect::<Vec<_>>();
-            let rivers = [
-                river_deck[0],
-                river_deck[river_deck.len() / 2],
-                river_deck[river_deck.len() - 1],
-            ];
-            rivers.map(|river| {
-                let next_board = [board[0], board[1], board[2], turn, river];
-                equity::heads_up_nlh_equity_exact(hero, villain, &next_board)
+            sampled_chance_partitions(river_deck.len()).map(|(start, end)| {
+                average_equity(&river_deck[start..end], |river| {
+                    let next_board = [board[0], board[1], board[2], turn, river];
+                    equity::heads_up_nlh_equity_exact(hero, villain, &next_board)
+                })
             })
         });
-        let river_weights = picks.map(|turn| {
+        let river_weights = turn_picks.map(|turn| {
             let river_deck_len = deck.iter().filter(|card| **card != turn).count();
             sampled_chance_weights(river_deck_len)
         });
@@ -1303,18 +1303,28 @@ pub mod br {
         }
     }
 
+    fn average_equity(cards: &[Card], mut equity_for_card: impl FnMut(Card) -> f64) -> f64 {
+        if cards.is_empty() {
+            return 0.0;
+        }
+        cards.iter().copied().map(&mut equity_for_card).sum::<f64>() / cards.len() as f64
+    }
+
+    fn sampled_chance_partitions(total: usize) -> [(usize, usize); 3] {
+        let low = total / 3;
+        let middle = (total - low) / 2;
+        [(0, low), (low, low + middle), (low + middle, total)]
+    }
+
+    fn representative_index((start, end): (usize, usize)) -> usize {
+        start + (end - start) / 2
+    }
+
     fn sampled_chance_weights(total: usize) -> [f64; 3] {
         if total == 0 {
             return [1.0 / 3.0; 3];
         }
-        let low = total / 3;
-        let middle = (total - low) / 2;
-        let high = total - low - middle;
-        [
-            low as f64 / total as f64,
-            middle as f64 / total as f64,
-            high as f64 / total as f64,
-        ]
+        sampled_chance_partitions(total).map(|(start, end)| (end - start) as f64 / total as f64)
     }
 
     pub fn flop_abstraction_tree_exploitability_pct_pot(
