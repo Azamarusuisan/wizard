@@ -19,8 +19,11 @@ test("EngineAPI prefers generated wasm package when present", async () => {
   assert.equal(result.metrics.brGapPctPot, result.exploitability.at(-1)?.value);
   assert.equal((await engine.getStrategy(handle, "root")).combos[0], "AcAd");
   assert.equal((await engine.getStrategy(handle, "root/call")).combos.length, 0);
+  assert.equal((await engine.getStrategy(handle, "preflop:root/call")).combos.length, 0);
   const callMetrics = await engine.getHandMetrics(handle, "root/call");
+  const callMetricsByInfoSet = await engine.getHandMetrics(handle, "preflop:root/call");
   assert.equal(callMetrics.ev.length, result.rows.length);
+  assert.deepEqual([...callMetricsByInfoSet.ev], [...callMetrics.ev]);
   assert.ok(Math.abs(callMetrics.ev[0]! - result.rows[0]!.callEv) < 1e-6);
   assert.ok((callMetrics.equity[0] ?? 0) > 0);
   const betHandle = await engine.solve(JSON.stringify({ pot: 100, bet: 33, betTree: "flop 33" }));

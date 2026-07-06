@@ -115,7 +115,7 @@ class LocalEngine implements EngineAPI {
 }
 
 function nodeForId(result: SolveResult, nodeId: string): SolveNode {
-  const node = result.nodes.find((node) => node.id === nodeId);
+  const node = result.nodes.find((node) => node.id === nodeId || node.infoSet === nodeId);
   if (!node) throw new Error("unknown node id");
   return node;
 }

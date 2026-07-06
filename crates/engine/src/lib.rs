@@ -2921,7 +2921,7 @@ fn node_for_id<'a>(solve: &'a NativeSolve, node_id: &str) -> Result<&'a NativeNo
     solve
         .nodes
         .iter()
-        .find(|node| node.id == node_id)
+        .find(|node| node.id == node_id || node.info_set == node_id)
         .ok_or_else(|| JsValue::from_str("unknown node id"))
 }
 
@@ -3355,7 +3355,13 @@ mod tests {
         assert!(super::has_node_id(&native, "root"));
         assert!(!super::has_node_id(&native, "turn:blank"));
         assert!(super::get_strategy(handle, "root/call").unwrap().is_empty());
+        assert!(super::get_strategy(handle, "preflop:root/call")
+            .unwrap()
+            .is_empty());
         let call_metrics = super::get_hand_metrics(handle, "root/call").unwrap();
+        let call_metrics_by_info_set =
+            super::get_hand_metrics(handle, "preflop:root/call").unwrap();
+        assert_eq!(call_metrics, call_metrics_by_info_set);
         assert_eq!(call_metrics.len(), native.combos.len() * 3);
         assert!((call_metrics[0] - native.action_evs[1]).abs() < 1e-12);
         assert!(call_metrics[1] > 0.0);

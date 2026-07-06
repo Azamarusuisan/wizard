@@ -98,6 +98,7 @@
 - Engine strategy/metric calls now validate node ids across `root` and first-level action nodes, avoiding silent fallback for unknown node ids.
 - Solve results now carry a `nodes` array through Rust native serialization, TypeScript fallback, EngineAPI conversion, IndexedDB cache, and Solver Studio display.
 - Solve nodes now carry a stable `infoSet` key (`street:nodeId`) through Rust native serialization, TypeScript fallback, EngineAPI conversion, cache records, and Solver Studio display. This is still public-node keyed, not the final full CFR information-set table.
+- `EngineAPI.getStrategy` and `getHandMetrics` now accept either node id or `infoSet` for Rust/WASM and TypeScript fallback paths, so callers can start using information-set keys without a separate API.
 - Root solve node metadata now includes action labels (`fold`, `call`, `raise`) across Rust/TS/cache/UI.
 - Root solve node street now derives from board length (`preflop` / `flop` / `turn` / `river`) in Rust native and TypeScript fallback results.
 - Solve node serialization now includes first-level action nodes (`root/fold`, `root/call`, `root/raise`) in Rust native and TypeScript fallback results. EngineAPI node-id validation accepts these nodes, and IndexedDB round-trip tests prove they persist.
@@ -111,7 +112,7 @@
 - IndexedDB solve cache keys are canonical JSON SHA-256 via WebCrypto in the web layer.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `default_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~11.66 ns/eval, default river rows ~501.65 us. The evaluator now exceeds the original 50M eval/s target on this machine.
-- Last verified: `bash scripts/verify.sh` exited 0 after adding solve-node `infoSet` through Rust/TS/cache/UI. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
+- Last verified: `bash scripts/verify.sh` exited 0 after allowing `infoSet` lookup in strategy/metric APIs. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
 - Git remote `origin` is set to `https://github.com/Azamarusuisan/wizard.git`; do not push until §6 is actually complete.
 
 ## Important Caveat
