@@ -63,7 +63,8 @@ class LocalEngine implements EngineAPI {
     return { iteration: last.iteration, exploitabilityPct: last.value, elapsed: 0 };
   }
 
-  async getStrategy(handle: EngineHandle, _nodeId = "root"): Promise<StrategyTable> {
+  async getStrategy(handle: EngineHandle, nodeId = "root"): Promise<StrategyTable> {
+    validateNodeId(nodeId);
     const result = this.mustGet(handle);
     return {
       combos: result.rows.map((r: SolverRow) => r.combo),
@@ -71,7 +72,8 @@ class LocalEngine implements EngineAPI {
     };
   }
 
-  async getHandMetrics(handle: EngineHandle, _nodeId = "root"): Promise<HandMetrics> {
+  async getHandMetrics(handle: EngineHandle, nodeId = "root"): Promise<HandMetrics> {
+    validateNodeId(nodeId);
     const result = this.mustGet(handle);
     return {
       ev: Float32Array.from(result.rows.map((r: SolverRow) => r.ev)),
@@ -97,6 +99,10 @@ class LocalEngine implements EngineAPI {
     if (!result) throw new Error(`unknown solve handle ${handle}`);
     return result;
   }
+}
+
+function validateNodeId(nodeId: string): void {
+  if (nodeId !== "root") throw new Error("unknown node id");
 }
 
 class WasmPreferredEngine implements EngineAPI {

@@ -2100,12 +2100,14 @@ pub fn poll_progress(handle: u32) -> Result<String, JsValue> {
 }
 
 #[wasm_bindgen]
-pub fn get_strategy(handle: u32, _node_id: &str) -> Result<Vec<f64>, JsValue> {
+pub fn get_strategy(handle: u32, node_id: &str) -> Result<Vec<f64>, JsValue> {
+    validate_node_id(node_id)?;
     with_solve(handle, |solve| Ok(solve.strategy.clone()))
 }
 
 #[wasm_bindgen]
-pub fn get_hand_metrics(handle: u32, _node_id: &str) -> Result<Vec<f64>, JsValue> {
+pub fn get_hand_metrics(handle: u32, node_id: &str) -> Result<Vec<f64>, JsValue> {
+    validate_node_id(node_id)?;
     with_solve(handle, |solve| Ok(solve.metrics.clone()))
 }
 
@@ -2137,6 +2139,14 @@ fn with_solve<T>(
         .get(&handle)
         .ok_or_else(|| JsValue::from_str("unknown solve handle"))?;
     f(solve)
+}
+
+fn validate_node_id(node_id: &str) -> Result<(), JsValue> {
+    validate_node_id_str(node_id).map_err(JsValue::from_str)
+}
+
+fn validate_node_id_str(node_id: &str) -> Result<(), &'static str> {
+    (node_id == "root").then_some(()).ok_or("unknown node id")
 }
 
 #[wasm_bindgen]
@@ -2505,6 +2515,8 @@ mod tests {
             &native.strategy[0..3],
             &[first.fold, first.call, first.raise]
         );
+        assert!(super::validate_node_id_str("root").is_ok());
+        assert!(super::validate_node_id_str("turn:blank").is_err());
         assert!(native.action_evs[2] >= native.action_evs[1]);
         assert!(native.metrics[(native.combos.len() - 1) * 3] >= 0.0);
         let base = native.combos.len() * 3;
