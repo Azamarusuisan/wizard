@@ -326,7 +326,8 @@ function parseBetSizes(text: string): BetSize[] {
 
 export type SolverRow = { combo: string; weight: number; handClass: string; blockedCombos: number; blockerPct: number; fold: number; call: number; raise: number; foldEv: number; callEv: number; raiseEv: number; equity: number; ev: number; eqr: number };
 export type SolveNode = { id: string; label: string; street: string; actions: string[]; infoSet?: string; amount?: number; pot?: number };
-export type SolveResult = { nodes: SolveNode[]; rows: SolverRow[]; exploitability: { iteration: number; value: number }[]; metrics: { spr: number; mdf: number; alpha: number; potOdds: number; brGapPctPot?: number; ploFastExploitability?: number; ploSampleCount?: number; ploWeightCoverage?: number } };
+export type SolveInfoSet = { key: string; nodeId: string; street: string; actions: string[] };
+export type SolveResult = { nodes: SolveNode[]; informationSets: SolveInfoSet[]; rows: SolverRow[]; exploitability: { iteration: number; value: number }[]; metrics: { spr: number; mdf: number; alpha: number; potOdds: number; brGapPctPot?: number; ploFastExploitability?: number; ploSampleCount?: number; ploWeightCoverage?: number } };
 export const DEFAULT_RIVER_SPECS = [
   ["AA", 0.82],
   ["AKs", 0.72],
@@ -361,8 +362,10 @@ export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2, boar
     const blockers = blockerStats(holes, board, villains);
     return { combo, weight, handClass: nlhHandClass(holes, board), ...blockers, fold, call, raise, foldEv: 0, callEv: callEv / 100, raiseEv: raiseEv / 100, equity: eq, ev, eqr: ev / Math.max(0.0001, eq * pot / 100) };
   });
+  const nodes = rootNodes(board.length, pot, bet, stack, game, betTree);
   return {
-    nodes: rootNodes(board.length, pot, bet, stack, game, betTree),
+    nodes,
+    informationSets: infoSetsFromNodes(nodes),
     rows,
     exploitability: riverStrategyProgressFromRows(rows, pot, 36).map((value, i) => ({ iteration: (i + 1) * 50, value })),
     metrics: { spr: stack / pot, mdf, alpha, potOdds, brGapPctPot: riverExploitabilityFromRows(rows, pot) }
@@ -399,8 +402,10 @@ export function solveNlhComboSpot(pot: number, bet: number, stack = pot * 4.2, b
   const potOdds = bet / (pot + 2 * bet);
   const mdf = pot / (pot + bet);
   const alpha = bet / (pot + bet);
+  const nodes = rootNodes(board.length, pot, bet, stack, "NLH");
   return {
-    nodes: rootNodes(board.length, pot, bet, stack, "NLH"),
+    nodes,
+    informationSets: infoSetsFromNodes(nodes),
     rows,
     exploitability: riverStrategyProgress(rows, pot, bet, 36, rakePct, rakeCap).map((value, i) => ({ iteration: (i + 1) * 50, value })),
     metrics: { spr: stack / pot, mdf, alpha, potOdds, brGapPctPot: riverExploitability(rows, pot, bet, rakePct, rakeCap) }
@@ -469,8 +474,10 @@ function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack
       eqr: ev / Math.max(0.0001, eq * pot / 100)
     };
   });
+  const nodes = rootNodes(boardLen, pot, bet, stack, game, betTree);
   return {
-    nodes: rootNodes(boardLen, pot, bet, stack, game, betTree),
+    nodes,
+    informationSets: infoSetsFromNodes(nodes),
     rows,
     exploitability: riverStrategyProgressFromRows(rows, pot, 36).map((value, i) => ({ iteration: (i + 1) * 50, value })),
     metrics: { spr: stack / pot, mdf, alpha, potOdds, brGapPctPot: riverExploitabilityFromRows(rows, pot), ploFastExploitability: game === "PLO4" ? plo4FastExploitabilityPctPot() : plo5FastExploitabilityPctPot(), ploSampleCount: samples.length, ploWeightCoverage: samples.reduce((sum, sample) => sum + sample.weight, 0) }
@@ -495,6 +502,10 @@ function rootNodes(boardLen: number, pot: number, bet: number, stack: number, ga
 
 function withInfoSet<T extends SolveNode>(node: T): T {
   return { ...node, infoSet: `${node.street}:${node.id}` };
+}
+
+function infoSetsFromNodes(nodes: SolveNode[]): SolveInfoSet[] {
+  return nodes.map((node) => ({ key: node.infoSet ?? `${node.street}:${node.id}`, nodeId: node.id, street: node.street, actions: node.actions }));
 }
 
 function betAmountsForSpot(game: Game, boardLen: number, pot: number, call: number, stack: number, betTree: string): number[] {

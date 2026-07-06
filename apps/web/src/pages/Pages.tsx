@@ -237,6 +237,7 @@ export function SolverStudio() {
           <Metric label="Range Equity" value={`${(nodeSummary.equity * 100).toFixed(1)}%`} />
           <Metric label="Range EQR" value={nodeSummary.eqr.toFixed(2)} />
           <Metric label="Blockers" value={`${nodeSummary.blockedCombos.toFixed(1)} (${(nodeSummary.blockerPct * 100).toFixed(0)}%)`} />
+          <Metric label="Info sets" value={shown.informationSets.length} />
           <Metric label="Action mix" value={`F ${(nodeSummary.fold * 100).toFixed(0)} / C ${(nodeSummary.call * 100).toFixed(0)} / R ${(nodeSummary.raise * 100).toFixed(0)}`} />
           <Metric label="Action composition" value={actionComposition} />
           <div className="card" aria-label="solve nodes"><b>Nodes</b><div className="grid" style={{ gap: 8, marginTop: 12 }}>{shown.nodes.map((node) => <button className="btn" key={node.id} aria-pressed={(selectedNode?.id ?? "root") === node.id} onClick={() => setSelectedNodeId(node.id)}>{node.label} ({node.id}{node.actions.length ? `: ${node.actions.join(", ")}` : ""})</button>)}</div></div>

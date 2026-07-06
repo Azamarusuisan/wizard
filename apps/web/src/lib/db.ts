@@ -14,6 +14,7 @@ type SolveRecord = {
   meta: { version: number; createdAt: number; spot: unknown };
   blob: {
     nodes?: SolveResult["nodes"];
+    informationSets?: SolveResult["informationSets"];
     combos: string[];
     handClasses?: string[];
     weights?: Float32Array;
@@ -161,6 +162,7 @@ function unpackProb(xs: Uint16Array): number[] {
 function packSolve(result: SolveResult): SolveRecord["blob"] {
   return {
     nodes: result.nodes,
+    informationSets: result.informationSets,
     combos: result.rows.map((r) => r.combo),
     handClasses: result.rows.map((r) => r.handClass),
     weights: Float32Array.from(result.rows.map((r) => r.weight)),
@@ -200,7 +202,12 @@ function unpackSolve(blob: SolveRecord["blob"]): SolveResult {
     ev: blob.ev[i]!,
     eqr: blob.eqr[i]!
   }));
-  return { nodes: blob.nodes ?? [{ id: "root", label: "Root", street: "preflop", actions: ["fold", "call", "raise"], infoSet: "preflop:root" }], rows, exploitability: blob.exploitability, metrics: blob.metrics };
+  const nodes = blob.nodes ?? [{ id: "root", label: "Root", street: "preflop", actions: ["fold", "call", "raise"], infoSet: "preflop:root" }];
+  return { nodes, informationSets: blob.informationSets ?? infoSetsFromNodes(nodes), rows, exploitability: blob.exploitability, metrics: blob.metrics };
+}
+
+function infoSetsFromNodes(nodes: SolveResult["nodes"]): SolveResult["informationSets"] {
+  return nodes.map((node) => ({ key: node.infoSet ?? `${node.street}:${node.id}`, nodeId: node.id, street: node.street, actions: node.actions }));
 }
 
 function reqResult<T>(req: IDBRequest<T>): Promise<T> {
@@ -216,7 +223,7 @@ function countStore(store: StoreName): Promise<number> {
 
 function solveRecordBytes(rec: SolveRecord): number {
   const blob = rec.blob;
-  return JSON.stringify(rec.meta).length + JSON.stringify(blob.nodes ?? []).length + blob.combos.join("").length + (blob.handClasses?.join("").length ?? 0) + (blob.weights?.byteLength ?? 0) + (blob.blockers?.byteLength ?? 0) + blob.fold.byteLength + blob.call.byteLength + blob.raise.byteLength + (blob.foldEv?.byteLength ?? 0) + (blob.callEv?.byteLength ?? 0) + (blob.raiseEv?.byteLength ?? 0) + blob.equity.byteLength + blob.ev.byteLength + blob.eqr.byteLength + blob.exploitability.length * 16 + 64;
+  return JSON.stringify(rec.meta).length + JSON.stringify(blob.nodes ?? []).length + JSON.stringify(blob.informationSets ?? []).length + blob.combos.join("").length + (blob.handClasses?.join("").length ?? 0) + (blob.weights?.byteLength ?? 0) + (blob.blockers?.byteLength ?? 0) + blob.fold.byteLength + blob.call.byteLength + blob.raise.byteLength + (blob.foldEv?.byteLength ?? 0) + (blob.callEv?.byteLength ?? 0) + (blob.raiseEv?.byteLength ?? 0) + blob.equity.byteLength + blob.ev.byteLength + blob.eqr.byteLength + blob.exploitability.length * 16 + 64;
 }
 
 function txDone(req: IDBRequest<any>): Promise<void> {

@@ -1853,9 +1853,19 @@ struct NativeNode {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
+struct NativeInfoSet {
+    key: String,
+    #[serde(rename = "nodeId")]
+    node_id: String,
+    street: String,
+    actions: Vec<String>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
 struct NativeSolve {
     spot: NativeSpot,
     nodes: Vec<NativeNode>,
+    information_sets: Vec<NativeInfoSet>,
     combos: Vec<String>,
     hand_classes: Vec<String>,
     progress: Vec<NativeProgress>,
@@ -1969,9 +1979,11 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
         })
         .collect();
     let nodes = root_nodes_for_spot(&spot, board.len());
+    let information_sets = information_sets_from_nodes(&nodes);
     let solve = NativeSolve {
         spot,
         nodes,
+        information_sets,
         combos,
         hand_classes,
         progress,
@@ -2075,9 +2087,11 @@ fn solve_plo_fast(
         })
         .collect();
     let nodes = root_nodes_for_spot(&spot, board_len);
+    let information_sets = information_sets_from_nodes(&nodes);
     let solve = NativeSolve {
         spot,
         nodes,
+        information_sets,
         combos,
         hand_classes,
         progress,
@@ -2898,6 +2912,18 @@ fn native_node(
     }
 }
 
+fn information_sets_from_nodes(nodes: &[NativeNode]) -> Vec<NativeInfoSet> {
+    nodes
+        .iter()
+        .map(|node| NativeInfoSet {
+            key: node.info_set.clone(),
+            node_id: node.id.clone(),
+            street: node.street.clone(),
+            actions: node.actions.clone(),
+        })
+        .collect()
+}
+
 fn format_bet_node(amount: f64, stack: f64) -> String {
     if (amount - stack).abs() <= 1e-9 {
         "all-in".to_string()
@@ -3330,6 +3356,8 @@ mod tests {
         assert_eq!(native.nodes[0].id, "root");
         assert_eq!(native.nodes[0].street, "preflop");
         assert_eq!(native.nodes[0].info_set, "preflop:root");
+        assert_eq!(native.information_sets[0].key, "preflop:root");
+        assert_eq!(native.information_sets[0].node_id, "root");
         assert!(super::has_node_id(&native, "root/call"));
         assert!(super::has_node_id(&native, "root/bet-33"));
         assert_eq!(

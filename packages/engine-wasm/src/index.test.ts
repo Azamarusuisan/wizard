@@ -99,6 +99,7 @@ test("TS river solve fallback emits CFR-trained rows", () => {
   assert.ok(result.nodes.some((node) => node.id === "root/bet-33"));
   assert.ok(result.nodes.some((node) => node.id === "root/bet-all-in"));
   assert.equal(result.nodes.find((node) => node.id === "root/bet-33")?.infoSet, "preflop:root/bet-33");
+  assert.equal(result.informationSets.find((infoSet) => infoSet.nodeId === "root/bet-33")?.key, "preflop:root/bet-33");
   assert.deepEqual(result.nodes.find((node) => node.id === "root/bet-33")?.actions, ["fold", "call"]);
   assert.equal(result.nodes.find((node) => node.id === "root/bet-33")?.amount, 33);
   assert.equal(result.nodes.find((node) => node.id === "root/bet-33")?.pot, 100);

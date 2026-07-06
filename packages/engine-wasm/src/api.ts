@@ -1,4 +1,4 @@
-import { solveRiverSpot, type SolveNode, type SolveResult, type SolverRow } from "./index.js";
+import { solveRiverSpot, type SolveInfoSet, type SolveNode, type SolveResult, type SolverRow } from "./index.js";
 
 export type Progress = { iteration: number; exploitabilityPct: number; elapsed: number };
 export type EngineHandle = number;
@@ -32,6 +32,7 @@ type WasmModule = {
 
 type NativeSolve = {
   nodes?: SolveNode[];
+  information_sets?: SolveInfoSet[];
   combos: string[];
   hand_classes?: string[];
   progress: { iter: number; exploitability_pct: number; elapsed: number }[];
@@ -248,8 +249,10 @@ function splitMetrics(raw: ArrayLike<number>, rows: number): HandMetrics {
 function nativeToResult(native: NativeSolve): SolveResult {
   const combos = native.combos.length ? native.combos : FALLBACK_COMBOS;
   const metrics = splitMetrics(native.metrics, combos.length);
+  const nodes = native.nodes?.length ? native.nodes : [{ id: "root", label: "Root", street: "preflop", actions: ["fold", "call", "raise"], infoSet: "preflop:root" }];
   return {
-    nodes: native.nodes?.length ? native.nodes : [{ id: "root", label: "Root", street: "preflop", actions: ["fold", "call", "raise"], infoSet: "preflop:root" }],
+    nodes,
+    informationSets: native.information_sets?.length ? native.information_sets : infoSetsFromNodes(nodes),
     rows: combos.map((combo, i) => ({
       combo,
       weight: native.weights?.[i] ?? 1,
@@ -281,3 +284,7 @@ function nativeToResult(native: NativeSolve): SolveResult {
 }
 
 export const engine: EngineAPI = new WasmPreferredEngine();
+
+function infoSetsFromNodes(nodes: SolveNode[]): SolveInfoSet[] {
+  return nodes.map((node) => ({ key: node.infoSet ?? `${node.street}:${node.id}`, nodeId: node.id, street: node.street, actions: node.actions }));
+}
