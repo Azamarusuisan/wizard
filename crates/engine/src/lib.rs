@@ -2855,8 +2855,26 @@ pub fn get_strategy(handle: u32, node_id: &str) -> Result<Vec<f64>, JsValue> {
                 .flatten()
                 .collect());
         }
+        if node.id == "root/raise-sizes" {
+            return Ok(raise_size_strategy(solve, node));
+        }
         Ok(solve.strategy.clone())
     })
+}
+
+fn raise_size_strategy(solve: &NativeSolve, node: &NativeNode) -> Vec<f64> {
+    let stack = solve.spot.stack.unwrap_or(solve.spot.pot * 4.2);
+    solve
+        .best_raise_amounts
+        .iter()
+        .zip(solve.strategy.chunks_exact(3))
+        .flat_map(|(amount, strategy)| {
+            let label = format_bet_node(*amount, stack);
+            node.actions
+                .iter()
+                .map(move |action| if *action == label { strategy[2] } else { 0.0 })
+        })
+        .collect()
 }
 
 #[wasm_bindgen]
@@ -3146,6 +3164,16 @@ fn root_nodes(board_len: usize, bet_nodes: &[BetNode]) -> Vec<NativeNode> {
             None,
         )
     }));
+    if !bet_nodes.is_empty() {
+        nodes.push(native_node(
+            "root/raise-sizes".to_string(),
+            "RAISE SIZES".to_string(),
+            street,
+            bet_nodes.iter().map(|bet| bet.label.clone()).collect(),
+            None,
+            None,
+        ));
+    }
     for bet in bet_nodes {
         let id = format!("root/bet-{}", bet.label);
         nodes.push(native_node(
@@ -3215,6 +3243,9 @@ fn info_set_refs(node: &NativeNode) -> (String, String) {
     }
     if node.id == "root" {
         return ("root".to_string(), "root".to_string());
+    }
+    if node.id == "root/raise-sizes" {
+        return ("raise-sizes".to_string(), "raise-sizes".to_string());
     }
     if let Some(action) = node.id.strip_prefix("root/") {
         return ("terminal".to_string(), format!("action:{action}"));
@@ -3706,6 +3737,16 @@ mod tests {
             "action:call"
         );
         assert!(super::has_node_id(&native, "root/call"));
+        assert!(super::has_node_id(&native, "root/raise-sizes"));
+        assert_eq!(
+            native
+                .information_sets
+                .iter()
+                .find(|info_set| info_set.node_id == "root/raise-sizes")
+                .unwrap()
+                .strategy_ref,
+            "raise-sizes"
+        );
         assert!(super::has_node_id(&native, "root/bet-33"));
         assert!(super::has_node_id(&native, "root/bet-33/fold"));
         assert!(super::has_node_id(&native, "root/bet-33/call"));
@@ -3760,6 +3801,20 @@ mod tests {
         );
         assert!((bet_strategy[0] - 33.0 / 133.0).abs() < 1e-12);
         assert!((bet_strategy[1] - 100.0 / 133.0).abs() < 1e-12);
+        let raise_size_strategy = super::get_strategy(handle, "root/raise-sizes").unwrap();
+        let raise_size_node = native
+            .nodes
+            .iter()
+            .find(|node| node.id == "root/raise-sizes")
+            .unwrap();
+        assert_eq!(
+            raise_size_strategy.len(),
+            native.combos.len() * raise_size_node.actions.len()
+        );
+        assert_eq!(
+            raise_size_strategy[raise_size_node.actions.len() - 1],
+            native.strategy[2]
+        );
         let bet_metrics = super::get_hand_metrics(handle, "root/bet-33").unwrap();
         assert_eq!(bet_metrics.len(), native.combos.len() * 3);
         assert!(bet_metrics[0].is_finite());

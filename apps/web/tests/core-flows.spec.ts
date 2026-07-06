@@ -65,9 +65,10 @@ test("solver runs and displays strategy metrics", async ({ page }) => {
   await expect(page.getByText("Info sets")).toBeVisible();
   await expect(page.getByText("Action mix")).toBeVisible();
   await expect(page.getByText("Action composition")).toBeVisible();
-  await expect(page.getByText("Raise sizes")).toBeVisible();
+  await expect(page.getByText("Raise sizes", { exact: true })).toBeVisible();
   await expect(page.locator('[aria-label^="Raise sizes:"]')).toContainText("bb");
   await expect(page.getByLabel("solve nodes")).toContainText("root/call");
+  await expect(page.getByLabel("solve nodes")).toContainText("root/raise-sizes");
   await expect(page.getByLabel("solve nodes")).toContainText("root/bet-33");
   await expect(page.getByLabel("solve nodes")).toContainText("root/bet-33/call");
   await page.getByRole("button", { name: /CALL \(root\/call/ }).click();

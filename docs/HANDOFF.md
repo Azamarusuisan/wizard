@@ -135,6 +135,7 @@
 - Solver Studio node list is now selectable. The strategy table switches between root strategy, terminal action branch metrics, and bet-response branch metrics; Playwright covers `root/call` and `root/bet-33` selection.
 - Solver Studio now shows selected-node range aggregates: range EV, range equity, range EQR, and fold/call/raise action mix. Playwright covers the cards.
 - Solver Studio now summarizes aggregate raise mix by concrete `bestRaiseAmount`, exposing the first per-size strategy view without replacing the root three-action table yet.
+- Solve results now expose a `root/raise-sizes` auxiliary information set whose actions are the configured concrete bet-size labels. `EngineAPI.getStrategy` maps each combo's aggregate raise frequency to its best concrete size while the existing root fold/call/raise table remains unchanged.
 - The TypeScript fallback evaluator test also covers PLO5 exact two-hole usage and board-only hands being unplayable.
 - `crates/engine` now exports wasm-bindgen handle/progress functions matching the EngineAPI shape: `init`, `solve`, `poll_progress`, `get_strategy`, `get_hand_metrics`, `cancel`, and `serialize`. Native serialized solve payloads include combo labels, so TypeScript no longer owns solver row identity for the WASM path.
 - README, architecture, and formats docs now reflect the current Plan A Rust/WASM path, IndexedDB solve cache shape, and remaining compact-range / sampled-PLO limitations.
@@ -142,7 +143,7 @@
 - IndexedDB solve cache keys are canonical JSON SHA-256 via WebCrypto in the web layer.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `default_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~11.66 ns/eval, default river rows ~501.65 us. The evaluator now exceeds the original 50M eval/s target on this machine.
-- Last verified: `bash scripts/verify.sh` exited 0 after adding Solver Studio raise-size mix summary. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
+- Last verified: `bash scripts/verify.sh` exited 0 after adding the `root/raise-sizes` auxiliary strategy table. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
 - Git remote `origin` is set to `https://github.com/Azamarusuisan/wizard.git`; do not push until §6 is actually complete.
 
 ## Important Caveat

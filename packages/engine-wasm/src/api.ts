@@ -78,6 +78,10 @@ class LocalEngine implements EngineAPI {
       const [fold, call] = betResponseStrategy(node.pot, node.amount);
       return { combos: result.rows.map((r) => r.combo), actions: Float64Array.from(result.rows.flatMap(() => [fold, call])) };
     }
+    if (node.id === "root/raise-sizes") return {
+      combos: result.rows.map((r) => r.combo),
+      actions: Float64Array.from(result.rows.flatMap((row) => raiseSizeActions(row, node.actions)))
+    };
     return {
       combos: result.rows.map((r: SolverRow) => r.combo),
       actions: Float64Array.from(result.rows.flatMap((r: SolverRow) => [r.fold, r.call, r.raise]))
@@ -126,6 +130,16 @@ function nodeForId(result: SolveResult, nodeId: string): SolveNode {
 
 function betResponseStrategy(pot: number, amount: number): [number, number] {
   return [amount / (pot + amount), pot / (pot + amount)];
+}
+
+function formatBetNode(amount: number): string {
+  return Number.isInteger(amount) ? String(amount) : amount.toFixed(2);
+}
+
+function raiseSizeActions(row: SolverRow, actions: string[]): number[] {
+  const exact = formatBetNode(row.bestRaiseAmount);
+  const target = actions.includes(exact) ? exact : actions.includes("all-in") ? "all-in" : exact;
+  return actions.map((action) => action === target ? row.raise : 0);
 }
 
 function nodeActionKey(nodeId: string): "foldEv" | "callEv" | "raiseEv" | null {
@@ -307,6 +321,7 @@ function infoSetRefs(node: SolveNode): Pick<SolveInfoSet, "strategyRef" | "metri
   if (node.amount !== undefined && node.actions.length) return { strategyRef: "bet-response", metricRef: "bet-response" };
   if (node.amount !== undefined) return { strategyRef: "terminal", metricRef: `response:${node.id}` };
   if (node.id === "root") return { strategyRef: "root", metricRef: "root" };
+  if (node.id === "root/raise-sizes") return { strategyRef: "raise-sizes", metricRef: "raise-sizes" };
   if (node.id.startsWith("root/")) return { strategyRef: "terminal", metricRef: `action:${node.id.slice("root/".length)}` };
   return { strategyRef: node.id, metricRef: node.id };
 }
