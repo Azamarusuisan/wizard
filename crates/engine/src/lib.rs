@@ -1739,6 +1739,10 @@ struct NativeNode {
     label: String,
     street: String,
     actions: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    amount: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pot: Option<f64>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -2166,6 +2170,13 @@ pub fn poll_progress(handle: u32) -> Result<String, JsValue> {
 pub fn get_strategy(handle: u32, node_id: &str) -> Result<Vec<f64>, JsValue> {
     with_solve(handle, |solve| {
         let node = node_for_id(solve, node_id)?;
+        if let Some(amount) = node.amount {
+            let fold = amount / (solve.spot.pot + amount);
+            let call = solve.spot.pot / (solve.spot.pot + amount);
+            return Ok(std::iter::repeat_n([fold, call], solve.combos.len())
+                .flatten()
+                .collect());
+        }
         if node.actions.is_empty() {
             return Ok(Vec::new());
         }
@@ -2177,7 +2188,7 @@ pub fn get_strategy(handle: u32, node_id: &str) -> Result<Vec<f64>, JsValue> {
 pub fn get_hand_metrics(handle: u32, node_id: &str) -> Result<Vec<f64>, JsValue> {
     with_solve(handle, |solve| {
         let node = node_for_id(solve, node_id)?;
-        if node.actions.is_empty() {
+        if node.actions.is_empty() || node.amount.is_some() {
             return Ok(Vec::new());
         }
         Ok(solve.metrics.clone())
@@ -2229,11 +2240,21 @@ fn root_nodes_for_spot(spot: &NativeSpot, board_len: usize) -> Vec<NativeNode> {
             };
             amounts
                 .into_iter()
-                .map(|amount| format_bet_node(amount, stack))
+                .map(|amount| BetNode {
+                    label: format_bet_node(amount, stack),
+                    amount,
+                    pot: spot.pot,
+                })
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default();
     root_nodes(board_len, &bet_nodes)
+}
+
+struct BetNode {
+    label: String,
+    amount: f64,
+    pot: f64,
 }
 
 fn bet_sizes_for_board(tree: &tree::BetTree, board_len: usize) -> &[tree::BetSize] {
@@ -2244,7 +2265,7 @@ fn bet_sizes_for_board(tree: &tree::BetTree, board_len: usize) -> &[tree::BetSiz
     }
 }
 
-fn root_nodes(board_len: usize, bet_nodes: &[String]) -> Vec<NativeNode> {
+fn root_nodes(board_len: usize, bet_nodes: &[BetNode]) -> Vec<NativeNode> {
     let street = street_for_board(board_len);
     let actions = ["fold", "call", "raise"];
     let mut nodes = vec![NativeNode {
@@ -2252,18 +2273,24 @@ fn root_nodes(board_len: usize, bet_nodes: &[String]) -> Vec<NativeNode> {
         label: "Root".to_string(),
         street: street.to_string(),
         actions: actions.iter().map(|action| action.to_string()).collect(),
+        amount: None,
+        pot: None,
     }];
     nodes.extend(actions.iter().map(|action| NativeNode {
         id: format!("root/{action}"),
         label: action.to_ascii_uppercase(),
         street: street.to_string(),
         actions: Vec::new(),
+        amount: None,
+        pot: None,
     }));
-    nodes.extend(bet_nodes.iter().map(|label| NativeNode {
-        id: format!("root/bet-{label}"),
-        label: format!("BET {label}"),
+    nodes.extend(bet_nodes.iter().map(|bet| NativeNode {
+        id: format!("root/bet-{}", bet.label),
+        label: format!("BET {}", bet.label),
         street: street.to_string(),
-        actions: Vec::new(),
+        actions: vec!["fold".to_string(), "call".to_string()],
+        amount: Some(bet.amount),
+        pot: Some(bet.pot),
     }));
     nodes
 }
@@ -2675,6 +2702,11 @@ mod tests {
         assert!(!super::has_node_id(&native, "turn:blank"));
         assert!(super::get_strategy(handle, "root/call").unwrap().is_empty());
         assert!(super::get_hand_metrics(handle, "root/call").unwrap().is_empty());
+        let bet_strategy = super::get_strategy(handle, "root/bet-33").unwrap();
+        assert_eq!(bet_strategy.len(), native.combos.len() * 2);
+        assert!((bet_strategy[0] - 33.0 / 133.0).abs() < 1e-12);
+        assert!((bet_strategy[1] - 100.0 / 133.0).abs() < 1e-12);
+        assert!(super::get_hand_metrics(handle, "root/bet-33").unwrap().is_empty());
         assert!(native.action_evs[2] >= native.action_evs[1]);
         assert!(native.metrics[(native.combos.len() - 1) * 3] >= 0.0);
         let base = native.combos.len() * 3;

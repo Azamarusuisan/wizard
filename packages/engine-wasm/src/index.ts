@@ -325,7 +325,7 @@ function parseBetSizes(text: string): BetSize[] {
 }
 
 export type SolverRow = { combo: string; fold: number; call: number; raise: number; foldEv: number; callEv: number; raiseEv: number; equity: number; ev: number; eqr: number };
-export type SolveNode = { id: string; label: string; street: string; actions: string[] };
+export type SolveNode = { id: string; label: string; street: string; actions: string[]; amount?: number; pot?: number };
 export type SolveResult = { nodes: SolveNode[]; rows: SolverRow[]; exploitability: { iteration: number; value: number }[]; metrics: { spr: number; mdf: number; alpha: number; potOdds: number; brGapPctPot?: number; ploFastExploitability?: number } };
 export const DEFAULT_RIVER_SPECS = [
   ["AA", 0.82],
@@ -470,12 +470,12 @@ function rootNodes(boardLen: number, pot: number, bet: number, stack: number, ga
   const sizes = parsedBetTree ? boardLen === 4 ? parsedBetTree.turn : boardLen === 5 ? parsedBetTree.river : parsedBetTree.flop : [];
   const betNodes = sizes.length
     ? (game === "NLH" ? concreteBets(sizes, pot, stack) : concretePotLimitBets(sizes, pot, bet, stack))
-      .map((amount) => formatBetNode(amount, stack))
+      .map((amount) => ({ label: formatBetNode(amount, stack), amount, pot }))
     : [];
   return [
     { id: "root", label: "Root", street, actions },
     ...actions.map((action) => ({ id: `root/${action}`, label: action.toUpperCase(), street, actions: [] })),
-    ...betNodes.map((label) => ({ id: `root/bet-${label}`, label: `BET ${label}`, street, actions: [] }))
+    ...betNodes.map((bet) => ({ id: `root/bet-${bet.label}`, label: `BET ${bet.label}`, street, actions: ["fold", "call"], amount: bet.amount, pot: bet.pot }))
   ];
 }
 
