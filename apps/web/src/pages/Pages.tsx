@@ -92,6 +92,7 @@ export function SolverStudio() {
   const shown = preview.error ? null : result && resultKey === currentKey ? result : preview.result;
   const selectedNode = shown?.nodes.find((node) => node.id === selectedNodeId) ?? shown?.nodes[0];
   const shownRows = shown && selectedNode ? rowsForNode(shown, selectedNode) : [];
+  const nodeSummary = summarizeRows(shownRows);
   return (
     <div className="split">
       <section className="card grid">
@@ -154,6 +155,10 @@ export function SolverStudio() {
           <Metric label="Pot odds" value={`${(shown.metrics.potOdds * 100).toFixed(1)}%`} />
           {shown.metrics.brGapPctPot !== undefined ? <Metric label="BR gap" value={`${shown.metrics.brGapPctPot.toFixed(2)}% pot`} /> : null}
           {shown.metrics.ploFastExploitability !== undefined ? <Metric label="PLO Fast BR" value={`${shown.metrics.ploFastExploitability.toFixed(2)}% pot`} /> : null}
+          <Metric label="Range EV" value={`${nodeSummary.ev.toFixed(3)}bb`} />
+          <Metric label="Range Equity" value={`${(nodeSummary.equity * 100).toFixed(1)}%`} />
+          <Metric label="Range EQR" value={nodeSummary.eqr.toFixed(2)} />
+          <Metric label="Action mix" value={`F ${(nodeSummary.fold * 100).toFixed(0)} / C ${(nodeSummary.call * 100).toFixed(0)} / R ${(nodeSummary.raise * 100).toFixed(0)}`} />
           <div className="card" aria-label="solve nodes"><b>Nodes</b><div className="grid" style={{ gap: 8, marginTop: 12 }}>{shown.nodes.map((node) => <button className="btn" key={node.id} aria-pressed={(selectedNode?.id ?? "root") === node.id} onClick={() => setSelectedNodeId(node.id)}>{node.label} ({node.id}{node.actions.length ? `: ${node.actions.join(", ")}` : ""})</button>)}</div></div>
           <div className="card" style={{ height: 220 }}><Curve data={progress.length ? progress : shown.exploitability} /></div>
         </> : <div className="card"><p className="muted">No valid spot.</p></div>}
@@ -185,6 +190,26 @@ function betResponseRow(row: SolverRow, pot: number, amount: number): SolverRow 
 
 function rowEqrDenominator(row: SolverRow): number {
   return Math.max(0.0001, row.eqr === 0 ? row.equity : row.ev / row.eqr);
+}
+
+function summarizeRows(rows: SolverRow[]): Pick<SolverRow, "fold" | "call" | "raise" | "ev" | "equity" | "eqr"> {
+  if (!rows.length) return { fold: 0, call: 0, raise: 0, ev: 0, equity: 0, eqr: 0 };
+  const total = rows.reduce((sum, row) => ({
+    fold: sum.fold + row.fold,
+    call: sum.call + row.call,
+    raise: sum.raise + row.raise,
+    ev: sum.ev + row.ev,
+    equity: sum.equity + row.equity,
+    eqr: sum.eqr + row.eqr
+  }), { fold: 0, call: 0, raise: 0, ev: 0, equity: 0, eqr: 0 });
+  return {
+    fold: total.fold / rows.length,
+    call: total.call / rows.length,
+    raise: total.raise / rows.length,
+    ev: total.ev / rows.length,
+    equity: total.equity / rows.length,
+    eqr: total.eqr / rows.length
+  };
 }
 
 function flopBetSizes(text: string, pot: number, call: number, stack: number, game: Game): { amount: number; label: string }[] {
