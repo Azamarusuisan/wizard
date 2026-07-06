@@ -155,6 +155,7 @@ export function SolverStudio() {
   }, [game, pot, bet, stack, board, rakePct, rakeCap, betTree, precision, heroRange, villainRange]);
   const shown = preview.error ? null : result && resultKey === currentKey ? result : preview.result;
   const selectedNode = shown?.nodes.find((node) => node.id === selectedNodeId) ?? shown?.nodes[0];
+  const selectedInfoSet = selectedNode ? shown?.informationSets.find((infoSet) => infoSet.nodeId === selectedNode.id || infoSet.key === selectedNode.infoSet) : null;
   const nodeRows = shown && selectedNode ? rowsForNode(shown, selectedNode) : [];
   const handClasses = [...new Set(nodeRows.map((row) => row.handClass))].sort();
   const shownRows = handClassFilter === "all" ? nodeRows : nodeRows.filter((row) => row.handClass === handClassFilter);
@@ -220,7 +221,7 @@ export function SolverStudio() {
       </section>
       <section className="card">
         <h2 className="title">Strategy</h2>
-        {selectedNode ? <p className="muted">Node: <span className="num">{selectedNode.id}</span>{selectedNode.infoSet ? <> / Info set: <span className="num">{selectedNode.infoSet}</span></> : null}</p> : null}
+        {selectedNode ? <p className="muted">Node: <span className="num">{selectedNode.id}</span>{selectedInfoSet ? <> / Info set: <span className="num">{selectedInfoSet.key}</span> / Tables: <span className="num">{selectedInfoSet.strategyRef}</span> / <span className="num">{selectedInfoSet.metricRef}</span></> : null}</p> : null}
         {shown ? <label className="field">Hand class<select value={handClassFilter} onChange={(event) => setHandClassFilter(event.target.value)}><option value="all">All</option>{handClasses.map((name) => <option key={name} value={name}>{name}</option>)}</select></label> : null}
         {shown ? <StrategyTable rows={shownRows} /> : <p className="muted">Fix spot inputs to preview strategy.</p>}
       </section>

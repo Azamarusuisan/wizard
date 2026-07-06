@@ -60,6 +60,7 @@ test("solver runs and displays strategy metrics", async ({ page }) => {
   await page.getByRole("button", { name: /CALL \(root\/call/ }).click();
   await expect(page.getByText("Node: root/call")).toBeVisible();
   await expect(page.getByText("Info set: flop:root/call")).toBeVisible();
+  await expect(page.getByText(/Tables:\s*terminal\s*\/\s*action:call/)).toBeVisible();
   await expect(page.getByRole("table", { name: "strategy table" })).toContainText("100%");
   await page.getByRole("button", { name: /BET 33 \(root\/bet-33/ }).click();
   await expect(page.getByText("Node: root/bet-33")).toBeVisible();
