@@ -77,6 +77,7 @@ Solve cache records:
   "key": "sha256",
   "meta": { "version": 1, "createdAt": 0, "spot": {} },
   "blob": {
+    "nodes": [{"id": "root", "infoSet": "flop:root", "street": "flop", "actions": ["fold", "call", "raise"]}],
     "combos": ["AA"],
     "handClasses": ["pair"],
     "weights": "Float32Array",

@@ -220,7 +220,7 @@ export function SolverStudio() {
       </section>
       <section className="card">
         <h2 className="title">Strategy</h2>
-        {selectedNode ? <p className="muted">Node: <span className="num">{selectedNode.id}</span></p> : null}
+        {selectedNode ? <p className="muted">Node: <span className="num">{selectedNode.id}</span>{selectedNode.infoSet ? <> / Info set: <span className="num">{selectedNode.infoSet}</span></> : null}</p> : null}
         {shown ? <label className="field">Hand class<select value={handClassFilter} onChange={(event) => setHandClassFilter(event.target.value)}><option value="all">All</option>{handClasses.map((name) => <option key={name} value={name}>{name}</option>)}</select></label> : null}
         {shown ? <StrategyTable rows={shownRows} /> : <p className="muted">Fix spot inputs to preview strategy.</p>}
       </section>

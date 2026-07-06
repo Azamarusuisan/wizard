@@ -249,7 +249,7 @@ function nativeToResult(native: NativeSolve): SolveResult {
   const combos = native.combos.length ? native.combos : FALLBACK_COMBOS;
   const metrics = splitMetrics(native.metrics, combos.length);
   return {
-    nodes: native.nodes?.length ? native.nodes : [{ id: "root", label: "Root", street: "preflop", actions: ["fold", "call", "raise"] }],
+    nodes: native.nodes?.length ? native.nodes : [{ id: "root", label: "Root", street: "preflop", actions: ["fold", "call", "raise"], infoSet: "preflop:root" }],
     rows: combos.map((combo, i) => ({
       combo,
       weight: native.weights?.[i] ?? 1,

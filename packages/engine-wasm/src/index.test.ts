@@ -94,10 +94,11 @@ test("Kuhn value converges near -1/18", () => {
 
 test("TS river solve fallback emits CFR-trained rows", () => {
   const result = solveRiverSpot(100, 66, 250, "", 0, 0, "NLH", "flop 33,66,all-in");
-  assert.deepEqual(result.nodes[0], { id: "root", label: "Root", street: "preflop", actions: ["fold", "call", "raise"] });
+  assert.deepEqual(result.nodes[0], { id: "root", label: "Root", street: "preflop", actions: ["fold", "call", "raise"], infoSet: "preflop:root" });
   assert.ok(result.nodes.some((node) => node.id === "root/call"));
   assert.ok(result.nodes.some((node) => node.id === "root/bet-33"));
   assert.ok(result.nodes.some((node) => node.id === "root/bet-all-in"));
+  assert.equal(result.nodes.find((node) => node.id === "root/bet-33")?.infoSet, "preflop:root/bet-33");
   assert.deepEqual(result.nodes.find((node) => node.id === "root/bet-33")?.actions, ["fold", "call"]);
   assert.equal(result.nodes.find((node) => node.id === "root/bet-33")?.amount, 33);
   assert.equal(result.nodes.find((node) => node.id === "root/bet-33")?.pot, 100);

@@ -325,7 +325,7 @@ function parseBetSizes(text: string): BetSize[] {
 }
 
 export type SolverRow = { combo: string; weight: number; handClass: string; blockedCombos: number; blockerPct: number; fold: number; call: number; raise: number; foldEv: number; callEv: number; raiseEv: number; equity: number; ev: number; eqr: number };
-export type SolveNode = { id: string; label: string; street: string; actions: string[]; amount?: number; pot?: number };
+export type SolveNode = { id: string; label: string; street: string; actions: string[]; infoSet?: string; amount?: number; pot?: number };
 export type SolveResult = { nodes: SolveNode[]; rows: SolverRow[]; exploitability: { iteration: number; value: number }[]; metrics: { spr: number; mdf: number; alpha: number; potOdds: number; brGapPctPot?: number; ploFastExploitability?: number; ploSampleCount?: number; ploWeightCoverage?: number } };
 export const DEFAULT_RIVER_SPECS = [
   ["AA", 0.82],
@@ -487,10 +487,14 @@ function rootNodes(boardLen: number, pot: number, bet: number, stack: number, ga
       .map((amount) => ({ label: formatBetNode(amount, stack), amount, pot }))
     : [];
   return [
-    { id: "root", label: "Root", street, actions },
-    ...actions.map((action) => ({ id: `root/${action}`, label: action.toUpperCase(), street, actions: [] })),
-    ...betNodes.map((bet) => ({ id: `root/bet-${bet.label}`, label: `BET ${bet.label}`, street, actions: ["fold", "call"], amount: bet.amount, pot: bet.pot }))
+    withInfoSet({ id: "root", label: "Root", street, actions }),
+    ...actions.map((action) => withInfoSet({ id: `root/${action}`, label: action.toUpperCase(), street, actions: [] })),
+    ...betNodes.map((bet) => withInfoSet({ id: `root/bet-${bet.label}`, label: `BET ${bet.label}`, street, actions: ["fold", "call"], amount: bet.amount, pot: bet.pot }))
   ];
+}
+
+function withInfoSet<T extends SolveNode>(node: T): T {
+  return { ...node, infoSet: `${node.street}:${node.id}` };
 }
 
 function betAmountsForSpot(game: Game, boardLen: number, pot: number, call: number, stack: number, betTree: string): number[] {

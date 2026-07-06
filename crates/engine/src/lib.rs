@@ -1844,6 +1844,8 @@ struct NativeNode {
     label: String,
     street: String,
     actions: Vec<String>,
+    #[serde(rename = "infoSet")]
+    info_set: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     amount: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -2846,31 +2848,54 @@ fn bet_sizes_for_board(tree: &tree::BetTree, board_len: usize) -> &[tree::BetSiz
 fn root_nodes(board_len: usize, bet_nodes: &[BetNode]) -> Vec<NativeNode> {
     let street = street_for_board(board_len);
     let actions = ["fold", "call", "raise"];
-    let mut nodes = vec![NativeNode {
-        id: "root".to_string(),
-        label: "Root".to_string(),
-        street: street.to_string(),
-        actions: actions.iter().map(|action| action.to_string()).collect(),
-        amount: None,
-        pot: None,
-    }];
-    nodes.extend(actions.iter().map(|action| NativeNode {
-        id: format!("root/{action}"),
-        label: action.to_ascii_uppercase(),
-        street: street.to_string(),
-        actions: Vec::new(),
-        amount: None,
-        pot: None,
+    let mut nodes = vec![native_node(
+        "root".to_string(),
+        "Root".to_string(),
+        street,
+        actions.iter().map(|action| action.to_string()).collect(),
+        None,
+        None,
+    )];
+    nodes.extend(actions.iter().map(|action| {
+        native_node(
+            format!("root/{action}"),
+            action.to_ascii_uppercase(),
+            street,
+            Vec::new(),
+            None,
+            None,
+        )
     }));
-    nodes.extend(bet_nodes.iter().map(|bet| NativeNode {
-        id: format!("root/bet-{}", bet.label),
-        label: format!("BET {}", bet.label),
-        street: street.to_string(),
-        actions: vec!["fold".to_string(), "call".to_string()],
-        amount: Some(bet.amount),
-        pot: Some(bet.pot),
+    nodes.extend(bet_nodes.iter().map(|bet| {
+        native_node(
+            format!("root/bet-{}", bet.label),
+            format!("BET {}", bet.label),
+            street,
+            vec!["fold".to_string(), "call".to_string()],
+            Some(bet.amount),
+            Some(bet.pot),
+        )
     }));
     nodes
+}
+
+fn native_node(
+    id: String,
+    label: String,
+    street: &str,
+    actions: Vec<String>,
+    amount: Option<f64>,
+    pot: Option<f64>,
+) -> NativeNode {
+    NativeNode {
+        info_set: format!("{street}:{id}"),
+        id,
+        label,
+        street: street.to_string(),
+        actions,
+        amount,
+        pot,
+    }
 }
 
 fn format_bet_node(amount: f64, stack: f64) -> String {
@@ -3304,8 +3329,18 @@ mod tests {
         assert_eq!(native.spot.precision.as_deref(), Some("balanced"));
         assert_eq!(native.nodes[0].id, "root");
         assert_eq!(native.nodes[0].street, "preflop");
+        assert_eq!(native.nodes[0].info_set, "preflop:root");
         assert!(super::has_node_id(&native, "root/call"));
         assert!(super::has_node_id(&native, "root/bet-33"));
+        assert_eq!(
+            native
+                .nodes
+                .iter()
+                .find(|node| node.id == "root/bet-33")
+                .unwrap()
+                .info_set,
+            "preflop:root/bet-33"
+        );
         assert!(super::has_node_id(&native, "root/bet-all-in"));
         let equity = br::DEFAULT_RIVER_SPECS[0].1;
         let (fold_ev, call_ev, _) = br::action_evs(equity, 100.0, 66.0, 0.0, 0.0);
