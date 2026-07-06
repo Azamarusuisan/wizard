@@ -27,10 +27,12 @@ Decision:
 - Current production precision controls CFR iteration depth: Fast = 512, Balanced = 2,048, Precise = 4,096.
 - Current flop abstraction quality gate uses 2 / 4 / 6 representative buckets to prove the direction of improvement.
 - Target card-abstraction allocation remains Fast / Balanced / Precise = 32 / 96 / 256 buckets with 6k / 25k / 100k samples when the full public tree replaces the compact continuation path.
+- Current compact flop continuation buckets turn and river chance branches by exact-equity quantiles, not deck order.
 
 Reason:
 - Browser workers need predictable latency. The UI reports approximation status and memory estimates rather than pretending exactness.
 - Bucketing uses fixed-seed k-means++ over ten features: eight equity quantiles plus EHS and EHS2. The seed makes test and cache behavior reproducible.
+- Equity-quantile chance branches preserve the intended low / medium / high runout meaning and are closer to the target EHS-style abstraction while the full public tree is still pending.
 
 ## Class Counts
 

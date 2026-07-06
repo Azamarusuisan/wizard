@@ -1323,21 +1323,40 @@ pub mod br {
         let deck = (0..52)
             .filter(|card| !dead.contains(card))
             .collect::<Vec<_>>();
-        let turn_partitions = sampled_chance_partitions(deck.len());
-        let turn_weights = sampled_chance_weights(deck.len());
-        let turn_equities = turn_partitions.map(|(start, end)| {
-            average_equity(&deck[start..end], |turn| {
+        let mut turn_entries = deck
+            .iter()
+            .copied()
+            .map(|turn| {
                 let next_board = [board[0], board[1], board[2], turn];
-                equity::heads_up_nlh_equity_exact(hero, villain, &next_board)
+                (
+                    turn,
+                    equity::heads_up_nlh_equity_exact(hero, villain, &next_board),
+                )
             })
+            .collect::<Vec<_>>();
+        turn_entries.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+
+        let turn_groups = chance_quantile_partitions(turn_entries.len());
+        let turn_weights = chance_quantile_weights(turn_entries.len());
+        let turn_equities =
+            turn_groups.map(|(start, end)| average_equity_values(&turn_entries[start..end]));
+        let river_equities = turn_groups.map(|(turn_start, turn_end)| {
+            let mut river_entries = Vec::new();
+            for &(turn, _) in &turn_entries[turn_start..turn_end] {
+                for &river in deck.iter().filter(|river| **river != turn) {
+                    let next_board = [board[0], board[1], board[2], turn, river];
+                    river_entries.push(equity::heads_up_nlh_equity_exact(
+                        hero,
+                        villain,
+                        &next_board,
+                    ));
+                }
+            }
+            chance_quantile_averages(river_entries)
         });
-        let river_equities = turn_partitions.map(|(turn_start, turn_end)| {
-            let turns = &deck[turn_start..turn_end];
-            sampled_chance_partitions(deck.len() - 1).map(|river_partition| {
-                average_turn_river_equity(hero, villain, board, turns, &deck, river_partition)
-            })
+        let river_weights = turn_groups.map(|(turn_start, turn_end)| {
+            chance_quantile_weights((turn_end - turn_start) * (deck.len() - 1))
         });
-        let river_weights = [sampled_chance_weights(deck.len() - 1); 3];
         RunoutSamples {
             turn_equities,
             turn_weights,
@@ -1346,53 +1365,41 @@ pub mod br {
         }
     }
 
-    fn average_equity(cards: &[Card], mut equity_for_card: impl FnMut(Card) -> f64) -> f64 {
-        if cards.is_empty() {
-            return 0.0;
-        }
-        cards.iter().copied().map(&mut equity_for_card).sum::<f64>() / cards.len() as f64
+    fn average_equity_values(entries: &[(Card, f64)]) -> f64 {
+        average_values(entries.iter().map(|(_, equity)| *equity))
     }
 
-    fn average_turn_river_equity(
-        hero: [Card; 2],
-        villain: [Card; 2],
-        board: &[Card; 3],
-        turns: &[Card],
-        deck: &[Card],
-        (river_start, river_end): (usize, usize),
-    ) -> f64 {
+    fn chance_quantile_averages(mut equities: Vec<f64>) -> [f64; 3] {
+        equities.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        chance_quantile_partitions(equities.len())
+            .map(|(start, end)| average_values(equities[start..end].iter().copied()))
+    }
+
+    fn average_values(values: impl Iterator<Item = f64>) -> f64 {
         let mut total = 0.0;
         let mut count = 0usize;
-        for &turn in turns {
-            let rivers = deck
-                .iter()
-                .copied()
-                .filter(|card| *card != turn)
-                .collect::<Vec<_>>();
-            for &river in &rivers[river_start..river_end] {
-                let next_board = [board[0], board[1], board[2], turn, river];
-                total += equity::heads_up_nlh_equity_exact(hero, villain, &next_board);
-                count += 1;
-            }
+        for value in values {
+            total += value;
+            count += 1;
         }
-        if count == 0 {
-            0.0
-        } else {
+        if count > 0 {
             total / count as f64
+        } else {
+            0.0
         }
     }
 
-    fn sampled_chance_partitions(total: usize) -> [(usize, usize); 3] {
+    fn chance_quantile_partitions(total: usize) -> [(usize, usize); 3] {
         let low = total / 3;
         let middle = (total - low) / 2;
         [(0, low), (low, low + middle), (low + middle, total)]
     }
 
-    fn sampled_chance_weights(total: usize) -> [f64; 3] {
+    fn chance_quantile_weights(total: usize) -> [f64; 3] {
         if total == 0 {
             return [1.0 / 3.0; 3];
         }
-        sampled_chance_partitions(total).map(|(start, end)| (end - start) as f64 / total as f64)
+        chance_quantile_partitions(total).map(|(start, end)| (end - start) as f64 / total as f64)
     }
 
     fn normalize_three(values: [f64; 3]) -> [f64; 3] {
@@ -3461,6 +3468,14 @@ mod tests {
         assert_eq!(card_derived_probe[1].1.next_chance_branches()[2].0, 0.50);
         assert_eq!(br::balanced_flop_buckets()[0].turn_equities.len(), 3);
         assert!(
+            br::balanced_flop_buckets()[0].turn_equities[0]
+                <= br::balanced_flop_buckets()[0].turn_equities[1]
+        );
+        assert!(
+            br::balanced_flop_buckets()[0].turn_equities[1]
+                <= br::balanced_flop_buckets()[0].turn_equities[2]
+        );
+        assert!(
             (br::balanced_flop_buckets()[0]
                 .turn_weights
                 .iter()
@@ -3470,6 +3485,10 @@ mod tests {
                 < 1e-12
         );
         assert_eq!(br::balanced_flop_buckets()[0].river_equities.len(), 3);
+        for river_equities in br::balanced_flop_buckets()[0].river_equities {
+            assert!(river_equities[0] <= river_equities[1]);
+            assert!(river_equities[1] <= river_equities[2]);
+        }
         assert!(
             (br::balanced_flop_buckets()[0].river_weights[0]
                 .iter()
