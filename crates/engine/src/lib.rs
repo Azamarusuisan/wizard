@@ -92,21 +92,135 @@ pub mod eval {
 
     pub fn evaluate_nlh7(cards: &[Card]) -> u64 {
         assert_eq!(cards.len(), 7);
-        let mut best = 0;
-        for a in 0..3 {
-            for b in a + 1..4 {
-                for c in b + 1..5 {
-                    for d in c + 1..6 {
-                        for e in d + 1..7 {
-                            best = best.max(evaluate5(&[
-                                cards[a], cards[b], cards[c], cards[d], cards[e],
-                            ]));
-                        }
-                    }
+        let mut count = [0u8; 13];
+        let mut suit_count = [0u8; 4];
+        let mut suit_masks = [0u16; 4];
+        let mut rank_mask = 0u16;
+        for card in cards {
+            let r = rank(*card) as usize;
+            let s = suit(*card) as usize;
+            count[r] += 1;
+            suit_count[s] += 1;
+            suit_masks[s] |= 1 << r;
+            rank_mask |= 1 << r;
+        }
+
+        for s in 0..4 {
+            if suit_count[s] >= 5 {
+                if let Some(high) = straight_high(suit_masks[s]) {
+                    return enc(8, &[high]);
                 }
             }
         }
-        best
+
+        if let Some(quad) = highest_with_count(&count, 4) {
+            return enc(7, &[quad, top_ranks_excluding::<1>(rank_mask, &[quad])[0]]);
+        }
+
+        let (trips, trips_len) = ranks_with_at_least(&count, 3);
+        let (pairs, pairs_len) = ranks_with_at_least(&count, 2);
+        if trips_len > 0 {
+            if let Some(full_pair) = pairs[..pairs_len]
+                .iter()
+                .copied()
+                .find(|rank| *rank != trips[0])
+            {
+                return enc(6, &[trips[0], full_pair]);
+            }
+        }
+
+        for s in 0..4 {
+            if suit_count[s] >= 5 {
+                return enc(5, &top_ranks::<5>(suit_masks[s]));
+            }
+        }
+
+        if let Some(high) = straight_high(rank_mask) {
+            return enc(4, &[high]);
+        }
+
+        if trips_len > 0 {
+            let trip = trips[0];
+            let kickers = top_ranks_excluding::<2>(rank_mask, &[trip]);
+            return enc(3, &[trip, kickers[0], kickers[1]]);
+        }
+
+        if pairs_len >= 2 {
+            let kickers = top_ranks_excluding::<1>(rank_mask, &[pairs[0], pairs[1]]);
+            return enc(2, &[pairs[0], pairs[1], kickers[0]]);
+        }
+
+        if pairs_len > 0 {
+            let pair = pairs[0];
+            let kickers = top_ranks_excluding::<3>(rank_mask, &[pair]);
+            return enc(1, &[pair, kickers[0], kickers[1], kickers[2]]);
+        }
+
+        enc(0, &top_ranks::<5>(rank_mask))
+    }
+
+    fn straight_high(mask: u16) -> Option<u8> {
+        const WHEEL: u16 = (1 << 12) | (1 << 3) | (1 << 2) | (1 << 1) | 1;
+        for high in (4..=12).rev() {
+            let straight = 0b1_1111u16 << (high - 4);
+            if mask & straight == straight {
+                return Some(high as u8);
+            }
+        }
+        if mask & WHEEL == WHEEL {
+            Some(3)
+        } else {
+            None
+        }
+    }
+
+    fn highest_with_count(count: &[u8; 13], target: u8) -> Option<u8> {
+        (0..13)
+            .rev()
+            .find(|rank| count[*rank] == target)
+            .map(|rank| rank as u8)
+    }
+
+    fn ranks_with_at_least(count: &[u8; 13], target: u8) -> ([u8; 4], usize) {
+        let mut out = [0u8; 4];
+        let mut len = 0;
+        for rank in (0..13).rev() {
+            if count[rank] >= target {
+                out[len] = rank as u8;
+                len += 1;
+            }
+        }
+        (out, len)
+    }
+
+    fn top_ranks<const N: usize>(mask: u16) -> [u8; N] {
+        let mut out = [0u8; N];
+        let mut len = 0;
+        for rank in (0..13).rev() {
+            if mask & (1 << rank) != 0 {
+                out[len] = rank as u8;
+                len += 1;
+                if len == N {
+                    break;
+                }
+            }
+        }
+        out
+    }
+
+    fn top_ranks_excluding<const N: usize>(mask: u16, excluded: &[u8]) -> [u8; N] {
+        let mut out = [0u8; N];
+        let mut len = 0;
+        for rank in (0..13).rev() {
+            if mask & (1 << rank) != 0 && !excluded.iter().any(|ex| usize::from(*ex) == rank) {
+                out[len] = rank as u8;
+                len += 1;
+                if len == N {
+                    break;
+                }
+            }
+        }
+        out
     }
 
     pub fn evaluate_plo(holes: &[Card], board: &[Card]) -> u64 {
@@ -1968,6 +2082,87 @@ mod tests {
             c(1, 1),
         ];
         assert!(eval::evaluate_nlh7(&quads) > eval::evaluate_nlh7(&full));
+    }
+
+    #[test]
+    fn nlh7_direct_evaluator_matches_best_five_examples() {
+        let examples = [
+            [
+                c(12, 0),
+                c(12, 1),
+                c(12, 2),
+                c(12, 3),
+                c(8, 0),
+                c(7, 1),
+                c(6, 2),
+            ],
+            [
+                c(12, 0),
+                c(11, 0),
+                c(10, 0),
+                c(9, 0),
+                c(8, 0),
+                c(2, 1),
+                c(1, 2),
+            ],
+            [
+                c(12, 0),
+                c(3, 1),
+                c(2, 2),
+                c(1, 3),
+                c(0, 0),
+                c(9, 1),
+                c(7, 2),
+            ],
+            [
+                c(11, 0),
+                c(11, 1),
+                c(11, 2),
+                c(8, 0),
+                c(8, 1),
+                c(4, 2),
+                c(3, 3),
+            ],
+            [
+                c(10, 0),
+                c(10, 1),
+                c(8, 2),
+                c(8, 3),
+                c(12, 0),
+                c(5, 1),
+                c(2, 2),
+            ],
+            [
+                c(12, 0),
+                c(11, 1),
+                c(9, 2),
+                c(7, 3),
+                c(5, 0),
+                c(3, 1),
+                c(1, 2),
+            ],
+        ];
+        for cards in examples {
+            assert_eq!(eval::evaluate_nlh7(&cards), brute_force_nlh7(&cards));
+        }
+    }
+
+    fn brute_force_nlh7(cards: &[eval::Card; 7]) -> u64 {
+        let mut best = 0;
+        for a in 0..3 {
+            for b in a + 1..4 {
+                for c in b + 1..5 {
+                    for d in c + 1..6 {
+                        for e in d + 1..7 {
+                            best = best.max(eval::evaluate5(&[
+                                cards[a], cards[b], cards[c], cards[d], cards[e],
+                            ]));
+                        }
+                    }
+                }
+            }
+        }
+        best
     }
 
     #[test]

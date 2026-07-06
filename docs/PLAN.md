@@ -18,7 +18,7 @@ Verify:
 
 Evidence:
 - Card encoding is `rank * 4 + suit`.
-- Rust implements NLH 5/7-card evaluation and PLO4/PLO5 exact two-hole/three-board evaluation.
+- Rust implements NLH 5/7-card evaluation and PLO4/PLO5 exact two-hole/three-board evaluation. NLH7 uses direct rank/suit counting and is tested against brute-force best-five examples.
 - Exhaustive class-count tests cover NLH 169, PLO4 16,432, PLO5 134,459, and flop 1,755.
 - Criterion benches exist for `nlh7_eval` and default river rows.
 
@@ -26,8 +26,8 @@ Verify:
 - `cargo test --release -p gto_lab_engine`
 - `cargo bench -p gto_lab_engine --bench engine_bench`
 
-Remaining:
-- Replace the combinational NLH evaluator with a table/perfect-hash or equivalent fast path before claiming the 50M eval/s target.
+Current benchmark:
+- Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~11.66 ns/eval, exceeding the 50M eval/s target on this machine.
 
 ## M2 Equity Lab
 

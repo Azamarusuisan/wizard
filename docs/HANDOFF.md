@@ -8,6 +8,7 @@
 - Rust crate now has modules for `eval`, `iso`, `equity`, `tree`, `cfr`, `br`, and `bucket`.
 - Suit-isomorphism class counts are now exhaustive Rust tests for NLH preflop, PLO4, PLO5, and flop: `169 / 16,432 / 134,459 / 1,755`.
 - NLH equity gates now cover AA vs KK, AKs vs QQ, mirror-suit invariance, and seeded MC-vs-exact confidence agreement.
+- NLH 7-card evaluation now uses direct rank/suit counts instead of enumerating all 21 five-card subsets. A test checks representative hands against the brute-force best-five path.
 - PLO tests now cover PLO4/PLO5 exact two-hole usage, board-only hands being unplayable, and seeded PLO4 AAxx double-suited-over-rainbow monotonicity.
 - Kuhn poker gate now runs an actual CFR trainer and converges to `-1/18 ± 1e-3`.
 - TS fallback `kuhnCfr()` now runs tabular Kuhn CFR instead of returning a closed-form approximation.
@@ -68,8 +69,8 @@
 - README, architecture, and formats docs now reflect the current Plan A Rust/WASM path, IndexedDB solve cache shape, and remaining default-combo / sampled-PLO limitations.
 - IndexedDB solve cache keys are canonical JSON SHA-256 via WebCrypto in the web layer.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
-- Criterion benches now exist for `nlh7_eval` and `default_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~316 ns/eval, default river rows ~2.57 us. The evaluator still needs a faster table/perfect-hash path to reach the original 50M eval/s target.
-- Last verified: `bash scripts/verify.sh` exited 0 after changing the NLH flop Balanced gate from one-step bucket BR to a compact continuation abstraction.
+- Criterion benches now exist for `nlh7_eval` and `default_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~11.66 ns/eval, default river rows ~501.65 us. The evaluator now exceeds the original 50M eval/s target on this machine.
+- Last verified: `bash scripts/verify.sh` exited 0 after replacing NLH7 brute-force subset evaluation with direct rank/suit counting. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
 - Git remote `origin` is set to `https://github.com/Azamarusuisan/wizard.git`; do not push until §6 is actually complete.
 
 ## Important Caveat
@@ -87,6 +88,5 @@ bash scripts/verify.sh
 ## Next Implementation Work
 
 1. Expand `br::nlh_flop_balanced_exploitability_pct_pot` from the current compact continuation abstraction to a full flop CFR/BR tree.
-2. Replace the remaining simplified Rust solve payload with real tree/CFR output.
-3. Replace the current slow combinational NLH evaluator with a table/perfect-hash evaluator or equivalent before claiming the 50M eval/s target.
-4. Add `docs/COMPLETION_REPORT.md` only when the spec-vs-implementation table can honestly be all green.
+2. Replace remaining simplified Rust solve payloads with real tree/CFR output surfaced by information set.
+3. Add `docs/COMPLETION_REPORT.md` only when the spec-vs-implementation table can honestly be all green.
