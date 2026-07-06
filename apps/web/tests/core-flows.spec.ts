@@ -119,6 +119,10 @@ test("range editor round trips text", async ({ page }) => {
   await page.goto("/editor");
   await page.getByLabel("Range text").fill("QQ, JTs:0.25");
   await expect(page.getByLabel("Range JSON")).toContainText('"text": "QQ, JTs:0.25"');
+  await page.getByLabel("Action layer").selectOption("call");
+  await page.getByLabel("Range text").fill("KQs");
+  await expect(page.getByLabel("Range JSON")).toContainText('"call": "KQs"');
+  await page.getByLabel("Action layer").selectOption("raise");
   await page.getByLabel("Range JSON").fill('{"version":1,"kind":"range","payload":{"text":"AA, KQs:0.5"}}');
   await page.getByRole("button", { name: "Import JSON" }).click();
   await expect(page.getByLabel("Range text")).toHaveValue("AA, KQs:0.5");

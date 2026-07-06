@@ -442,29 +442,34 @@ function gradeForLoss(loss: number): string {
 }
 
 export function RangeEditor() {
-  const [text, setText] = useState("AA, KQs, A5s:0.5");
-  const [jsonText, setJsonText] = useState(rangeJson("AA, KQs, A5s:0.5"));
+  const defaultLayers = useMemo(() => ({ fold: "", call: "KQs, A5s:0.5", raise: "AA" }), []);
+  const [layer, setLayer] = useState<"fold" | "call" | "raise">("raise");
+  const [layers, setLayers] = useState(defaultLayers);
+  const text = layers[layer];
+  const [jsonText, setJsonText] = useState(rangeJson(defaultLayers));
   const [status, setStatus] = useState("ready");
   useEffect(() => {
     void loadRange("default").then((saved) => {
       if (saved) {
-        setText(saved);
-        setJsonText(rangeJson(saved));
+        const next = { ...defaultLayers, raise: saved };
+        setLayers(next);
+        setJsonText(rangeJson(next));
       }
     });
-  }, []);
+  }, [defaultLayers]);
   const parsed = useMemo(() => {
     try { return serializeRange(parseNlhRange(text)); } catch { return "Invalid range"; }
   }, [text]);
   const plo = useMemo(() => parsePloRange("AA**:ds@100, AA**:ss@60").map((r) => `${r.label} ${r.weight}`).join(" / "), []);
   const updateText = (next: string) => {
-    setText(next);
-    setJsonText(rangeJson(next));
+    const updated = { ...layers, [layer]: next };
+    setLayers(updated);
+    setJsonText(rangeJson(updated));
   };
   const importJson = () => {
     try {
       const next = parseRangeJson(jsonText);
-      setText(next);
+      setLayers(next);
       setJsonText(rangeJson(next));
       setStatus("imported");
     } catch (err) {
@@ -474,23 +479,31 @@ export function RangeEditor() {
   return (
     <div className="grid">
       <h1 className="title">Range Editor</h1>
+      <label className="field">Action layer<select value={layer} onChange={(event) => setLayer(event.target.value as "fold" | "call" | "raise")}><option value="raise">Raise</option><option value="call">Call</option><option value="fold">Fold</option></select></label>
       <textarea aria-label="Range text" className="card" value={text} onChange={(e) => updateText(e.target.value)} rows={5} />
       <textarea aria-label="Range JSON" className="card" value={jsonText} onChange={(e) => setJsonText(e.target.value)} rows={5} />
-      <button className="btn primary" onClick={() => void saveRange("default", text).then(() => setStatus("saved"))}>Save</button>
+      <button className="btn primary" onClick={() => void saveRange("default", layers.raise).then(() => setStatus("saved"))}>Save</button>
       <button className="btn" onClick={importJson}>Import JSON</button>
-      <div className="card"><b>Round trip</b><p className="num">{parsed}</p><p className="muted">PLO sample: {plo}</p><p>{status}</p></div>
+      <div className="card"><b>Round trip</b><p className="num">{parsed}</p><p className="muted">Layers: F {layers.fold || "-"} / C {layers.call || "-"} / R {layers.raise || "-"}</p><p className="muted">PLO sample: {plo}</p><p>{status}</p></div>
     </div>
   );
 }
 
-function rangeJson(text: string): string {
-  return JSON.stringify({ version: 1, kind: "range", payload: { text } }, null, 2);
+type RangeLayers = { fold: string; call: string; raise: string };
+
+function rangeJson(layers: RangeLayers): string {
+  return JSON.stringify({ version: 1, kind: "range", payload: { text: layers.raise, actionLayers: layers } }, null, 2);
 }
 
-function parseRangeJson(raw: string): string {
-  const doc = JSON.parse(raw) as { version?: unknown; kind?: unknown; payload?: { text?: unknown } };
+function parseRangeJson(raw: string): RangeLayers {
+  const doc = JSON.parse(raw) as { version?: unknown; kind?: unknown; payload?: { text?: unknown; actionLayers?: Partial<Record<keyof RangeLayers, unknown>> } };
   if (doc.version !== 1 || doc.kind !== "range" || typeof doc.payload?.text !== "string") throw new Error("invalid range JSON");
-  return doc.payload.text;
+  const actionLayers = doc.payload.actionLayers;
+  return {
+    fold: typeof actionLayers?.fold === "string" ? actionLayers.fold : "",
+    call: typeof actionLayers?.call === "string" ? actionLayers.call : "",
+    raise: typeof actionLayers?.raise === "string" ? actionLayers.raise : doc.payload.text
+  };
 }
 
 export function Settings() {
