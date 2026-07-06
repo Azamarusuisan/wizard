@@ -11,7 +11,7 @@ describe("IndexedDB cache", () => {
 
   it("round trips quantized solve results", async () => {
     const spot = { bet: 66, pot: 100 };
-    const result = solveRiverSpot(100, 66);
+    const result = solveRiverSpot(100, 66, 250, "", 0, 0, "NLH", "flop 33,66,all-in");
     await saveSolve(spot, result);
     const stored = await getRecord<{ meta: { version: number } }>("solves", await cacheKey(spot));
     expect(stored?.meta.version).toBe(1);
@@ -20,6 +20,7 @@ describe("IndexedDB cache", () => {
     expect(restored?.informationSets[0]?.key).toBe("preflop:root");
     expect(restored?.informationSets[0]?.strategyRef).toBe("root");
     expect(restored?.nodes.some((node) => node.id === "root/call")).toBe(true);
+    expect(restored?.informationSets.find((infoSet) => infoSet.nodeId === "root/bet-33/call")?.metricRef).toBe("response:root/bet-33/call");
     expect(restored?.rows[0]?.combo).toBe(result.rows[0]?.combo);
     expect(restored?.rows[0]?.fold).toBeCloseTo(result.rows[0]!.fold, 4);
     expect(restored?.rows[0]?.raiseEv).toBeCloseTo(result.rows[0]!.raiseEv, 6);

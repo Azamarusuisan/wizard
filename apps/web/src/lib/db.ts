@@ -211,7 +211,8 @@ function infoSetsFromNodes(nodes: SolveResult["nodes"]): SolveResult["informatio
 }
 
 function infoSetRefs(node: SolveResult["nodes"][number]): Pick<SolveResult["informationSets"][number], "strategyRef" | "metricRef"> {
-  if (node.amount !== undefined) return { strategyRef: "bet-response", metricRef: "bet-response" };
+  if (node.amount !== undefined && node.actions.length) return { strategyRef: "bet-response", metricRef: "bet-response" };
+  if (node.amount !== undefined) return { strategyRef: "terminal", metricRef: `response:${node.id}` };
   if (node.id === "root") return { strategyRef: "root", metricRef: "root" };
   if (node.id.startsWith("root/")) return { strategyRef: "terminal", metricRef: `action:${node.id.slice("root/".length)}` };
   return { strategyRef: node.id, metricRef: node.id };
