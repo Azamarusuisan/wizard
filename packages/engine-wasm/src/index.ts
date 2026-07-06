@@ -326,7 +326,7 @@ function ploFastExploitabilityPctPot(samples: readonly PloFastSample[]): number 
   const total = samples.reduce((sum, row) => sum + row.weight, 0);
   return samples.reduce((sum, row) => {
     const eq = ploFastSampleEquity(row);
-    const strategy = bestResponseStrategy(eq, 100, 66, 0, 0);
+    const strategy = cfrStrategy(eq, 100, 66, 0, 0, 2_048);
     const mixed = [{ combo: row.combo, equity: eq, ...strategy, foldEv: 0, callEv: 0, raiseEv: 0, ev: 0, eqr: 0 }];
     return sum + row.weight * riverExploitability(mixed, 100, 66, 0, 0);
   }, 0) / total;
@@ -357,7 +357,7 @@ function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack
   const rows = samples.map((sample) => {
     const eq = ploFastSampleEquity(sample);
     const { callEv, raiseEv } = actionEvs(eq, pot, bet, rakePct, rakeCap);
-    const strategy = bestResponseStrategy(eq, pot, bet, rakePct, rakeCap);
+    const strategy = cfrStrategy(eq, pot, bet, rakePct, rakeCap, 2_048);
     const ev = (strategy.call * callEv + strategy.raise * raiseEv) / 100;
     return {
       combo: sample.combo,
@@ -398,13 +398,6 @@ function ploVsRandomEquity(hero: Card[], samples: number, seed: number): number 
     wins += heroRank > villainRank ? 1 : heroRank === villainRank ? 0.5 : 0;
   }
   return wins / samples;
-}
-
-function bestResponseStrategy(equityValue: number, pot: number, bet: number, rakePct: number, rakeCap: number): { fold: number; call: number; raise: number } {
-  const { callEv, raiseEv } = actionEvs(equityValue, pot, bet, rakePct, rakeCap);
-  if (raiseEv >= callEv && raiseEv >= 0) return { fold: 0, call: 0, raise: 1 };
-  if (callEv >= 0) return { fold: 0, call: 1, raise: 0 };
-  return { fold: 1, call: 0, raise: 0 };
 }
 
 function cfrStrategy(equityValue: number, pot: number, bet: number, rakePct: number, rakeCap: number, iterations: number): { fold: number; call: number; raise: number } {

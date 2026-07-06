@@ -1285,7 +1285,7 @@ pub mod br {
         let rows: Vec<FlopBucket> = samples
             .iter()
             .map(|sample| FlopBucket {
-                representative: best_response_combo(sample.equity(), 100.0, 66.0),
+                representative: cfr_combo(sample.equity(), 100.0, 66.0, 2_048),
                 weight: sample.weight,
             })
             .collect();
@@ -1619,12 +1619,13 @@ fn solve_plo_fast(
     let rows = samples
         .iter()
         .map(|sample| {
-            br::best_response_combo_with_rake(
+            br::cfr_combo_with_rake(
                 sample.equity(),
                 spot.pot,
                 spot.bet,
                 rake_pct,
                 rake_cap,
+                2_048,
             )
         })
         .collect::<Vec<_>>();
