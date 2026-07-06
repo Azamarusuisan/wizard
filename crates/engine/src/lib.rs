@@ -1797,11 +1797,18 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
     let mut strategy = Vec::with_capacity(entries.len() * 3);
     let mut action_evs = Vec::with_capacity(entries.len() * 3);
     let mut metrics = Vec::with_capacity(entries.len() * 3 + 4);
+    let mut equity_cache = HashMap::new();
     let rows = entries
         .iter()
         .map(|entry| {
             br::cfr_combo_with_rake(
-                combo_equity(entry.holes, entry.fallback, &board),
+                combo_equity_cached(
+                    entry.holes,
+                    entry.fallback,
+                    &board,
+                    &entries,
+                    &mut equity_cache,
+                ),
                 spot.pot,
                 spot.bet,
                 rake_pct,
@@ -2083,11 +2090,22 @@ fn format_card(card: eval::Card) -> String {
 }
 
 fn combo_equity(hero: [eval::Card; 2], fallback: f64, board: &[eval::Card]) -> f64 {
+    let entries = default_river_entries(board);
+    combo_equity_cached(hero, fallback, board, &entries, &mut HashMap::new())
+}
+
+fn combo_equity_cached(
+    hero: [eval::Card; 2],
+    fallback: f64,
+    board: &[eval::Card],
+    entries: &[RiverEntry],
+    cache: &mut HashMap<String, f64>,
+) -> f64 {
     if board.is_empty() {
         return fallback;
     }
-    let villains = default_river_entries(board)
-        .into_iter()
+    let villains = entries
+        .iter()
         .filter(|entry| {
             !hero.contains(&entry.holes[0])
                 && !hero.contains(&entry.holes[1])
@@ -2098,11 +2116,40 @@ fn combo_equity(hero: [eval::Card; 2], fallback: f64, board: &[eval::Card]) -> f
     if villains.is_empty() {
         return fallback;
     }
+    let hero_key = combo_key(hero);
     villains
         .iter()
-        .map(|villain| equity::heads_up_nlh_equity_exact(hero, villain.holes, board))
+        .map(|villain| {
+            let villain_key = combo_key(villain.holes);
+            let key = if hero_key < villain_key {
+                format!("{hero_key}|{villain_key}")
+            } else {
+                format!("{villain_key}|{hero_key}")
+            };
+            if let Some(value) = cache.get(&key) {
+                return if hero_key < villain_key {
+                    *value
+                } else {
+                    1.0 - *value
+                };
+            }
+            let value = equity::heads_up_nlh_equity_exact(hero, villain.holes, board);
+            cache.insert(
+                key,
+                if hero_key < villain_key {
+                    value
+                } else {
+                    1.0 - value
+                },
+            );
+            value
+        })
         .sum::<f64>()
         / villains.len() as f64
+}
+
+fn combo_key(cards: [eval::Card; 2]) -> String {
+    format!("{}{}", format_card(cards[0]), format_card(cards[1]))
 }
 
 #[wasm_bindgen]
@@ -2736,5 +2783,18 @@ mod tests {
             .all(|combo| !combo.contains("Ah")));
         super::cancel(empty).unwrap();
         super::cancel(boarded).unwrap();
+    }
+
+    #[test]
+    fn cached_combo_equity_matches_uncached() {
+        let board = super::parse_board("Ah Kd 7c").unwrap();
+        let entries = super::default_river_entries(&board);
+        let entry = entries.first().unwrap();
+        let mut cache = std::collections::HashMap::new();
+        let uncached = super::combo_equity(entry.holes, entry.fallback, &board);
+        let cached =
+            super::combo_equity_cached(entry.holes, entry.fallback, &board, &entries, &mut cache);
+        assert!((uncached - cached).abs() < 1e-12);
+        assert!(!cache.is_empty());
     }
 }
