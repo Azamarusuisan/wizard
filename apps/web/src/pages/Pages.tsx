@@ -282,8 +282,8 @@ export function Trainer() {
     <div className="grid">
       <h1 className="title">Trainer</h1>
       <div className="card">
-        <p className="muted">BTN vs BB, SRP, flop Ah Kd 7c. Hero: As Qs.</p>
-        <div className="cards"><CardView card={parseCard("As")} /><CardView card={parseCard("Qs")} /><CardView card={parseCard("Ah")} /><CardView card={parseCard("Kd")} /><CardView card={parseCard("7c")} /></div>
+        <p className="muted">BTN vs BB, SRP, flop Ah Kd 7c. Hero: Ac Ad.</p>
+        <div className="cards"><CardView card={parseCard("Ac")} /><CardView card={parseCard("Ad")} /><CardView card={parseCard("Ah")} /><CardView card={parseCard("Kd")} /><CardView card={parseCard("7c")} /></div>
         <div style={{ display: "flex", gap: 8, marginTop: 16 }}><button className="btn" onClick={() => answer("fold")}>Fold</button><button className="btn" onClick={() => answer("call")}>Call</button><button className="btn primary" onClick={() => answer("raise")}>Bet 66%</button></div>
         <div className="grid cols-3" style={{ marginTop: 16 }}>
           <Metric label="EV loss" value={loss === null ? "-" : `${loss.toFixed(3)}bb`} />
