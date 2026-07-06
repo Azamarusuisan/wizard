@@ -157,6 +157,7 @@ test("TS river solve fallback uses board in concrete combo equities", () => {
   const boarded = solveRiverSpot(100, 66, 250, "Ah Kd 7c");
   assert.equal(boarded.nodes[0]!.street, "flop");
   assert.notEqual(empty.rows[0]!.equity, boarded.rows[0]!.equity);
+  assert.equal(boarded.metrics.brGapPctPot, boarded.exploitability.at(-1)!.value);
   assert.ok(!boarded.rows.some((r) => r.combo.includes("Ah")));
 });
 

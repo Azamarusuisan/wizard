@@ -363,12 +363,13 @@ export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2, boar
     return { combo, weight, handClass: nlhHandClass(holes, board), ...blockers, fold, call, raise, foldEv: 0, callEv: callEv / 100, raiseEv: raiseEv / 100, equity: eq, ev, eqr: ev / Math.max(0.0001, eq * pot / 100) };
   });
   const nodes = rootNodes(board.length, pot, bet, stack, game, betTree);
+  const brGapPctPot = nlhFallbackExploitability(rows, pot);
   return {
     nodes,
     informationSets: infoSetsFromNodes(nodes),
     rows,
-    exploitability: riverStrategyProgressFromRows(rows, pot, 36).map((value, i) => ({ iteration: (i + 1) * 50, value })),
-    metrics: { spr: stack / pot, mdf, alpha, potOdds, brGapPctPot: riverExploitabilityFromRows(rows, pot) }
+    exploitability: fallbackProgress(rows, pot, brGapPctPot, 36).map((value, i) => ({ iteration: (i + 1) * 50, value })),
+    metrics: { spr: stack / pot, mdf, alpha, potOdds, brGapPctPot }
   };
 }
 
@@ -739,6 +740,16 @@ function riverStrategyProgressFromRows(rows: SolverRow[], pot: number, points: n
     }));
     return riverExploitabilityFromRows(mixed, pot);
   });
+}
+
+function fallbackProgress(rows: SolverRow[], pot: number, target: number, points: number): number[] {
+  const progress = riverStrategyProgressFromRows(rows, pot, points);
+  progress[progress.length - 1] = target;
+  return progress;
+}
+
+function nlhFallbackExploitability(rows: SolverRow[], pot: number): number {
+  return riverExploitabilityFromRows(rows, pot);
 }
 
 function riverExploitability(rows: SolverRow[], pot: number, bet: number, rakePct: number, rakeCap: number): number {
