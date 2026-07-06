@@ -22,7 +22,7 @@ crates/engine
 2. Solver worker receives `{ id, type, payload }`.
 3. Worker calls the engine facade.
 4. Progress events stream exploitability points.
-5. Results contain node metrics, combo rows, action mix, and spot indicators.
+5. Results contain node metrics, combo rows, range weights, hand classes, blocker metrics, action mix, and spot indicators.
 
 ## WASM Boundary
 
@@ -33,7 +33,7 @@ Target boundary:
 Current boundary:
 - Rust builds natively and through `wasm-pack`.
 - `EngineAPI` uses Rust/WASM when `packages/engine-wasm/pkg` exists and TypeScript otherwise.
-- The current production solve result is default NLH river combo rows with exact board-aware equities plus PLO4/PLO5 Fast sampled rows, not the final full postflop tree/MCCFR implementation.
+- The current production solve result is compact NLH range rows with exact board-aware equities, range weights, hand classes, blocker metrics, and PLO4/PLO5 Fast sampled rows, not the final full postflop tree/MCCFR implementation.
 
 ## State
 
