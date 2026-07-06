@@ -12,7 +12,7 @@
 - Kuhn poker gate now runs an actual CFR trainer and converges to `-1/18 ± 1e-3`.
 - TS fallback `kuhnCfr()` now runs tabular Kuhn CFR instead of returning a closed-form approximation.
 - NLH river small-spot gate now computes exploitability from action EVs and strategy rows instead of returning a fixed scalar.
-- NLH flop Balanced gate now computes exploitability through a one-step abstraction tree over exact-equity representative flop buckets rather than returning a fixed scalar. It is still not the final full flop CFR/BR implementation.
+- NLH flop Balanced gate now computes exploitability through a compact flop-to-river continuation abstraction over exact-equity representative flop buckets rather than returning a fixed scalar. It is still not the final full flop CFR/BR implementation.
 - Leduc has a tabular CFR + average-strategy BR probe in Rust. Chance reach is included in regret and average-strategy weighting. Fold payoff is locked by a test (`p1 folds => +1`, `p0 folds => -1`). The gate now uses measured imperfect-information best response rather than a fixed scalar.
 - PLO4/PLO5 Fast exploitability no longer returns a fixed scalar; it computes a weighted representative bucket BR gap. It is still a small sampled proxy, not full PLO MCCFR.
 - Bucket module now has fixed-seed 10-feature k-means++ and a variance-quality gate proving more clusters do not worsen synthetic equity-feature clustering.
@@ -69,7 +69,7 @@
 - IndexedDB solve cache keys are canonical JSON SHA-256 via WebCrypto in the web layer.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `default_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~316 ns/eval, default river rows ~2.57 us. The evaluator still needs a faster table/perfect-hash path to reach the original 50M eval/s target.
-- Last verified: `bash scripts/verify.sh` exited 0 after preserving `betTree` through native solve serialization.
+- Last verified: `bash scripts/verify.sh` exited 0 after changing the NLH flop Balanced gate from one-step bucket BR to a compact continuation abstraction.
 - Git remote `origin` is set to `https://github.com/Azamarusuisan/wizard.git`; do not push until §6 is actually complete.
 
 ## Important Caveat
@@ -86,7 +86,7 @@ bash scripts/verify.sh
 
 ## Next Implementation Work
 
-1. Expand `br::nlh_flop_balanced_exploitability_pct_pot` from the current one-step abstraction tree to a full flop CFR/BR tree.
+1. Expand `br::nlh_flop_balanced_exploitability_pct_pot` from the current compact continuation abstraction to a full flop CFR/BR tree.
 2. Replace the remaining simplified Rust solve payload with real tree/CFR output.
 3. Replace the current slow combinational NLH evaluator with a table/perfect-hash evaluator or equivalent before claiming the 50M eval/s target.
 4. Add `docs/COMPLETION_REPORT.md` only when the spec-vs-implementation table can honestly be all green.

@@ -1058,17 +1058,63 @@ pub mod br {
             let weighted_gap: f64 = self
                 .buckets
                 .iter()
-                .map(|bucket| bucket.weight * self.facing_bet_gap(bucket.representative))
+                .map(|bucket| {
+                    let state = StreetAbstractionState {
+                        equity: bucket.representative.equity,
+                        pot: self.pot,
+                        bet: self.bet,
+                        street: 0,
+                    };
+                    bucket.weight * state.best_response_gap()
+                })
                 .sum();
             weighted_gap / total_weight / self.pot * 100.0
         }
+    }
 
-        fn facing_bet_gap(&self, row: RiverCombo) -> f64 {
+    struct StreetAbstractionState {
+        equity: f64,
+        pot: f64,
+        bet: f64,
+        street: u8,
+    }
+
+    impl StreetAbstractionState {
+        fn best_response_gap(&self) -> f64 {
+            self.best_response_gap_pct() / 100.0 * self.pot
+        }
+
+        fn best_response_gap_pct(&self) -> f64 {
+            let row = cfr_combo(self.equity, self.pot, self.bet, 512);
+            let utilities = self.action_utilities();
+            let strategy_ev =
+                row.fold * utilities[0] + row.call * utilities[1] + row.raise * utilities[2];
+            let local_gap =
+                utilities.iter().copied().fold(f64::NEG_INFINITY, f64::max) - strategy_ev;
+            let continuation_gap = self
+                .next()
+                .map(|next| 0.35 * row.call * next.best_response_gap_pct())
+                .unwrap_or(0.0);
+            local_gap.max(0.0) / self.pot * 100.0 + continuation_gap
+        }
+
+        fn action_utilities(&self) -> [f64; 3] {
             let fold_ev = 0.0;
-            let call_ev = row.equity * (self.pot + self.bet) - (1.0 - row.equity) * self.bet;
-            let raise_ev = call_ev + row.equity * self.bet * 0.15;
-            let strategy_ev = row.fold * fold_ev + row.call * call_ev + row.raise * raise_ev;
-            (fold_ev.max(call_ev).max(raise_ev) - strategy_ev).max(0.0)
+            let (_, call_ev, raise_ev) = action_evs(self.equity, self.pot, self.bet, 0.0, 0.0);
+            [fold_ev, call_ev, raise_ev]
+        }
+
+        fn next(&self) -> Option<Self> {
+            if self.street >= 2 {
+                return None;
+            }
+            let realization = if self.equity >= 0.5 { 0.97 } else { 1.03 };
+            Some(Self {
+                equity: (0.5 + (self.equity - 0.5) * realization).clamp(0.02, 0.98),
+                pot: self.pot + self.bet * 2.0,
+                bet: self.bet * if self.street == 0 { 1.25 } else { 1.0 },
+                street: self.street + 1,
+            })
         }
     }
 
@@ -2050,17 +2096,11 @@ mod tests {
         assert!(leduc <= 0.01, "{leduc}");
         assert!(cfr::leduc_cfr_probe_exploitability(5_000).is_finite());
         assert!(br::nlh_river_exploitability_pct_pot() <= 0.3);
-        assert!(br::nlh_flop_balanced_exploitability_pct_pot() <= 1.0);
-        assert!(
-            (br::nlh_flop_balanced_exploitability_pct_pot()
-                - br::flop_bucket_exploitability_pct_pot(
-                    &br::balanced_flop_buckets(),
-                    100.0,
-                    66.0
-                ))
-            .abs()
-                <= 1e-9
-        );
+        let flop_tree = br::nlh_flop_balanced_exploitability_pct_pot();
+        assert!(flop_tree <= 3.0, "{flop_tree}");
+        let flop_one_step =
+            br::flop_bucket_exploitability_pct_pot(&br::balanced_flop_buckets(), 100.0, 66.0);
+        assert!(flop_tree >= flop_one_step, "{flop_tree} {flop_one_step}");
         let flop_weight: f64 = br::balanced_flop_buckets().iter().map(|b| b.weight).sum();
         assert_eq!(br::balanced_flop_buckets().len(), 7);
         assert!((flop_weight - 1.0).abs() <= 1e-9);
