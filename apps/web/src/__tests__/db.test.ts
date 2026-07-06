@@ -24,6 +24,9 @@ describe("IndexedDB cache", () => {
     expect(restored?.rows[0]?.fold).toBeCloseTo(result.rows[0]!.fold, 4);
     expect(restored?.rows[0]?.raiseEv).toBeCloseTo(result.rows[0]!.raiseEv, 6);
     expect(restored?.metrics.mdf).toBeCloseTo(result.metrics.mdf, 6);
+    const plo = solveRiverSpot(100, 66, 250, "", 0, 0, "PLO4");
+    await saveSolve({ game: "PLO4", pot: 100, bet: 66 }, plo);
+    expect((await loadSolve({ game: "PLO4", pot: 100, bet: 66 }))?.metrics.ploIterations).toBe(2048);
   });
 
   it("reports stats, clears stores, and prunes oldest solves", async () => {
