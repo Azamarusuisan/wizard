@@ -91,7 +91,10 @@ Solve cache records:
     "ev": "Float32Array",
     "eqr": "Float32Array",
     "exploitability": [],
-    "metrics": {}
+    "metrics": {
+      "ploSampleCount": "number, PLO Fast only",
+      "ploWeightCoverage": "number, PLO Fast only"
+    }
   }
 }
 ```

@@ -24,6 +24,7 @@ test("solver runs and displays strategy metrics", async ({ page }) => {
   await page.getByLabel("Game").selectOption("PLO5");
   await expect(page.getByRole("table", { name: "strategy table" })).toContainText("AsAhKsKhQs");
   await expect(page.getByText("PLO Fast BR")).toBeVisible();
+  await expect(page.getByText("PLO sample set")).toBeVisible();
   await page.getByLabel("Game").selectOption("PLO4");
   await expect(page.getByRole("table", { name: "strategy table" })).toContainText("AsAhKsKh");
   await expect(page.getByText("PLO Fast BR")).toBeVisible();

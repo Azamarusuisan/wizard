@@ -1984,6 +1984,8 @@ fn solve_plo_fast(
         pot_odds,
         river_exploitability_from_action_evs(&rows, &action_evs, &weights, spot.pot),
         metric,
+        samples.len() as f64,
+        weights.iter().sum::<f64>(),
     ]);
     let progress = river_progress_from_action_evs(&rows, &action_evs, &weights, spot.pot, 36)
         .into_iter()
@@ -3309,6 +3311,11 @@ mod tests {
             plo4_native.metrics[plo4_native.combos.len() * 3 + 5],
             br::plo4_fast_exploitability_pct_pot()
         );
+        assert_eq!(
+            plo4_native.metrics[plo4_native.combos.len() * 3 + 6],
+            br::PLO4_FAST_SAMPLES.len() as f64
+        );
+        assert!((plo4_native.metrics[plo4_native.combos.len() * 3 + 7] - 1.0).abs() < 1e-12);
         let plo5 = super::solve(r#"{"game":"PLO5","pot":100.0,"bet":66.0,"stack":250.0}"#).unwrap();
         let plo5_payload = super::serialize(plo5).unwrap();
         let plo5_native: super::NativeSolve = serde_json::from_slice(&plo5_payload).unwrap();
@@ -3322,6 +3329,11 @@ mod tests {
             plo5_native.metrics[plo5_native.combos.len() * 3 + 5],
             br::plo5_fast_exploitability_pct_pot()
         );
+        assert_eq!(
+            plo5_native.metrics[plo5_native.combos.len() * 3 + 6],
+            br::PLO5_FAST_SAMPLES.len() as f64
+        );
+        assert!((plo5_native.metrics[plo5_native.combos.len() * 3 + 7] - 1.0).abs() < 1e-12);
         super::cancel(plo4).unwrap();
         super::cancel(plo4_plain).unwrap();
         super::cancel(plo5).unwrap();

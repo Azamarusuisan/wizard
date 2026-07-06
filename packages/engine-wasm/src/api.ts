@@ -272,7 +272,9 @@ function nativeToResult(native: NativeSolve): SolveResult {
       alpha: native.metrics[combos.length * 3 + 2] ?? 0,
       potOdds: native.metrics[combos.length * 3 + 3] ?? 0,
       brGapPctPot: native.metrics[combos.length * 3 + 4],
-      ploFastExploitability: native.metrics[combos.length * 3 + 5]
+      ploFastExploitability: native.metrics[combos.length * 3 + 5],
+      ploSampleCount: native.metrics[combos.length * 3 + 6],
+      ploWeightCoverage: native.metrics[combos.length * 3 + 7]
     }
   };
 }
