@@ -440,10 +440,11 @@ const PLO5_FAST_SAMPLES = [
 
 function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack: number, rakePct: number, rakeCap: number, potOdds: number, mdf: number, alpha: number, boardLen = 0, betTree = ""): SolveResult {
   const samples = game === "PLO4" ? PLO4_FAST_SAMPLES : PLO5_FAST_SAMPLES;
+  const betAmounts = betAmountsForSpot(game, boardLen, pot, bet, stack, betTree);
   const rows = samples.map((sample) => {
     const eq = ploFastSampleEquity(sample);
-    const { callEv, raiseEv } = actionEvs(eq, pot, bet, rakePct, rakeCap);
-    const strategy = cfrStrategy(eq, pot, bet, rakePct, rakeCap, 2_048);
+    const { callEv, raiseEv } = rowActionEvs(eq, pot, bet, betAmounts, rakePct, rakeCap);
+    const strategy = cfrStrategyFromActionEvs(0, callEv, raiseEv, 2_048);
     const ev = (strategy.call * callEv + strategy.raise * raiseEv) / 100;
     return {
       combo: sample.combo,
@@ -459,8 +460,8 @@ function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack
   return {
     nodes: rootNodes(boardLen, pot, bet, stack, game, betTree),
     rows,
-    exploitability: riverStrategyProgress(rows, pot, bet, 36, rakePct, rakeCap).map((value, i) => ({ iteration: (i + 1) * 50, value })),
-    metrics: { spr: stack / pot, mdf, alpha, potOdds, brGapPctPot: riverExploitability(rows, pot, bet, rakePct, rakeCap), ploFastExploitability: game === "PLO4" ? plo4FastExploitabilityPctPot() : plo5FastExploitabilityPctPot() }
+    exploitability: riverStrategyProgressFromRows(rows, pot, 36).map((value, i) => ({ iteration: (i + 1) * 50, value })),
+    metrics: { spr: stack / pot, mdf, alpha, potOdds, brGapPctPot: riverExploitabilityFromRows(rows, pot), ploFastExploitability: game === "PLO4" ? plo4FastExploitabilityPctPot() : plo5FastExploitabilityPctPot() }
   };
 }
 

@@ -1897,6 +1897,7 @@ fn solve_plo_fast(
     } else {
         br::plo4_fast_exploitability_pct_pot()
     };
+    let bet_amounts = bet_amounts_for_spot(&spot, board_len);
     let combos = samples
         .iter()
         .map(|sample| sample.combo.to_string())
@@ -1904,23 +1905,25 @@ fn solve_plo_fast(
     let rows = samples
         .iter()
         .map(|sample| {
-            br::cfr_combo_with_rake(
-                sample.equity(),
-                spot.pot,
-                spot.bet,
-                rake_pct,
-                rake_cap,
-                2_048,
-            )
+            let equity = sample.equity();
+            let (fold_ev, call_ev, raise_ev) =
+                row_action_evs(equity, spot.pot, spot.bet, &bet_amounts, rake_pct, rake_cap);
+            br::cfr_combo_from_action_evs(equity, fold_ev, call_ev, raise_ev, 2_048)
         })
         .collect::<Vec<_>>();
     let mut strategy = Vec::with_capacity(rows.len() * 3);
     let mut action_evs = Vec::with_capacity(rows.len() * 3);
     let mut metrics = Vec::with_capacity(rows.len() * 3 + 6);
     for row in &rows {
-        let (fold_ev, call_ev, raise_ev) =
-            br::action_evs(row.equity, spot.pot, spot.bet, rake_pct, rake_cap);
-        let ev = br::strategy_ev_with_rake(*row, spot.pot, spot.bet, rake_pct, rake_cap) / 100.0;
+        let (fold_ev, call_ev, raise_ev) = row_action_evs(
+            row.equity,
+            spot.pot,
+            spot.bet,
+            &bet_amounts,
+            rake_pct,
+            rake_cap,
+        );
+        let ev = (row.fold * fold_ev + row.call * call_ev + row.raise * raise_ev) / 100.0;
         let eqr = ev / (row.equity * spot.pot / 100.0).max(0.0001);
         strategy.extend([row.fold, row.call, row.raise]);
         action_evs.extend([fold_ev / 100.0, call_ev / 100.0, raise_ev / 100.0]);
@@ -1931,21 +1934,18 @@ fn solve_plo_fast(
         mdf,
         alpha,
         pot_odds,
-        br::river_best_response_exploitability_pct_pot_with_rake(
-            &rows, spot.pot, spot.bet, rake_pct, rake_cap,
-        ),
+        river_exploitability_from_action_evs(&rows, &action_evs, spot.pot),
         metric,
     ]);
-    let progress =
-        br::river_strategy_progress_with_rake(&rows, spot.pot, spot.bet, 36, rake_pct, rake_cap)
-            .into_iter()
-            .enumerate()
-            .map(|(i, exploitability_pct)| NativeProgress {
-                iter: (i as u32 + 1) * 50,
-                exploitability_pct,
-                elapsed: 0.0,
-            })
-            .collect();
+    let progress = river_progress_from_action_evs(&rows, &action_evs, spot.pot, 36)
+        .into_iter()
+        .enumerate()
+        .map(|(i, exploitability_pct)| NativeProgress {
+            iter: (i as u32 + 1) * 50,
+            exploitability_pct,
+            elapsed: 0.0,
+        })
+        .collect();
     let nodes = root_nodes_for_spot(&spot, board_len);
     let solve = NativeSolve {
         spot,
@@ -2919,9 +2919,15 @@ mod tests {
         .unwrap();
         let plo4_payload = super::serialize(plo4).unwrap();
         let plo4_native: super::NativeSolve = serde_json::from_slice(&plo4_payload).unwrap();
+        let plo4_plain =
+            super::solve(r#"{"game":"PLO4","pot":100.0,"bet":20.0,"stack":300.0}"#).unwrap();
+        let plo4_plain_payload = super::serialize(plo4_plain).unwrap();
+        let plo4_plain_native: super::NativeSolve =
+            serde_json::from_slice(&plo4_plain_payload).unwrap();
         assert_eq!(plo4_native.combos[0], "AsAhKsKh");
         assert!(super::has_node_id(&plo4_native, "root/bet-160"));
         assert!(!super::has_node_id(&plo4_native, "root/bet-300"));
+        assert!(plo4_native.action_evs[2] > plo4_plain_native.action_evs[2]);
         assert_eq!(plo4_native.combos.len(), br::PLO4_FAST_SAMPLES.len());
         assert!(plo4_native
             .strategy
@@ -2946,6 +2952,7 @@ mod tests {
             br::plo5_fast_exploitability_pct_pot()
         );
         super::cancel(plo4).unwrap();
+        super::cancel(plo4_plain).unwrap();
         super::cancel(plo5).unwrap();
     }
 

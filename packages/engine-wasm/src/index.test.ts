@@ -167,6 +167,7 @@ test("TS solve fallback reports PLO Fast BR metrics", () => {
   assert.equal(plo4.rows[0]!.combo, "AsAhKsKh");
   assert.ok(plo4.nodes.some((node) => node.id === "root/bet-160"));
   assert.ok(!plo4.nodes.some((node) => node.id === "root/bet-300"));
+  assert.ok(plo4.rows[0]!.raiseEv > solveRiverSpot(100, 20, 300, "", 0, 0, "PLO4").rows[0]!.raiseEv);
   assert.ok((plo4.metrics.brGapPctPot ?? -1) >= 0);
   assert.equal(plo4.metrics.ploFastExploitability, plo4FastExploitabilityPctPot());
   assert.ok(plo4.rows.every((row) => row.fold + row.call + row.raise === 1));

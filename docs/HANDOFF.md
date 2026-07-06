@@ -45,7 +45,7 @@
 - PLO4/PLO5 Fast solve rows now use concrete representative combo labels and derive their equity from seeded PLO-vs-random MC before computing pure fold/call/raise strategy from current pot/bet/rake EV. This is still a representative proxy, not full PLO MCCFR.
 - PLO4/PLO5 Fast representative rows now also use the shared regret-matching average strategy instead of immediate best response. This remains a representative proxy, not external-sampling MCCFR.
 - Solve metrics now include `brGapPctPot`, computed from the same rows used for the strategy table and convergence graph. UI shows it as `BR gap`.
-- Solver Studio now includes an editable bet-tree preset string and flop-size buttons that apply `% pot` or all-in values to the active bet amount. The bet-tree string is validated, included in share URLs and solve cache payloads. NLH root rows now use the configured concrete bet-tree sizes when choosing the abstract raise EV; this is still not full multi-size tree CFR.
+- Solver Studio now includes an editable bet-tree preset string and flop-size buttons that apply `% pot` or all-in values to the active bet amount. The bet-tree string is validated, included in share URLs and solve cache payloads. NLH and PLO Fast root rows now use the configured concrete bet-tree sizes when choosing the abstract raise EV; this is still not full multi-size tree CFR.
 - Solver payloads now preserve `betTree` through the worker type and Rust native serialized spot so cached/native results retain the original betting-tree text.
 - Solve node serialization now also surfaces configured flop bet-tree concrete sizes as terminal child nodes such as `root/bet-33` and `root/bet-all-in` while the current three-column abstract strategy remains unchanged.
 - Bet-size node serialization now selects the configured sizes for the current board street (`flop` / `turn` / `river`) instead of always using flop sizes. Rust native and TypeScript fallback tests cover turn/river selection.
@@ -98,7 +98,7 @@
 - IndexedDB solve cache keys are canonical JSON SHA-256 via WebCrypto in the web layer.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `default_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~11.66 ns/eval, default river rows ~501.65 us. The evaluator now exceeds the original 50M eval/s target on this machine.
-- Last verified: `bash scripts/verify.sh` exited 0 after wiring configured bet-tree sizes into NLH root raise EV/progress/BR-gap calculations. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
+- Last verified: `bash scripts/verify.sh` exited 0 after wiring configured bet-tree sizes into PLO Fast root raise EV/progress/BR-gap calculations. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
 - Git remote `origin` is set to `https://github.com/Azamarusuisan/wizard.git`; do not push until §6 is actually complete.
 
 ## Important Caveat
