@@ -14,7 +14,7 @@
 - TS fallback `kuhnCfr()` now runs tabular Kuhn CFR instead of returning a closed-form approximation.
 - NLH river small-spot gate now computes exploitability from action EVs and strategy rows instead of returning a fixed scalar.
 - NLH flop Balanced gate now computes exploitability through a compact flop-to-river continuation abstraction over exact-equity representative flop buckets rather than returning a fixed scalar. It is still not the final full flop CFR/BR implementation.
-- The compact flop continuation now uses three explicit chance branches per later street, with normalized chance mass, instead of one fixed continuation scalar. It is still a proxy, not enumerated turn/river chance.
+- The compact flop continuation now uses three explicit chance branches per later street, with normalized chance mass, instead of one fixed continuation scalar. The first flop-to-turn layer now uses sampled turn-card exact equities for each representative bucket; later street continuation is still a proxy, not enumerated turn/river chance.
 - Leduc has a tabular CFR + average-strategy BR probe in Rust. Chance reach is included in regret and average-strategy weighting. Fold payoff is locked by a test (`p1 folds => +1`, `p0 folds => -1`). The gate now uses measured imperfect-information best response rather than a fixed scalar.
 - PLO4/PLO5 Fast exploitability no longer returns a fixed scalar; it computes a weighted representative bucket BR gap. It is still a small sampled proxy, not full PLO MCCFR.
 - Bucket module now has fixed-seed 10-feature k-means++ and a variance-quality gate proving more clusters do not worsen synthetic equity-feature clustering.

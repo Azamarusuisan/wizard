@@ -1215,6 +1215,7 @@ pub mod br {
     #[derive(Clone, Copy)]
     pub struct FlopBucket {
         pub representative: RiverCombo,
+        pub turn_equities: [f64; 3],
         pub weight: f64,
     }
 
@@ -1235,10 +1236,26 @@ pub mod br {
             let e = equity::heads_up_nlh_equity_exact(*hero, villain, &board);
             FlopBucket {
                 representative: best_response_combo(e, 100.0, 66.0),
+                turn_equities: sampled_turn_equities(*hero, villain, &board),
                 weight: *weight,
             }
         })
         .collect()
+    }
+
+    fn sampled_turn_equities(hero: [Card; 2], villain: [Card; 2], board: &[Card; 3]) -> [f64; 3] {
+        let mut dead = [
+            hero[0], hero[1], villain[0], villain[1], board[0], board[1], board[2],
+        ];
+        dead.sort_unstable();
+        let deck = (0..52)
+            .filter(|card| !dead.contains(card))
+            .collect::<Vec<_>>();
+        let picks = [deck[0], deck[deck.len() / 2], deck[deck.len() - 1]];
+        picks.map(|turn| {
+            let next_board = [board[0], board[1], board[2], turn];
+            equity::heads_up_nlh_equity_exact(hero, villain, &next_board)
+        })
     }
 
     pub fn flop_abstraction_tree_exploitability_pct_pot(
@@ -1268,6 +1285,7 @@ pub mod br {
                 .map(|bucket| {
                     let state = StreetAbstractionState {
                         equity: bucket.representative.equity,
+                        chance_equities: Some(bucket.turn_equities),
                         pot: self.pot,
                         bet: self.bet,
                         street: 0,
@@ -1281,6 +1299,7 @@ pub mod br {
 
     pub(super) struct StreetAbstractionState {
         pub(super) equity: f64,
+        pub(super) chance_equities: Option<[f64; 3]>,
         pub(super) pot: f64,
         pub(super) bet: f64,
         pub(super) street: u8,
@@ -1316,6 +1335,27 @@ pub mod br {
             if self.street >= 2 {
                 return Vec::new();
             }
+            if let Some(equities) = self.chance_equities {
+                return [
+                    (0.30, equities[0]),
+                    (0.40, equities[1]),
+                    (0.30, equities[2]),
+                ]
+                .into_iter()
+                .map(|(probability, equity)| {
+                    (
+                        probability,
+                        Self {
+                            equity,
+                            chance_equities: None,
+                            pot: self.pot + self.bet * 2.0,
+                            bet: self.bet * if self.street == 0 { 1.25 } else { 1.0 },
+                            street: self.street + 1,
+                        },
+                    )
+                })
+                .collect();
+            }
             // ponytail: three chance buckets stand in for turn/river enumeration until the full public tree lands.
             [(0.30, 0.88), (0.40, 1.0), (0.30, 1.12)]
                 .into_iter()
@@ -1324,6 +1364,7 @@ pub mod br {
                         probability,
                         Self {
                             equity: (0.5 + (self.equity - 0.5) * realization).clamp(0.02, 0.98),
+                            chance_equities: None,
                             pot: self.pot + self.bet * 2.0,
                             bet: self.bet * if self.street == 0 { 1.25 } else { 1.0 },
                             street: self.street + 1,
@@ -1556,9 +1597,13 @@ pub mod br {
     fn plo_fast_exploitability_pct_pot(samples: &[PloFastSample]) -> f64 {
         let rows: Vec<FlopBucket> = samples
             .iter()
-            .map(|sample| FlopBucket {
-                representative: cfr_combo(sample.equity(), 100.0, 66.0, 2_048),
-                weight: sample.weight,
+            .map(|sample| {
+                let equity = sample.equity();
+                FlopBucket {
+                    representative: cfr_combo(equity, 100.0, 66.0, 2_048),
+                    turn_equities: [equity; 3],
+                    weight: sample.weight,
+                }
             })
             .collect();
         flop_bucket_exploitability_pct_pot(&rows, 100.0, 66.0)
@@ -3081,6 +3126,7 @@ mod tests {
         assert!(flop_tree <= 3.0, "{flop_tree}");
         let branch_probe = br::StreetAbstractionState {
             equity: 0.55,
+            chance_equities: None,
             pot: 100.0,
             bet: 66.0,
             street: 0,
@@ -3088,6 +3134,18 @@ mod tests {
         .next_chance_branches();
         assert_eq!(branch_probe.len(), 3);
         assert!((branch_probe.iter().map(|(p, _)| *p).sum::<f64>() - 1.0).abs() < 1e-12);
+        let card_derived_probe = br::StreetAbstractionState {
+            equity: 0.55,
+            chance_equities: Some([0.21, 0.43, 0.65]),
+            pot: 100.0,
+            bet: 66.0,
+            street: 0,
+        }
+        .next_chance_branches();
+        assert_eq!(card_derived_probe[0].1.equity, 0.21);
+        assert_eq!(card_derived_probe[1].1.equity, 0.43);
+        assert_eq!(card_derived_probe[2].1.equity, 0.65);
+        assert_eq!(br::balanced_flop_buckets()[0].turn_equities.len(), 3);
         let flop_one_step =
             br::flop_bucket_exploitability_pct_pot(&br::balanced_flop_buckets(), 100.0, 66.0);
         assert!(flop_tree >= flop_one_step, "{flop_tree} {flop_one_step}");
