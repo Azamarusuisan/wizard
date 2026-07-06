@@ -62,6 +62,7 @@ Evidence:
 - Current NLH flop Balanced gate uses a compact flop-to-river continuation abstraction over representative buckets and passes the numeric threshold.
 - Rust bucket tests cover fixed-seed 10-feature k-means++ and verify within-cluster variance does not worsen when bucket count increases.
 - Rust solver gates now compute compact flop abstraction exploitability from card-derived flop buckets instead of synthetic equity rows.
+- Compact NLH flop chance branches are derived from exact enumeration of all remaining turn/river runouts, then compressed into low/mid/high equity quantiles.
 - Solver payloads now expose public chance branch nodes for flop-to-turn and turn-to-river low/mid/high buckets, plus destination-street bet-response child nodes under those branches. NLH nodes derive branch-specific compact strategy/metric tables from next-street card equity quantiles and the configured turn/river bet-tree sizes while the full continuation tree remains pending.
 - Auxiliary raise-size information sets now expose size-mix EV/EQR instead of root metrics.
 

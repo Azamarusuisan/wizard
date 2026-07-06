@@ -1300,13 +1300,13 @@ pub mod br {
             let board = [card(12, 0), card(5, 1), card(0, 2)];
             let villain = [card(11, 2), card(10, 3)];
             let e = equity::heads_up_nlh_equity_exact(*hero, villain, &board);
-            let samples = sampled_turn_river_equities(*hero, villain, &board);
+            let runouts = exact_turn_river_equities(*hero, villain, &board);
             FlopBucket {
                 representative: best_response_combo(e, 100.0, 66.0),
-                turn_equities: samples.turn_equities,
-                turn_weights: samples.turn_weights,
-                river_equities: samples.river_equities,
-                river_weights: samples.river_weights,
+                turn_equities: runouts.turn_equities,
+                turn_weights: runouts.turn_weights,
+                river_equities: runouts.river_equities,
+                river_weights: runouts.river_weights,
                 weight: *weight,
             }
         })
@@ -1372,7 +1372,7 @@ pub mod br {
         }
     }
 
-    fn sampled_turn_river_equities(
+    fn exact_turn_river_equities(
         hero: [Card; 2],
         villain: [Card; 2],
         board: &[Card; 3],

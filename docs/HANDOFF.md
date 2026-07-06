@@ -14,7 +14,7 @@
 - TS fallback `kuhnCfr()` now runs tabular Kuhn CFR instead of returning a closed-form approximation.
 - NLH river small-spot gate now computes exploitability from action EVs and strategy rows instead of returning a fixed scalar.
 - NLH flop Balanced gate now computes exploitability through a compact flop-to-river continuation abstraction over exact-equity representative flop buckets rather than returning a fixed scalar. It is still not the final full flop CFR/BR implementation.
-- The compact flop continuation now uses three explicit chance branches per later street, with deck-count-derived sample mass, instead of one fixed continuation scalar. The flop-to-turn and turn-to-river layers now use bucket-averaged exact equities across sampled turn and river partitions; this is still a sampled proxy, not exhaustive turn/river chance.
+- The compact flop continuation now uses three explicit chance branches per later street, with deck-count-derived runout mass, instead of one fixed continuation scalar. The flop-to-turn and turn-to-river layers now use bucket-averaged exact equities across all remaining turn and river runouts; this is still a compact abstraction, not a full public tree.
 - Compact flop continuation chance branches are now sorted by exact-equity quantiles, so low / medium / high turn and river buckets have monotonic equities instead of depending on deck order.
 - Compact flop BR utilities now score raises against representative multi-size street sets instead of a single bet-size EV; this is still not full configured bet-tree CFR.
 - Native NLH flop solves now use the compact flop abstraction for displayed BR gap and convergence progress, keyed by precision bucket count. Rows remain compact combo rows, not full information-set tables.
@@ -24,6 +24,7 @@
 - PLO4/PLO5 Fast exploitability no longer returns a fixed scalar; it computes a weighted representative bucket BR gap from capped representative CFR rows. It is still not full external-sampling PLO MCCFR over the uncapped game tree.
 - Bucket module now has fixed-seed 10-feature k-means++ and a variance-quality gate proving more clusters do not worsen synthetic equity-feature clustering.
 - Rust solver gates now compute compact flop abstraction exploitability from card-derived flop buckets rather than synthetic equity rows.
+- Compact NLH flop runout helpers are named as exact turn/river enumeration instead of sampled runouts, matching the current implementation.
 - Merged compact flop buckets now normalize turn and river chance-branch mass after grouping, so grouped abstractions keep probability mass at 1.0.
 - Merged compact flop buckets now also average river equities with river branch mass, avoiding unweighted branch blending after grouping.
 - Native WASM solve payload now reuses the shared river best-response row builder instead of duplicating strategy formulas in the handle serializer path.
@@ -160,7 +161,7 @@
 - IndexedDB solve cache keys are canonical JSON SHA-256 via WebCrypto in the web layer.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `default_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~11.66 ns/eval, default river rows ~501.65 us. The evaluator now exceeds the original 50M eval/s target on this machine.
-- Last verified: `bash scripts/verify.sh` exited 0 after switching root raise EVs to the MDF-style bet-response formula. Targeted checks also passed: Rust release tests, `pnpm --filter @gto-lab/engine-wasm test`, `pnpm --filter @gto-lab/web typecheck`, `wasm-pack build`, `pnpm exec playwright test apps/web/tests/core-flows.spec.ts --grep "solver runs"`, and `cargo clippy -p gto_lab_engine -- -D warnings`. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
+- Last verified: `bash scripts/verify.sh` exited 0 after renaming compact NLH flop runout helpers/docs to exact turn/river enumeration. Targeted checks also passed: Rust `solver_gates_report_values_under_thresholds` and `pnpm --filter @gto-lab/web typecheck`. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
 - Git remote `origin` is set to `https://github.com/Azamarusuisan/wizard.git`; do not push until §6 is actually complete.
 
 ## Important Caveat
