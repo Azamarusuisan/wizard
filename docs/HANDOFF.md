@@ -19,6 +19,7 @@
 - Compact flop BR utilities now score raises against representative multi-size street sets instead of a single bet-size EV; this is still not full configured bet-tree CFR.
 - Native NLH flop solves now use the compact flop abstraction for displayed BR gap and convergence progress, keyed by precision bucket count. Rows remain compact combo rows, not full information-set tables.
 - TypeScript fallback NLH solve now derives `brGapPctPot` and the final progress point through one shared fallback path, so cached/local fallback payloads do not drift internally.
+- Compact flop continuation no longer invents synthetic chance branches when no card-derived branch data exists; missing chance data now terminates that abstraction state.
 - Leduc has a tabular CFR + average-strategy BR probe in Rust. Chance reach is included in regret and average-strategy weighting. Fold payoff is locked by a test (`p1 folds => +1`, `p0 folds => -1`). The gate now uses measured imperfect-information best response rather than a fixed scalar.
 - PLO4/PLO5 Fast exploitability no longer returns a fixed scalar; it computes a weighted representative bucket BR gap. It is still a small sampled proxy, not full PLO MCCFR.
 - Bucket module now has fixed-seed 10-feature k-means++ and a variance-quality gate proving more clusters do not worsen synthetic equity-feature clustering.
@@ -137,7 +138,7 @@
 - IndexedDB solve cache keys are canonical JSON SHA-256 via WebCrypto in the web layer.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `default_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~11.66 ns/eval, default river rows ~501.65 us. The evaluator now exceeds the original 50M eval/s target on this machine.
-- Last verified: `bash scripts/verify.sh` exited 0 after sharing TypeScript fallback BR gap/progress finalization. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
+- Last verified: `bash scripts/verify.sh` exited 0 after removing synthetic no-data chance branches. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
 - Git remote `origin` is set to `https://github.com/Azamarusuisan/wizard.git`; do not push until §6 is actually complete.
 
 ## Important Caveat

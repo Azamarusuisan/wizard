@@ -1535,25 +1535,7 @@ pub mod br {
                     })
                     .collect();
             }
-            // ponytail: three chance buckets stand in for turn/river enumeration until the full public tree lands.
-            [(0.30, 0.88), (0.40, 1.0), (0.30, 1.12)]
-                .into_iter()
-                .map(|(probability, realization)| {
-                    (
-                        probability,
-                        Self {
-                            equity: (0.5 + (self.equity - 0.5) * realization).clamp(0.02, 0.98),
-                            chance_equities: None,
-                            chance_weights: None,
-                            next_chance_equities: None,
-                            next_chance_weights: None,
-                            pot: self.pot + self.bet * 2.0,
-                            bet: self.bet * if self.street == 0 { 1.25 } else { 1.0 },
-                            street: self.street + 1,
-                        },
-                    )
-                })
-                .collect()
+            Vec::new()
         }
     }
 
@@ -3514,8 +3496,7 @@ mod tests {
         let single_raise = br::action_evs(0.55, 100.0, 66.0, 0.0, 0.0).2;
         assert!(action_utilities[2] > single_raise);
         let branch_probe = action_probe.next_chance_branches();
-        assert_eq!(branch_probe.len(), 3);
-        assert!((branch_probe.iter().map(|(p, _)| *p).sum::<f64>() - 1.0).abs() < 1e-12);
+        assert!(branch_probe.is_empty());
         let card_derived_probe = br::StreetAbstractionState {
             equity: 0.55,
             chance_equities: Some([0.21, 0.43, 0.65]),
