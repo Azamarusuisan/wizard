@@ -3787,6 +3787,9 @@ fn river_exploitability_from_action_evs(
         best_ev += weight * fold_ev.max(call_ev).max(raise_ev);
         total_weight += weight;
     }
+    if total_weight <= 0.0 {
+        return 0.0;
+    }
     ((best_ev - strategy_ev) / total_weight / pot * 100.0).max(0.0)
 }
 
@@ -4181,6 +4184,23 @@ mod tests {
         for cards in examples {
             assert_eq!(eval::evaluate_nlh7(&cards), brute_force_nlh7(&cards));
         }
+    }
+
+    #[test]
+    fn river_exploitability_returns_zero_for_zero_weight_rows() {
+        let rows = [br::RiverCombo {
+            equity: 0.5,
+            fold: 0.0,
+            call: 1.0,
+            raise: 0.0,
+        }];
+        let action_evs = [0.0, 1.0, 2.0];
+        let weights = [0.0];
+
+        assert_eq!(
+            super::river_exploitability_from_action_evs(&rows, &action_evs, &weights, 100.0),
+            0.0
+        );
     }
 
     fn brute_force_nlh7(cards: &[eval::Card; 7]) -> u64 {

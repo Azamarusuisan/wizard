@@ -99,6 +99,7 @@
 - NLH flop and turn solve payloads now also expose exact public-card chance branches such as `root/turn-Qs` and `root/river-Qs`, including configured bet-response child nodes. These exact-card branches recompute equity from the board with that card appended; Rust native and TypeScript fallback tests compare the branch equity with a direct solve on the appended board.
 - Exact public-card chance branches now mark hero combos containing that public card as unreachable by zeroing their strategy, EV, equity, and row weight in Rust native, EngineAPI, and Solver Studio preview. Tests cover `QQ` on `root/turn-Qs`.
 - Solver Studio range-summary helpers now handle all-unreachable selected rows without `NaN` aggregates; unit tests cover zero-weight branch rows.
+- Rust native and TypeScript fallback BR-gap helpers now also return `0` instead of `NaN` when every selected solve row has zero reach weight.
 - NLH chance branch metric tables now use next-street card equity quantiles instead of fixed low/high shifts when board and combo cards are available. Rust native, TS fallback, EngineAPI, and Playwright cover the path; PLO and invalid/incomplete card data still use the compact fallback.
 - Chance branch metric tables now also use the configured destination-street bet-tree sizes for compact call/raise EVs, so turn and river branch rows no longer reuse only the original spot bet amount.
 - Chance branches now serialize destination-street bet-response child nodes such as `root/turn-low/bet-*` with fold/call terminal children. Rust native and TypeScript fallback cover these nodes; they still reuse compact branch rows rather than full continuation CFR tables.
@@ -166,7 +167,7 @@
 - IndexedDB solve cache keys are canonical JSON SHA-256 via WebCrypto in the web layer.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `default_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~11.66 ns/eval, default river rows ~501.65 us. The evaluator now exceeds the original 50M eval/s target on this machine.
-- Last verified: `bash scripts/verify.sh` exited 0 after guarding Solver Studio summaries for all-unreachable selected rows. Targeted checks also passed: `pnpm --filter @gto-lab/web test -- smoke` and `pnpm --filter @gto-lab/web typecheck`. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
+- Last verified: `bash scripts/verify.sh` exited 0 after guarding zero-weight BR-gap helpers and refreshing this handoff. Targeted checks also passed: `cargo test -p gto_lab_engine --release river_exploitability_returns_zero_for_zero_weight_rows` and `pnpm --filter @gto-lab/engine-wasm typecheck`. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
 - Git remote `origin` is set to `https://github.com/Azamarusuisan/wizard.git`; do not push until §6 is actually complete.
 
 ## Important Caveat

@@ -949,6 +949,7 @@ function riverExploitability(rows: SolverRow[], pot: number, bet: number, rakePc
     bestEv += row.weight * Math.max(foldEv, callEv, raiseEv);
   }
   const totalWeight = rows.reduce((sum, row) => sum + row.weight, 0);
+  if (totalWeight <= 0) return 0;
   return Math.max(0, (bestEv - strategyEv) / totalWeight / pot * 100);
 }
 
