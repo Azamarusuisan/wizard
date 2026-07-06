@@ -542,6 +542,27 @@ pub mod tree {
         pot + 3.0 * call
     }
 
+    pub fn concrete_bets(sizes: &[BetSize], pot: f64, stack: f64) -> Vec<f64> {
+        let mut bets = sizes
+            .iter()
+            .map(|size| match size {
+                BetSize::Percent(percent) => pot * percent / 100.0,
+                BetSize::AllIn => stack,
+            })
+            .map(|bet| {
+                if bet >= stack * 0.85 {
+                    stack
+                } else {
+                    bet.min(stack)
+                }
+            })
+            .filter(|bet| bet.is_finite() && *bet > 0.0)
+            .collect::<Vec<_>>();
+        bets.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        bets.dedup_by(|a, b| (*a - *b).abs() <= 1e-9);
+        bets
+    }
+
     pub fn parse_bet_tree(text: &str) -> Result<BetTree, String> {
         let mut tree = BetTree {
             flop: Vec::new(),
@@ -2391,6 +2412,18 @@ mod tests {
                 tree::BetSize::Percent(66.0),
                 tree::BetSize::AllIn
             ]
+        );
+        assert_eq!(
+            tree::concrete_bets(&bet_tree.flop, 100.0, 120.0),
+            vec![33.0, 66.0, 120.0]
+        );
+        assert_eq!(
+            tree::concrete_bets(
+                &[tree::BetSize::Percent(90.0), tree::BetSize::AllIn],
+                100.0,
+                100.0
+            ),
+            vec![100.0]
         );
         assert!(tree::parse_bet_tree("turn 66; river all-in").is_err());
         assert!(tree::parse_bet_tree("flop 0").is_err());
