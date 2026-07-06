@@ -1216,6 +1216,7 @@ pub mod br {
     pub struct FlopBucket {
         pub representative: RiverCombo,
         pub turn_equities: [f64; 3],
+        pub river_equities: [[f64; 3]; 3],
         pub weight: f64,
     }
 
@@ -1234,16 +1235,23 @@ pub mod br {
             let board = [card(12, 0), card(5, 1), card(0, 2)];
             let villain = [card(11, 2), card(10, 3)];
             let e = equity::heads_up_nlh_equity_exact(*hero, villain, &board);
+            let (turn_equities, river_equities) =
+                sampled_turn_river_equities(*hero, villain, &board);
             FlopBucket {
                 representative: best_response_combo(e, 100.0, 66.0),
-                turn_equities: sampled_turn_equities(*hero, villain, &board),
+                turn_equities,
+                river_equities,
                 weight: *weight,
             }
         })
         .collect()
     }
 
-    fn sampled_turn_equities(hero: [Card; 2], villain: [Card; 2], board: &[Card; 3]) -> [f64; 3] {
+    fn sampled_turn_river_equities(
+        hero: [Card; 2],
+        villain: [Card; 2],
+        board: &[Card; 3],
+    ) -> ([f64; 3], [[f64; 3]; 3]) {
         let mut dead = [
             hero[0], hero[1], villain[0], villain[1], board[0], board[1], board[2],
         ];
@@ -1252,10 +1260,27 @@ pub mod br {
             .filter(|card| !dead.contains(card))
             .collect::<Vec<_>>();
         let picks = [deck[0], deck[deck.len() / 2], deck[deck.len() - 1]];
-        picks.map(|turn| {
+        let turn_equities = picks.map(|turn| {
             let next_board = [board[0], board[1], board[2], turn];
             equity::heads_up_nlh_equity_exact(hero, villain, &next_board)
-        })
+        });
+        let river_equities = picks.map(|turn| {
+            let river_deck = deck
+                .iter()
+                .copied()
+                .filter(|card| *card != turn)
+                .collect::<Vec<_>>();
+            let rivers = [
+                river_deck[0],
+                river_deck[river_deck.len() / 2],
+                river_deck[river_deck.len() - 1],
+            ];
+            rivers.map(|river| {
+                let next_board = [board[0], board[1], board[2], turn, river];
+                equity::heads_up_nlh_equity_exact(hero, villain, &next_board)
+            })
+        });
+        (turn_equities, river_equities)
     }
 
     pub fn flop_abstraction_tree_exploitability_pct_pot(
@@ -1286,6 +1311,7 @@ pub mod br {
                     let state = StreetAbstractionState {
                         equity: bucket.representative.equity,
                         chance_equities: Some(bucket.turn_equities),
+                        next_chance_equities: Some(bucket.river_equities),
                         pot: self.pot,
                         bet: self.bet,
                         street: 0,
@@ -1300,6 +1326,7 @@ pub mod br {
     pub(super) struct StreetAbstractionState {
         pub(super) equity: f64,
         pub(super) chance_equities: Option<[f64; 3]>,
+        pub(super) next_chance_equities: Option<[[f64; 3]; 3]>,
         pub(super) pot: f64,
         pub(super) bet: f64,
         pub(super) street: u8,
@@ -1342,12 +1369,14 @@ pub mod br {
                     (0.30, equities[2]),
                 ]
                 .into_iter()
-                .map(|(probability, equity)| {
+                .enumerate()
+                .map(|(i, (probability, equity))| {
                     (
                         probability,
                         Self {
                             equity,
-                            chance_equities: None,
+                            chance_equities: self.next_chance_equities.map(|next| next[i]),
+                            next_chance_equities: None,
                             pot: self.pot + self.bet * 2.0,
                             bet: self.bet * if self.street == 0 { 1.25 } else { 1.0 },
                             street: self.street + 1,
@@ -1365,6 +1394,7 @@ pub mod br {
                         Self {
                             equity: (0.5 + (self.equity - 0.5) * realization).clamp(0.02, 0.98),
                             chance_equities: None,
+                            next_chance_equities: None,
                             pot: self.pot + self.bet * 2.0,
                             bet: self.bet * if self.street == 0 { 1.25 } else { 1.0 },
                             street: self.street + 1,
@@ -1602,6 +1632,7 @@ pub mod br {
                 FlopBucket {
                     representative: cfr_combo(equity, 100.0, 66.0, 2_048),
                     turn_equities: [equity; 3],
+                    river_equities: [[equity; 3]; 3],
                     weight: sample.weight,
                 }
             })
@@ -3127,6 +3158,7 @@ mod tests {
         let branch_probe = br::StreetAbstractionState {
             equity: 0.55,
             chance_equities: None,
+            next_chance_equities: None,
             pot: 100.0,
             bet: 66.0,
             street: 0,
@@ -3137,6 +3169,11 @@ mod tests {
         let card_derived_probe = br::StreetAbstractionState {
             equity: 0.55,
             chance_equities: Some([0.21, 0.43, 0.65]),
+            next_chance_equities: Some([
+                [0.11, 0.12, 0.13],
+                [0.31, 0.32, 0.33],
+                [0.51, 0.52, 0.53],
+            ]),
             pot: 100.0,
             bet: 66.0,
             street: 0,
@@ -3145,7 +3182,12 @@ mod tests {
         assert_eq!(card_derived_probe[0].1.equity, 0.21);
         assert_eq!(card_derived_probe[1].1.equity, 0.43);
         assert_eq!(card_derived_probe[2].1.equity, 0.65);
+        assert_eq!(
+            card_derived_probe[1].1.next_chance_branches()[2].1.equity,
+            0.33
+        );
         assert_eq!(br::balanced_flop_buckets()[0].turn_equities.len(), 3);
+        assert_eq!(br::balanced_flop_buckets()[0].river_equities.len(), 3);
         let flop_one_step =
             br::flop_bucket_exploitability_pct_pot(&br::balanced_flop_buckets(), 100.0, 66.0);
         assert!(flop_tree >= flop_one_step, "{flop_tree} {flop_one_step}");
