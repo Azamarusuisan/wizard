@@ -1270,7 +1270,6 @@ pub mod br {
             .filter(|card| !dead.contains(card))
             .collect::<Vec<_>>();
         let turn_partitions = sampled_chance_partitions(deck.len());
-        let turn_picks = turn_partitions.map(|partition| deck[representative_index(partition)]);
         let turn_weights = sampled_chance_weights(deck.len());
         let turn_equities = turn_partitions.map(|(start, end)| {
             average_equity(&deck[start..end], |turn| {
@@ -1278,23 +1277,13 @@ pub mod br {
                 equity::heads_up_nlh_equity_exact(hero, villain, &next_board)
             })
         });
-        let river_equities = turn_picks.map(|turn| {
-            let river_deck = deck
-                .iter()
-                .copied()
-                .filter(|card| *card != turn)
-                .collect::<Vec<_>>();
-            sampled_chance_partitions(river_deck.len()).map(|(start, end)| {
-                average_equity(&river_deck[start..end], |river| {
-                    let next_board = [board[0], board[1], board[2], turn, river];
-                    equity::heads_up_nlh_equity_exact(hero, villain, &next_board)
-                })
+        let river_equities = turn_partitions.map(|(turn_start, turn_end)| {
+            let turns = &deck[turn_start..turn_end];
+            sampled_chance_partitions(deck.len() - 1).map(|river_partition| {
+                average_turn_river_equity(hero, villain, board, turns, &deck, river_partition)
             })
         });
-        let river_weights = turn_picks.map(|turn| {
-            let river_deck_len = deck.iter().filter(|card| **card != turn).count();
-            sampled_chance_weights(river_deck_len)
-        });
+        let river_weights = [sampled_chance_weights(deck.len() - 1); 3];
         RunoutSamples {
             turn_equities,
             turn_weights,
@@ -1310,14 +1299,39 @@ pub mod br {
         cards.iter().copied().map(&mut equity_for_card).sum::<f64>() / cards.len() as f64
     }
 
+    fn average_turn_river_equity(
+        hero: [Card; 2],
+        villain: [Card; 2],
+        board: &[Card; 3],
+        turns: &[Card],
+        deck: &[Card],
+        (river_start, river_end): (usize, usize),
+    ) -> f64 {
+        let mut total = 0.0;
+        let mut count = 0usize;
+        for &turn in turns {
+            let rivers = deck
+                .iter()
+                .copied()
+                .filter(|card| *card != turn)
+                .collect::<Vec<_>>();
+            for &river in &rivers[river_start..river_end] {
+                let next_board = [board[0], board[1], board[2], turn, river];
+                total += equity::heads_up_nlh_equity_exact(hero, villain, &next_board);
+                count += 1;
+            }
+        }
+        if count == 0 {
+            0.0
+        } else {
+            total / count as f64
+        }
+    }
+
     fn sampled_chance_partitions(total: usize) -> [(usize, usize); 3] {
         let low = total / 3;
         let middle = (total - low) / 2;
         [(0, low), (low, low + middle), (low + middle, total)]
-    }
-
-    fn representative_index((start, end): (usize, usize)) -> usize {
-        start + (end - start) / 2
     }
 
     fn sampled_chance_weights(total: usize) -> [f64; 3] {
