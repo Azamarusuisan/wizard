@@ -1734,8 +1734,16 @@ struct NativeProgress {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
+struct NativeNode {
+    id: String,
+    label: String,
+    street: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
 struct NativeSolve {
     spot: NativeSpot,
+    nodes: Vec<NativeNode>,
     combos: Vec<String>,
     progress: Vec<NativeProgress>,
     strategy: Vec<f64>,
@@ -1832,6 +1840,7 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
             .collect();
     let solve = NativeSolve {
         spot,
+        nodes: root_nodes(),
         combos,
         progress,
         strategy,
@@ -1918,6 +1927,7 @@ fn solve_plo_fast(
             .collect();
     let solve = NativeSolve {
         spot,
+        nodes: root_nodes(),
         combos,
         progress,
         strategy,
@@ -2101,14 +2111,18 @@ pub fn poll_progress(handle: u32) -> Result<String, JsValue> {
 
 #[wasm_bindgen]
 pub fn get_strategy(handle: u32, node_id: &str) -> Result<Vec<f64>, JsValue> {
-    validate_node_id(node_id)?;
-    with_solve(handle, |solve| Ok(solve.strategy.clone()))
+    with_solve(handle, |solve| {
+        validate_node_id(solve, node_id)?;
+        Ok(solve.strategy.clone())
+    })
 }
 
 #[wasm_bindgen]
 pub fn get_hand_metrics(handle: u32, node_id: &str) -> Result<Vec<f64>, JsValue> {
-    validate_node_id(node_id)?;
-    with_solve(handle, |solve| Ok(solve.metrics.clone()))
+    with_solve(handle, |solve| {
+        validate_node_id(solve, node_id)?;
+        Ok(solve.metrics.clone())
+    })
 }
 
 #[wasm_bindgen]
@@ -2141,12 +2155,26 @@ fn with_solve<T>(
     f(solve)
 }
 
-fn validate_node_id(node_id: &str) -> Result<(), JsValue> {
-    validate_node_id_str(node_id).map_err(JsValue::from_str)
+fn root_nodes() -> Vec<NativeNode> {
+    vec![NativeNode {
+        id: "root".to_string(),
+        label: "Root".to_string(),
+        street: "river".to_string(),
+    }]
 }
 
-fn validate_node_id_str(node_id: &str) -> Result<(), &'static str> {
-    (node_id == "root").then_some(()).ok_or("unknown node id")
+fn validate_node_id(solve: &NativeSolve, node_id: &str) -> Result<(), JsValue> {
+    solve
+        .nodes
+        .iter()
+        .any(|node| node.id == node_id)
+        .then_some(())
+        .ok_or_else(|| JsValue::from_str("unknown node id"))
+}
+
+#[cfg(test)]
+fn has_node_id(solve: &NativeSolve, node_id: &str) -> bool {
+    solve.nodes.iter().any(|node| node.id == node_id)
 }
 
 #[wasm_bindgen]
@@ -2508,6 +2536,7 @@ mod tests {
         let native: super::NativeSolve =
             serde_json::from_slice(&payload).expect("native solve json");
         assert_eq!(native.spot.bet_tree.as_deref(), Some("flop 33,66,all-in"));
+        assert_eq!(native.nodes[0].id, "root");
         let first = br::cfr_combo(br::DEFAULT_RIVER_SPECS[0].1, 100.0, 66.0, 2_048);
         assert_eq!(native.combos[0], "AcAd");
         assert_eq!(native.combos.len(), 28);
@@ -2515,8 +2544,8 @@ mod tests {
             &native.strategy[0..3],
             &[first.fold, first.call, first.raise]
         );
-        assert!(super::validate_node_id_str("root").is_ok());
-        assert!(super::validate_node_id_str("turn:blank").is_err());
+        assert!(super::has_node_id(&native, "root"));
+        assert!(!super::has_node_id(&native, "turn:blank"));
         assert!(native.action_evs[2] >= native.action_evs[1]);
         assert!(native.metrics[(native.combos.len() - 1) * 3] >= 0.0);
         let base = native.combos.len() * 3;

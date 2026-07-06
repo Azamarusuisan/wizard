@@ -13,6 +13,7 @@ type SolveRecord = {
   key: string;
   meta: { version: number; createdAt: number; spot: unknown };
   blob: {
+    nodes?: SolveResult["nodes"];
     combos: string[];
     fold: Uint16Array;
     call: Uint16Array;
@@ -156,6 +157,7 @@ function unpackProb(xs: Uint16Array): number[] {
 
 function packSolve(result: SolveResult): SolveRecord["blob"] {
   return {
+    nodes: result.nodes,
     combos: result.rows.map((r) => r.combo),
     fold: packProb(result.rows.map((r) => r.fold)),
     call: packProb(result.rows.map((r) => r.call)),
@@ -188,7 +190,7 @@ function unpackSolve(blob: SolveRecord["blob"]): SolveResult {
     ev: blob.ev[i]!,
     eqr: blob.eqr[i]!
   }));
-  return { rows, exploitability: blob.exploitability, metrics: blob.metrics };
+  return { nodes: blob.nodes ?? [{ id: "root", label: "Root", street: "river" }], rows, exploitability: blob.exploitability, metrics: blob.metrics };
 }
 
 function reqResult<T>(req: IDBRequest<T>): Promise<T> {
@@ -204,7 +206,7 @@ function countStore(store: StoreName): Promise<number> {
 
 function solveRecordBytes(rec: SolveRecord): number {
   const blob = rec.blob;
-  return JSON.stringify(rec.meta).length + blob.combos.join("").length + blob.fold.byteLength + blob.call.byteLength + blob.raise.byteLength + (blob.foldEv?.byteLength ?? 0) + (blob.callEv?.byteLength ?? 0) + (blob.raiseEv?.byteLength ?? 0) + blob.equity.byteLength + blob.ev.byteLength + blob.eqr.byteLength + blob.exploitability.length * 16 + 64;
+  return JSON.stringify(rec.meta).length + JSON.stringify(blob.nodes ?? []).length + blob.combos.join("").length + blob.fold.byteLength + blob.call.byteLength + blob.raise.byteLength + (blob.foldEv?.byteLength ?? 0) + (blob.callEv?.byteLength ?? 0) + (blob.raiseEv?.byteLength ?? 0) + blob.equity.byteLength + blob.ev.byteLength + blob.eqr.byteLength + blob.exploitability.length * 16 + 64;
 }
 
 function txDone(req: IDBRequest<any>): Promise<void> {

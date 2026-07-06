@@ -325,7 +325,8 @@ function parseBetSizes(text: string): BetSize[] {
 }
 
 export type SolverRow = { combo: string; fold: number; call: number; raise: number; foldEv: number; callEv: number; raiseEv: number; equity: number; ev: number; eqr: number };
-export type SolveResult = { rows: SolverRow[]; exploitability: { iteration: number; value: number }[]; metrics: { spr: number; mdf: number; alpha: number; potOdds: number; brGapPctPot?: number; ploFastExploitability?: number } };
+export type SolveNode = { id: string; label: string; street: string };
+export type SolveResult = { nodes: SolveNode[]; rows: SolverRow[]; exploitability: { iteration: number; value: number }[]; metrics: { spr: number; mdf: number; alpha: number; potOdds: number; brGapPctPot?: number; ploFastExploitability?: number } };
 export const DEFAULT_RIVER_SPECS = [
   ["AA", 0.82],
   ["AKs", 0.72],
@@ -355,6 +356,7 @@ export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2, boar
     return { combo, fold, call, raise, foldEv: 0, callEv: callEv / 100, raiseEv: raiseEv / 100, equity: eq, ev, eqr: ev / Math.max(0.0001, eq * pot / 100) };
   });
   return {
+    nodes: ROOT_NODES,
     rows,
     exploitability: riverStrategyProgress(rows, pot, bet, 36, rakePct, rakeCap).map((value, i) => ({ iteration: (i + 1) * 50, value })),
     metrics: { spr: stack / pot, mdf, alpha, potOdds, brGapPctPot: riverExploitability(rows, pot, bet, rakePct, rakeCap) }
@@ -418,11 +420,14 @@ function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack
     };
   });
   return {
+    nodes: ROOT_NODES,
     rows,
     exploitability: riverStrategyProgress(rows, pot, bet, 36, rakePct, rakeCap).map((value, i) => ({ iteration: (i + 1) * 50, value })),
     metrics: { spr: stack / pot, mdf, alpha, potOdds, brGapPctPot: riverExploitability(rows, pot, bet, rakePct, rakeCap), ploFastExploitability: game === "PLO4" ? plo4FastExploitabilityPctPot() : plo5FastExploitabilityPctPot() }
   };
 }
+
+const ROOT_NODES: SolveNode[] = [{ id: "root", label: "Root", street: "river" }];
 
 function ploFastSampleEquity(row: PloFastSample): number {
   return ploVsRandomEquity(parseComboCards(row.combo), 512, row.seed);

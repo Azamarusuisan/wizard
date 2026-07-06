@@ -1,4 +1,4 @@
-import { solveRiverSpot, type SolveResult, type SolverRow } from "./index.js";
+import { solveRiverSpot, type SolveNode, type SolveResult, type SolverRow } from "./index.js";
 
 export type Progress = { iteration: number; exploitabilityPct: number; elapsed: number };
 export type EngineHandle = number;
@@ -31,6 +31,7 @@ type WasmModule = {
 };
 
 type NativeSolve = {
+  nodes?: SolveNode[];
   combos: string[];
   progress: { iter: number; exploitability_pct: number; elapsed: number }[];
   strategy: number[];
@@ -64,8 +65,8 @@ class LocalEngine implements EngineAPI {
   }
 
   async getStrategy(handle: EngineHandle, nodeId = "root"): Promise<StrategyTable> {
-    validateNodeId(nodeId);
     const result = this.mustGet(handle);
+    validateNodeId(result, nodeId);
     return {
       combos: result.rows.map((r: SolverRow) => r.combo),
       actions: Float64Array.from(result.rows.flatMap((r: SolverRow) => [r.fold, r.call, r.raise]))
@@ -73,8 +74,8 @@ class LocalEngine implements EngineAPI {
   }
 
   async getHandMetrics(handle: EngineHandle, nodeId = "root"): Promise<HandMetrics> {
-    validateNodeId(nodeId);
     const result = this.mustGet(handle);
+    validateNodeId(result, nodeId);
     return {
       ev: Float32Array.from(result.rows.map((r: SolverRow) => r.ev)),
       equity: Float32Array.from(result.rows.map((r: SolverRow) => r.equity)),
@@ -101,8 +102,8 @@ class LocalEngine implements EngineAPI {
   }
 }
 
-function validateNodeId(nodeId: string): void {
-  if (nodeId !== "root") throw new Error("unknown node id");
+function validateNodeId(result: SolveResult, nodeId: string): void {
+  if (!result.nodes.some((node) => node.id === nodeId)) throw new Error("unknown node id");
 }
 
 class WasmPreferredEngine implements EngineAPI {
@@ -197,8 +198,9 @@ function splitMetrics(raw: ArrayLike<number>, rows: number): HandMetrics {
 
 function nativeToResult(native: NativeSolve): SolveResult {
   const combos = native.combos.length ? native.combos : FALLBACK_COMBOS;
-  const metrics = splitMetrics(native.metrics, combos.length);
+    const metrics = splitMetrics(native.metrics, combos.length);
   return {
+    nodes: native.nodes?.length ? native.nodes : [{ id: "root", label: "Root", street: "river" }],
     rows: combos.map((combo, i) => ({
       combo,
       fold: native.strategy[i * 3] ?? 0,
