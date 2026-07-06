@@ -451,13 +451,26 @@ export function plo5FastExploitabilityPctPot(iterations = 2_048): number {
 }
 
 function ploFastExploitabilityPctPot(samples: readonly PloFastSample[], iterations: number): number {
-  const total = samples.reduce((sum, row) => sum + row.weight, 0);
-  return samples.reduce((sum, row) => {
-    const eq = ploFastSampleEquity(row);
-    const strategy = cfrStrategy(eq, 100, 66, 0, 0, iterations);
-    const mixed = [{ combo: row.combo, weight: row.weight, handClass: "sample", blockedCombos: 0, blockerPct: 0, equity: eq, ...strategy, foldEv: 0, callEv: 0, raiseEv: 0, bestRaiseAmount: 66, ev: 0, eqr: 0 }];
-    return sum + row.weight * riverExploitability(mixed, 100, 66, 0, 0);
-  }, 0) / total;
+  const rows = samples.map((row) => {
+    const equityValue = ploFastSampleEquity(row, [], samples);
+    const { callEv, raiseEv } = rowActionEvs(equityValue, 100, 66, [66], 0, 0);
+    return {
+      combo: row.combo,
+      weight: row.weight,
+      handClass: "sample",
+      blockedCombos: 0,
+      blockerPct: 0,
+      ...cfrStrategyFromActionEvs(0, callEv, raiseEv, iterations),
+      foldEv: 0,
+      callEv: callEv / 100,
+      raiseEv: raiseEv / 100,
+      bestRaiseAmount: 66,
+      equity: equityValue,
+      ev: 0,
+      eqr: 0
+    };
+  });
+  return riverExploitabilityFromRows(rows, 100);
 }
 
 type PloFastSample = { combo: string; weight: number; seed: number };

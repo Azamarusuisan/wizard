@@ -1844,7 +1844,7 @@ pub mod br {
         let rows: Vec<FlopBucket> = samples
             .iter()
             .map(|sample| {
-                let equity = sample.equity();
+                let equity = sample.equity_vs_samples_on_board(samples, &[]);
                 FlopBucket {
                     representative: cfr_combo(equity, 100.0, 66.0, iterations),
                     turn_equities: [equity; 3],
