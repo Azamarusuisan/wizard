@@ -348,8 +348,10 @@ export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2, boar
   const mdf = pot / (pot + bet);
   const alpha = bet / (pot + bet);
   if (game === "PLO4" || game === "PLO5") return solvePloFastSpot(game, pot, bet, stack, rakePct, rakeCap, potOdds, mdf, alpha, board.length);
-  const rows = defaultRiverCombos(board).map(({ combo, fallback, holes }) => {
-    const eq = comboEquity(holes, fallback, board);
+  const combos = defaultRiverCombos(board);
+  const equityCache = new Map<string, number>();
+  const rows = combos.map(({ combo, fallback, holes }) => {
+    const eq = comboEquity(holes, fallback, board, combos, equityCache);
     const { callEv, raiseEv } = actionEvs(eq, pot, bet, rakePct, rakeCap);
     const { fold, call, raise } = cfrStrategy(eq, pot, bet, rakePct, rakeCap, 2_048);
     const ev = (call * callEv + raise * raiseEv) / 100;
@@ -558,12 +560,25 @@ function expandNlhCombo(label: string, blocked: Card[]): Card[][] {
   return out;
 }
 
-function comboEquity(hero: Card[], fallback: number, board: Card[]): number {
+function comboEquity(hero: Card[], fallback: number, board: Card[], villainCombos = defaultRiverCombos(board), cache?: Map<string, number>): number {
   if (!board.length) return fallback;
   const blocked = new Set([...board, ...hero]);
-  const villains = defaultRiverCombos(board).filter((combo) => !combo.holes.some((card) => blocked.has(card)));
+  const villains = villainCombos.filter((combo) => !combo.holes.some((card) => blocked.has(card)));
   if (!villains.length) return fallback;
-  return villains.reduce((sum, villain) => sum + equity([{ cards: hero }, { cards: villain.holes }], board, "NLH", 0, 1)[0]!.equity, 0) / villains.length;
+  const heroKey = comboKey(hero);
+  return villains.reduce((sum, villain) => {
+    const villainKey = comboKey(villain.holes);
+    const key = heroKey < villainKey ? `${heroKey}|${villainKey}` : `${villainKey}|${heroKey}`;
+    const cached = cache?.get(key);
+    if (cached !== undefined) return sum + (heroKey < villainKey ? cached : 1 - cached);
+    const value = equity([{ cards: hero }, { cards: villain.holes }], board, "NLH", 0, 1)[0]!.equity;
+    cache?.set(key, heroKey < villainKey ? value : 1 - value);
+    return sum + value;
+  }, 0) / villains.length;
+}
+
+function comboKey(cards: Card[]): string {
+  return cards.map(formatCard).join("");
 }
 
 function riverStrategyProgress(rows: SolverRow[], pot: number, bet: number, points: number, rakePct: number, rakeCap: number): number[] {
