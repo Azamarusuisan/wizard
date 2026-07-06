@@ -74,6 +74,7 @@
 - Bet-response terminal children are now covered through both node id and information-set lookup paths in Rust native and EngineAPI tests, and Playwright selects `root/bet-33/call` in the Solver Studio node list.
 - Bet-response terminal metric references now include the full node id, e.g. `response:root/bet-33/call`, so multiple bet sizes do not collide in information-set table references.
 - IndexedDB solve-cache fallback information-set reconstruction now classifies bet-response terminal child nodes the same way as EngineAPI, and DB tests cover persisted `root/bet-33/call` metric refs.
+- EngineAPI native-to-result fallback information-set reconstruction also classifies bet-response terminal child nodes with the same `response:<node id>` metric refs.
 - First-level terminal action nodes (`root/fold`, `root/call`, `root/raise`) still return empty strategy payloads but now return their branch EV/equity/EQR hand metrics from the stored action-EV table.
 - Rust native spot validation now parses `flop` / `turn` / `river` bet-tree text with numeric `% pot` sizes and `all-in`, rejecting malformed trees before solve creation.
 - Rust bet-tree utilities now expand `% pot` / `all-in` sizes into concrete bet amounts, applying the spec's 85% stack all-in rounding and de-duplicating equivalent all-ins.
@@ -130,7 +131,7 @@
 - IndexedDB solve cache keys are canonical JSON SHA-256 via WebCrypto in the web layer.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `default_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~11.66 ns/eval, default river rows ~501.65 us. The evaluator now exceeds the original 50M eval/s target on this machine.
-- Last verified: `bash scripts/verify.sh` exited 0 after aligning IndexedDB fallback information-set refs for bet-response terminal child nodes. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
+- Last verified: `bash scripts/verify.sh` exited 0 after aligning EngineAPI fallback information-set refs for bet-response terminal child nodes. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
 - Git remote `origin` is set to `https://github.com/Azamarusuisan/wizard.git`; do not push until §6 is actually complete.
 
 ## Important Caveat
