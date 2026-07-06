@@ -29,6 +29,8 @@ percent     ::= 0..100
 
 Examples: `AA**:ds@100, AA**:ss@60, JT98:ds@75`.
 
+Solve validation is game-specific: PLO4 patterns must contain exactly 4 ranks/wildcards, and PLO5 patterns must contain exactly 5.
+
 ## JSON Schemas
 
 All persisted documents include:

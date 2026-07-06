@@ -77,6 +77,7 @@ Evidence:
 - PLO4 AAxx double-suited-over-rainbow monotonicity is tested.
 - PLO Fast now applies the Solver Studio Hero range PLO syntax as a category filter and weight multiplier over the capped representative sample set.
 - PLO Fast applies Villain range PLO syntax to the opponent representative set used by blocker analysis.
+- PLO Fast validates range pattern length by game before filtering representatives: PLO4 requires 4 ranks/wildcards and PLO5 requires 5.
 - PLO Fast representative equities are now sampled against the Villain representative set when supplied, falling back to random-hand MC only when no unblocked opponent representative exists.
 - PLO Fast standalone exploitability gates use the same weighted representative opponent model as the solve path.
 - PLO Fast metrics expose both hero and opponent representative counts and weight coverage.

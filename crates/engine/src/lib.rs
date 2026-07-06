@@ -2287,12 +2287,12 @@ fn solve_plo_fast(
     } else {
         &br::PLO4_FAST_SAMPLES
     };
-    let samples = filter_plo_samples(sample_pool, spot.hero_range.as_deref())
+    let samples = filter_plo_samples(sample_pool, game, spot.hero_range.as_deref())
         .map_err(|err| JsValue::from_str(&err))?
         .into_iter()
         .filter(|sample| !sample.conflicts_board(&board))
         .collect::<Vec<_>>();
-    let opponent_samples = filter_plo_samples(sample_pool, spot.villain_range.as_deref())
+    let opponent_samples = filter_plo_samples(sample_pool, game, spot.villain_range.as_deref())
         .map_err(|err| JsValue::from_str(&err))?
         .into_iter()
         .filter(|sample| !sample.conflicts_board(&board))
@@ -2462,12 +2462,13 @@ struct PloRangeTerm {
 
 fn filter_plo_samples(
     samples: &[br::PloFastSample],
+    game: &str,
     range_text: Option<&str>,
 ) -> Result<Vec<br::PloFastSample>, String> {
     let Some(range_text) = range_text.filter(|value| !value.trim().is_empty()) else {
         return Ok(samples.to_vec());
     };
-    let terms = parse_plo_range_terms(range_text)?;
+    let terms = parse_plo_range_terms(range_text, game)?;
     let filtered = samples
         .iter()
         .filter_map(|sample| {
@@ -2490,7 +2491,8 @@ fn filter_plo_samples(
     }
 }
 
-fn parse_plo_range_terms(text: &str) -> Result<Vec<PloRangeTerm>, String> {
+fn parse_plo_range_terms(text: &str, game: &str) -> Result<Vec<PloRangeTerm>, String> {
+    let expected_len = if game == "PLO5" { 5 } else { 4 };
     text.split(',')
         .map(str::trim)
         .filter(|term| !term.is_empty())
@@ -2504,6 +2506,11 @@ fn parse_plo_range_terms(text: &str) -> Result<Vec<PloRangeTerm>, String> {
                 return Err(format!("bad PLO weight: {term}"));
             }
             let (pattern, suitedness) = left.split_once(':').unwrap_or((left, ""));
+            if pattern.len() != expected_len {
+                return Err(format!(
+                    "{game} range pattern must use {expected_len} cards: {term}"
+                ));
+            }
             if pattern.len() < 4
                 || pattern.len() > 5
                 || !pattern
@@ -2643,7 +2650,10 @@ fn validate_spot(spot: &NativeSpot) -> Result<(), String> {
         .as_deref()
         .is_some_and(|range| !range.trim().is_empty())
     {
-        parse_plo_range_terms(spot.hero_range.as_deref().unwrap_or_default())?;
+        parse_plo_range_terms(
+            spot.hero_range.as_deref().unwrap_or_default(),
+            spot.game.as_deref().unwrap_or("PLO4"),
+        )?;
     }
     if spot.game.as_deref().unwrap_or("NLH") != "NLH"
         && spot
@@ -2651,7 +2661,10 @@ fn validate_spot(spot: &NativeSpot) -> Result<(), String> {
             .as_deref()
             .is_some_and(|range| !range.trim().is_empty())
     {
-        parse_plo_range_terms(spot.villain_range.as_deref().unwrap_or_default())?;
+        parse_plo_range_terms(
+            spot.villain_range.as_deref().unwrap_or_default(),
+            spot.game.as_deref().unwrap_or("PLO4"),
+        )?;
     }
     if let Some(bet_tree) = spot.bet_tree.as_deref() {
         tree::parse_bet_tree(bet_tree)?;
@@ -4883,6 +4896,11 @@ mod tests {
         )
         .unwrap();
         assert!(super::validate_spot(&bad_plo_range).is_err());
+        let bad_plo4_length: super::NativeSpot = serde_json::from_str(
+            r#"{"game":"PLO4","pot":100.0,"bet":20.0,"heroRange":"AA***:ds"}"#,
+        )
+        .unwrap();
+        assert!(super::validate_spot(&bad_plo4_length).is_err());
         let plo4_board =
             super::solve(r#"{"game":"PLO4","pot":100.0,"bet":20.0,"board":"2c 3d 4h"}"#).unwrap();
         let plo4_board_payload = super::serialize(plo4_board).unwrap();
@@ -4926,6 +4944,10 @@ mod tests {
             plo5_native.metrics[plo5_native.combos.len() * 3 + 12],
             br::PLO_FAST_EQUITY_SAMPLES as f64
         );
+        let bad_plo5_length: super::NativeSpot =
+            serde_json::from_str(r#"{"game":"PLO5","pot":100.0,"bet":20.0,"heroRange":"AA**:ds"}"#)
+                .unwrap();
+        assert!(super::validate_spot(&bad_plo5_length).is_err());
         super::cancel(plo4).unwrap();
         super::cancel(plo4_plain).unwrap();
         super::cancel(plo5).unwrap();

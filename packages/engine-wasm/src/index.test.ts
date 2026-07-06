@@ -248,6 +248,7 @@ test("TS solve fallback reports PLO Fast BR metrics", () => {
   assert.equal(plo4AcesVsRundown.rows[0]!.blockerPct, 0);
   assert.notEqual(plo4AcesVsRundown.rows[0]!.equity, plo4Aces.rows[0]!.equity);
   assert.throws(() => solveRiverSpot(100, 20, 300, "", 0, 0, "PLO4", "", "balanced", "AA**:bad@50"), /suitedness/);
+  assert.throws(() => solveRiverSpot(100, 20, 300, "", 0, 0, "PLO4", "", "balanced", "AA***:ds"), /PLO4 range pattern/);
   const plo5 = solveRiverSpot(100, 66, 250, "", 0, 0, "PLO5");
   assert.equal(plo5.rows[0]!.combo, "AsAhKsKhQs");
   assert.ok((plo5.metrics.brGapPctPot ?? -1) >= 0);
@@ -259,5 +260,6 @@ test("TS solve fallback reports PLO Fast BR metrics", () => {
   assert.equal(plo5.metrics.ploIterations, 2048);
   assert.equal(plo5.metrics.ploComboCap, 30000);
   assert.equal(plo5.metrics.ploEquitySamples, 512);
+  assert.throws(() => solveRiverSpot(100, 20, 300, "", 0, 0, "PLO5", "", "balanced", "AA**:ds"), /PLO5 range pattern/);
   assert.ok(plo5.rows.every((row) => row.fold + row.call + row.raise === 1));
 });

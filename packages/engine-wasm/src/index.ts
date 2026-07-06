@@ -532,8 +532,8 @@ function ploFastBlockers(combo: string, samples: readonly PloFastSample[]): { bl
 function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack: number, rakePct: number, rakeCap: number, potOdds: number, mdf: number, alpha: number, board: Card[] = [], betTree = "", precision: "fast" | "balanced" | "precise" = "balanced", heroRange = "", villainRange = ""): SolveResult {
   const boardSet = new Set(board);
   const samplePool = game === "PLO4" ? PLO4_FAST_SAMPLES : PLO5_FAST_SAMPLES;
-  const samples = filterPloSamples(samplePool, heroRange).filter((sample) => !parseComboCards(sample.combo).some((card) => boardSet.has(card)));
-  const opponentSamples = filterPloSamples(samplePool, villainRange).filter((sample) => !parseComboCards(sample.combo).some((card) => boardSet.has(card)));
+  const samples = filterPloSamples(samplePool, game, heroRange).filter((sample) => !parseComboCards(sample.combo).some((card) => boardSet.has(card)));
+  const opponentSamples = filterPloSamples(samplePool, game, villainRange).filter((sample) => !parseComboCards(sample.combo).some((card) => boardSet.has(card)));
   if (!samples.length) throw new Error("board blocks every PLO representative");
   if (!opponentSamples.length) throw new Error("board blocks every PLO opponent representative");
   const betAmounts = betAmountsForSpot(game, board.length, pot, bet, stack, betTree);
@@ -570,8 +570,13 @@ function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack
   };
 }
 
-function filterPloSamples(samples: readonly PloFastSample[], rangeText = ""): PloFastSample[] {
+function filterPloSamples(samples: readonly PloFastSample[], game: "PLO4" | "PLO5", rangeText = ""): PloFastSample[] {
   const terms = rangeText.trim() ? parsePloRange(rangeText) : [];
+  const expected = game === "PLO4" ? 4 : 5;
+  for (const term of terms) {
+    const pattern = term.label.split(":")[0] ?? "";
+    if (pattern.length !== expected) throw new Error(`${game} range pattern must use ${expected} cards: ${term.label}`);
+  }
   if (!terms.length) return samples.map((sample) => ({ ...sample }));
   const filtered = samples.flatMap((sample) => {
     const rangeWeight = Math.max(0, ...terms.filter((term) => ploSampleMatches(sample.combo, term.label)).map((term) => term.weight));
