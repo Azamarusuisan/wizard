@@ -99,6 +99,8 @@ Solve cache records:
       "ploFastExploitability": "number, PLO Fast only, measured on active board-filtered representative rows",
       "ploSampleCount": "number, PLO Fast only, remaining representatives after board-card removal",
       "ploWeightCoverage": "number, PLO Fast only, remaining representative weight after board-card removal",
+      "ploOpponentSampleCount": "number, PLO Fast only, remaining opponent representatives after board-card removal",
+      "ploOpponentWeightCoverage": "number, PLO Fast only, opponent representative weight used for blocker/equity sampling",
       "ploIterations": "number, PLO Fast only",
       "ploComboCap": "number, PLO Fast only",
       "ploEquitySamples": "number, PLO Fast only, MC samples per board-aware representative equity"

@@ -29,6 +29,7 @@ describe("IndexedDB cache", () => {
     expect(restored?.metrics.mdf).toBeCloseTo(result.metrics.mdf, 6);
     const plo = solveRiverSpot(100, 66, 250, "", 0, 0, "PLO4");
     await saveSolve({ game: "PLO4", pot: 100, bet: 66 }, plo);
+    expect((await loadSolve({ game: "PLO4", pot: 100, bet: 66 }))?.metrics.ploOpponentSampleCount).toBe(6);
     expect((await loadSolve({ game: "PLO4", pot: 100, bet: 66 }))?.metrics.ploIterations).toBe(2048);
     expect((await loadSolve({ game: "PLO4", pot: 100, bet: 66 }))?.metrics.ploComboCap).toBe(20000);
     expect((await loadSolve({ game: "PLO4", pot: 100, bet: 66 }))?.metrics.ploEquitySamples).toBe(512);

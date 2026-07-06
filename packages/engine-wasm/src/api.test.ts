@@ -67,6 +67,8 @@ test("EngineAPI prefers generated wasm package when present", async () => {
   assert.ok((plo4Result.rows[0]?.blockedCombos ?? 0) > 0);
   assert.ok((plo4Result.metrics.brGapPctPot ?? -1) >= 0);
   assert.ok((plo4Result.metrics.ploFastExploitability ?? -1) >= 0);
+  assert.equal(plo4Result.metrics.ploOpponentSampleCount, 6);
+  assert.equal(plo4Result.metrics.ploOpponentWeightCoverage, 1);
   assert.equal(plo4Result.metrics.ploIterations, 2048);
   assert.equal(plo4Result.metrics.ploComboCap, 20000);
   assert.equal(plo4Result.metrics.ploEquitySamples, 512);
@@ -75,6 +77,7 @@ test("EngineAPI prefers generated wasm package when present", async () => {
   assert.equal(plo5Result.rows[0]?.combo, "AsAhKsKhQs");
   assert.ok((plo5Result.metrics.brGapPctPot ?? -1) >= 0);
   assert.ok((plo5Result.metrics.ploFastExploitability ?? -1) >= 0);
+  assert.equal(plo5Result.metrics.ploOpponentSampleCount, 6);
   assert.equal(plo5Result.metrics.ploIterations, 2048);
   assert.equal(plo5Result.metrics.ploComboCap, 30000);
 });

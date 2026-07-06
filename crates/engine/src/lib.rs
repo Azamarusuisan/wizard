@@ -2364,6 +2364,11 @@ fn solve_plo_fast(
         br_gap,
         samples.len() as f64,
         weights.iter().sum::<f64>(),
+        opponent_samples.len() as f64,
+        opponent_samples
+            .iter()
+            .map(|sample| sample.weight)
+            .sum::<f64>(),
         iterations as f64,
         combo_cap,
         br::PLO_FAST_EQUITY_SAMPLES as f64,
@@ -4438,7 +4443,7 @@ mod tests {
                 < 1e-12
         );
         assert_eq!(
-            plo4_precise_native.metrics[plo4_precise_native.combos.len() * 3 + 8],
+            plo4_precise_native.metrics[plo4_precise_native.combos.len() * 3 + 10],
             4_096.0
         );
         assert_eq!(
@@ -4448,14 +4453,19 @@ mod tests {
         assert!((plo4_native.metrics[plo4_native.combos.len() * 3 + 7] - 1.0).abs() < 1e-12);
         assert_eq!(
             plo4_native.metrics[plo4_native.combos.len() * 3 + 8],
+            br::PLO4_FAST_SAMPLES.len() as f64
+        );
+        assert!((plo4_native.metrics[plo4_native.combos.len() * 3 + 9] - 1.0).abs() < 1e-12);
+        assert_eq!(
+            plo4_native.metrics[plo4_native.combos.len() * 3 + 10],
             2_048.0
         );
         assert_eq!(
-            plo4_native.metrics[plo4_native.combos.len() * 3 + 9],
+            plo4_native.metrics[plo4_native.combos.len() * 3 + 11],
             20_000.0
         );
         assert_eq!(
-            plo4_native.metrics[plo4_native.combos.len() * 3 + 10],
+            plo4_native.metrics[plo4_native.combos.len() * 3 + 12],
             br::PLO_FAST_EQUITY_SAMPLES as f64
         );
         let plo4_aces = super::solve(
@@ -4472,6 +4482,10 @@ mod tests {
         );
         assert!(
             (plo4_aces_native.metrics[plo4_aces_native.combos.len() * 3 + 7] - 0.06).abs() < 1e-12
+        );
+        assert_eq!(
+            plo4_aces_native.metrics[plo4_aces_native.combos.len() * 3 + 8],
+            br::PLO4_FAST_SAMPLES.len() as f64
         );
         let plo4_aces_vs_rundown = super::solve(
             r#"{"game":"PLO4","pot":100.0,"bet":20.0,"stack":300.0,"heroRange":"AA**:ds@50","villainRange":"JT98:ds@75"}"#,
@@ -4519,14 +4533,19 @@ mod tests {
         assert!((plo5_native.metrics[plo5_native.combos.len() * 3 + 7] - 1.0).abs() < 1e-12);
         assert_eq!(
             plo5_native.metrics[plo5_native.combos.len() * 3 + 8],
+            br::PLO5_FAST_SAMPLES.len() as f64
+        );
+        assert!((plo5_native.metrics[plo5_native.combos.len() * 3 + 9] - 1.0).abs() < 1e-12);
+        assert_eq!(
+            plo5_native.metrics[plo5_native.combos.len() * 3 + 10],
             2_048.0
         );
         assert_eq!(
-            plo5_native.metrics[plo5_native.combos.len() * 3 + 9],
+            plo5_native.metrics[plo5_native.combos.len() * 3 + 11],
             30_000.0
         );
         assert_eq!(
-            plo5_native.metrics[plo5_native.combos.len() * 3 + 10],
+            plo5_native.metrics[plo5_native.combos.len() * 3 + 12],
             br::PLO_FAST_EQUITY_SAMPLES as f64
         );
         super::cancel(plo4).unwrap();

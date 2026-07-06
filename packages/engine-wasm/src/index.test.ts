@@ -217,6 +217,8 @@ test("TS solve fallback reports PLO Fast BR metrics", () => {
   assert.equal(plo4Precise.metrics.ploFastExploitability, plo4Precise.metrics.brGapPctPot);
   assert.equal(plo4.metrics.ploSampleCount, 6);
   assert.ok(Math.abs(plo4.metrics.ploWeightCoverage! - 1) < 1e-12);
+  assert.equal(plo4.metrics.ploOpponentSampleCount, 6);
+  assert.ok(Math.abs(plo4.metrics.ploOpponentWeightCoverage! - 1) < 1e-12);
   assert.notEqual(solveRiverSpot(100, 20, 300, "2c 3d 4h", 0, 0, "PLO4").rows[0]!.equity, plo4.rows[0]!.equity);
   assert.equal(plo4.metrics.ploIterations, 2048);
   assert.equal(plo4.metrics.ploComboCap, 20000);
@@ -226,7 +228,10 @@ test("TS solve fallback reports PLO Fast BR metrics", () => {
   assert.deepEqual(plo4Aces.rows.map((row) => row.combo), ["AsAhKsKh"]);
   assert.equal(plo4Aces.metrics.ploSampleCount, 1);
   assert.ok(Math.abs(plo4Aces.metrics.ploWeightCoverage! - 0.06) < 1e-12);
+  assert.equal(plo4Aces.metrics.ploOpponentSampleCount, 6);
   const plo4AcesVsRundown = solveRiverSpot(100, 20, 300, "", 0, 0, "PLO4", "flop 50,200,all-in", "balanced", "AA**:ds@50", "JT98:ds@75");
+  assert.equal(plo4AcesVsRundown.metrics.ploOpponentSampleCount, 1);
+  assert.ok(Math.abs(plo4AcesVsRundown.metrics.ploOpponentWeightCoverage! - 0.165) < 1e-12);
   assert.equal(plo4AcesVsRundown.rows[0]!.blockedCombos, 0);
   assert.equal(plo4AcesVsRundown.rows[0]!.blockerPct, 0);
   assert.notEqual(plo4AcesVsRundown.rows[0]!.equity, plo4Aces.rows[0]!.equity);
@@ -237,6 +242,8 @@ test("TS solve fallback reports PLO Fast BR metrics", () => {
   assert.equal(plo5.metrics.ploFastExploitability, plo5.metrics.brGapPctPot);
   assert.equal(plo5.metrics.ploSampleCount, 6);
   assert.ok(Math.abs(plo5.metrics.ploWeightCoverage! - 1) < 1e-12);
+  assert.equal(plo5.metrics.ploOpponentSampleCount, 6);
+  assert.ok(Math.abs(plo5.metrics.ploOpponentWeightCoverage! - 1) < 1e-12);
   assert.equal(plo5.metrics.ploIterations, 2048);
   assert.equal(plo5.metrics.ploComboCap, 30000);
   assert.equal(plo5.metrics.ploEquitySamples, 512);

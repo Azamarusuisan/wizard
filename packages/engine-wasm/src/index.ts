@@ -327,7 +327,7 @@ function parseBetSizes(text: string): BetSize[] {
 export type SolverRow = { combo: string; weight: number; handClass: string; blockedCombos: number; blockerPct: number; fold: number; call: number; raise: number; foldEv: number; callEv: number; raiseEv: number; bestRaiseAmount: number; equity: number; ev: number; eqr: number };
 export type SolveNode = { id: string; label: string; street: string; actions: string[]; infoSet?: string; amount?: number; pot?: number };
 export type SolveInfoSet = { key: string; nodeId: string; street: string; actions: string[]; strategyRef: string; metricRef: string };
-export type SolveResult = { nodes: SolveNode[]; informationSets: SolveInfoSet[]; rows: SolverRow[]; exploitability: { iteration: number; value: number }[]; metrics: { spr: number; mdf: number; alpha: number; potOdds: number; brGapPctPot?: number; ploFastExploitability?: number; ploSampleCount?: number; ploWeightCoverage?: number; ploIterations?: number; ploComboCap?: number; ploEquitySamples?: number } };
+export type SolveResult = { nodes: SolveNode[]; informationSets: SolveInfoSet[]; rows: SolverRow[]; exploitability: { iteration: number; value: number }[]; metrics: { spr: number; mdf: number; alpha: number; potOdds: number; brGapPctPot?: number; ploFastExploitability?: number; ploSampleCount?: number; ploWeightCoverage?: number; ploOpponentSampleCount?: number; ploOpponentWeightCoverage?: number; ploIterations?: number; ploComboCap?: number; ploEquitySamples?: number } };
 export const DEFAULT_RIVER_SPECS = [
   ["AA", 0.82],
   ["AKs", 0.72],
@@ -519,7 +519,7 @@ function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack
     informationSets: infoSetsFromNodes(nodes),
     rows,
     exploitability: riverStrategyProgressFromRows(rows, pot, 36).map((value, i) => ({ iteration: (i + 1) * 50, value })),
-    metrics: { spr: stack / pot, mdf, alpha, potOdds, brGapPctPot, ploFastExploitability: brGapPctPot, ploSampleCount: samples.length, ploWeightCoverage: samples.reduce((sum, sample) => sum + sample.weight, 0), ploIterations: iterations, ploComboCap: PLO_COMBO_CAP[game], ploEquitySamples: PLO_FAST_EQUITY_SAMPLES }
+    metrics: { spr: stack / pot, mdf, alpha, potOdds, brGapPctPot, ploFastExploitability: brGapPctPot, ploSampleCount: samples.length, ploWeightCoverage: samples.reduce((sum, sample) => sum + sample.weight, 0), ploOpponentSampleCount: opponentSamples.length, ploOpponentWeightCoverage: opponentSamples.reduce((sum, sample) => sum + sample.weight, 0), ploIterations: iterations, ploComboCap: PLO_COMBO_CAP[game], ploEquitySamples: PLO_FAST_EQUITY_SAMPLES }
   };
 }
 

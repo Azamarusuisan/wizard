@@ -76,6 +76,7 @@
 - PLO Fast BR now reports exploitability from the active board-filtered representative rows instead of a fixed preflop sample metric. Rust native and TS fallback tests assert it matches the row-derived BR gap.
 - PLO Fast now applies Solver Studio `heroRange` PLO syntax as a representative-set category filter and weight multiplier. `villainRange` PLO syntax filters the opponent representative set used for blocker analysis. Rust native, TS fallback, and Playwright cover `AA**:ds@50` reducing PLO4 to the AA double-suited representative at 6% weight coverage; Rust/TS also cover villain-range blocker changes.
 - PLO Fast representative equities are now sampled against the Villain representative set when one is available, falling back to random-hand MC only when all opponent representatives are blocked. Rust native and TS fallback tests cover equity changes from `villainRange`.
+- PLO Fast metrics now expose the opponent representative sample count and weight coverage used for blocker/equity sampling. Rust native, TS fallback, EngineAPI, IndexedDB, and Playwright cover the fields.
 - Solver Studio PLO Fast disclosure now states that the combo cap limits range representation before MCCFR. Playwright covers the disclosure.
 - Solve metrics now include `brGapPctPot`, computed from the same rows used for the strategy table and convergence graph. UI shows it as `BR gap`.
 - Solver Studio now includes an editable bet-tree preset string and flop-size buttons that apply `% pot` or all-in values to the active bet amount. The bet-tree string is validated, included in share URLs and solve cache payloads. NLH and PLO Fast root rows now use the configured concrete bet-tree sizes when choosing the abstract raise EV; this is still not full multi-size tree CFR.
@@ -152,7 +153,7 @@
 - IndexedDB solve cache keys are canonical JSON SHA-256 via WebCrypto in the web layer.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `default_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~11.66 ns/eval, default river rows ~501.65 us. The evaluator now exceeds the original 50M eval/s target on this machine.
-- Last verified: `bash scripts/verify.sh` exited 0 after making PLO Fast equity use Villain representatives. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
+- Last verified: Rust `native_solve_reports_plo_fast_br_metrics`, `wasm-pack build`, `pnpm --filter @gto-lab/engine-wasm test`, `pnpm --filter @gto-lab/web test -- --run apps/web/src/__tests__/db.test.ts`, `pnpm --filter @gto-lab/web typecheck`, `pnpm exec playwright test apps/web/tests/core-flows.spec.ts --grep "solver runs"`, and `cargo clippy -p gto_lab_engine -- -D warnings` exited 0 after adding PLO opponent representative metrics. Latest full verify: `bash scripts/verify.sh` exited 0 after making PLO Fast equity use Villain representatives. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
 - Git remote `origin` is set to `https://github.com/Azamarusuisan/wizard.git`; do not push until §6 is actually complete.
 
 ## Important Caveat

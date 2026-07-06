@@ -350,9 +350,11 @@ function nativeToResult(native: NativeSolve): SolveResult {
       ploFastExploitability: native.metrics[combos.length * 3 + 5],
       ploSampleCount: native.metrics[combos.length * 3 + 6],
       ploWeightCoverage: native.metrics[combos.length * 3 + 7],
-      ploIterations: native.metrics[combos.length * 3 + 8],
-      ploComboCap: native.metrics[combos.length * 3 + 9],
-      ploEquitySamples: native.metrics[combos.length * 3 + 10]
+      ploOpponentSampleCount: native.metrics[combos.length * 3 + 8],
+      ploOpponentWeightCoverage: native.metrics[combos.length * 3 + 9],
+      ploIterations: native.metrics[combos.length * 3 + 10],
+      ploComboCap: native.metrics[combos.length * 3 + 11],
+      ploEquitySamples: native.metrics[combos.length * 3 + 12]
     }
   };
 }

@@ -51,6 +51,7 @@ test("solver runs and displays strategy metrics", async ({ page }) => {
   await expect(page.getByRole("table", { name: "strategy table" })).toContainText("AsAhKsKh");
   await expect(page.getByRole("table", { name: "strategy table" })).not.toContainText("AsKsQhJh");
   await expect(page.locator('[aria-label^="PLO sample set:"]')).toContainText("1 reps after board / 6%");
+  await expect(page.locator('[aria-label^="PLO villain set:"]')).toContainText("6 reps / 100%");
   await expect(page.getByText("PLO Fast BR")).toBeVisible();
   await page.getByLabel("Game").selectOption("NLH");
   await page.getByLabel("Hero position").selectOption("CO");
