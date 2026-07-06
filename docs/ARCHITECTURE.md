@@ -43,11 +43,20 @@ Current boundary:
 
 ## Memory Budget Targets
 
-| Tree | Combos/player | Nodes | Actions | Float tables | Approx |
-|---|---:|---:|---:|---:|---:|
-| NLH river small | 1,326 | 200 | 3 | regret + strategy + EV | 19 MB |
-| NLH turn balanced | 1,326 | 3,000 | 3 | regret + strategy | 191 MB |
-| NLH flop balanced | 1,326 | 12,000 | 3 | regret + strategy, bucketed chance | 764 MB |
-| PLO4 fast | capped 20,000 | 2,000 | 3 | bucket/node flat arrays | 960 MB |
+Core CFR tables are flat typed arrays. The planning formula is:
 
-Default browser solving must stay under these caps by pruning impossible combos, bucketing chance nodes, and storing terminal EV tables as `Float32`.
+```text
+bytes = public_nodes * combos_per_player * avg_actions * tables_per_action * bytes_per_value
+```
+
+`tables_per_action` is 2 for regret plus average strategy. Terminal EV, reach, and scratch buffers are budgeted separately because they are streamed or reused per street.
+
+| Preset | Public nodes | Combos/player | Avg actions | Action tables | Value type | CFR table | Scratch/EV budget | Browser target |
+|---|---:|---:|---:|---:|---|---:|---:|---:|
+| NLH river small | 200 | 1,326 | 3 | 2 | `Float32` | 6.1 MB | 24 MB | < 64 MB |
+| NLH turn balanced | 3,000 | 1,326 | 3 | 2 | `Float32` | 95.5 MB | 160 MB | < 320 MB |
+| NLH flop balanced | 12,000 | 1,326 | 3 | 2 | `Float32` | 382.0 MB | 320 MB | < 768 MB |
+| PLO4 fast MCCFR | 2,000 | 20,000 cap | 3 | 2 | `Float32` | 960.0 MB | 256 MB | < 1.5 GB |
+| PLO5 fast MCCFR | 1,000 | 30,000 cap | 3 | 2 | `Float32` | 720.0 MB | 384 MB | < 1.5 GB |
+
+Default browser solving must stay under these caps by pruning impossible combos, applying card abstraction before allocating regret tables, using PLO combo caps, and storing terminal EV tables as `Float32`. Precise NLH can exceed the default cap only after an explicit estimate is shown in the UI.
