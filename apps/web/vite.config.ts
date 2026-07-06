@@ -3,6 +3,17 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          charts: ["recharts"],
+          motion: ["framer-motion"],
+          icons: ["lucide-react"]
+        }
+      }
+    }
+  },
   worker: { format: "es" },
   server: {
     headers: {
