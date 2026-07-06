@@ -348,7 +348,7 @@ export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2, boar
   const potOdds = bet / (pot + 2 * bet);
   const mdf = pot / (pot + bet);
   const alpha = bet / (pot + bet);
-  if (game === "PLO4" || game === "PLO5") return solvePloFastSpot(game, pot, bet, stack, rakePct, rakeCap, potOdds, mdf, alpha, board, betTree, precision, heroRange);
+  if (game === "PLO4" || game === "PLO5") return solvePloFastSpot(game, pot, bet, stack, rakePct, rakeCap, potOdds, mdf, alpha, board, betTree, precision, heroRange, villainRange);
   const betAmounts = betAmountsForSpot(game, board.length, pot, bet, stack, betTree);
   const iterations = precisionIterations(precision);
   const combos = nlhRiverCombosFromRange(heroRange, board);
@@ -482,10 +482,13 @@ function ploFastBlockers(combo: string, samples: readonly PloFastSample[]): { bl
   return { blockedCombos, blockerPct: total ? blockedCombos / total : 0 };
 }
 
-function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack: number, rakePct: number, rakeCap: number, potOdds: number, mdf: number, alpha: number, board: Card[] = [], betTree = "", precision: "fast" | "balanced" | "precise" = "balanced", heroRange = ""): SolveResult {
+function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack: number, rakePct: number, rakeCap: number, potOdds: number, mdf: number, alpha: number, board: Card[] = [], betTree = "", precision: "fast" | "balanced" | "precise" = "balanced", heroRange = "", villainRange = ""): SolveResult {
   const boardSet = new Set(board);
-  const samples = filterPloSamples(game === "PLO4" ? PLO4_FAST_SAMPLES : PLO5_FAST_SAMPLES, heroRange).filter((sample) => !parseComboCards(sample.combo).some((card) => boardSet.has(card)));
+  const samplePool = game === "PLO4" ? PLO4_FAST_SAMPLES : PLO5_FAST_SAMPLES;
+  const samples = filterPloSamples(samplePool, heroRange).filter((sample) => !parseComboCards(sample.combo).some((card) => boardSet.has(card)));
+  const opponentSamples = filterPloSamples(samplePool, villainRange).filter((sample) => !parseComboCards(sample.combo).some((card) => boardSet.has(card)));
   if (!samples.length) throw new Error("board blocks every PLO representative");
+  if (!opponentSamples.length) throw new Error("board blocks every PLO opponent representative");
   const betAmounts = betAmountsForSpot(game, board.length, pot, bet, stack, betTree);
   const iterations = precisionIterations(precision);
   const rows = samples.map((sample) => {
@@ -493,7 +496,7 @@ function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack
     const { callEv, raiseEv, bestRaiseAmount } = rowActionEvs(eq, pot, bet, betAmounts, rakePct, rakeCap);
     const strategy = cfrStrategyFromActionEvs(0, callEv, raiseEv, iterations);
     const ev = (strategy.call * callEv + strategy.raise * raiseEv) / 100;
-    const blockers = ploFastBlockers(sample.combo, samples);
+    const blockers = ploFastBlockers(sample.combo, opponentSamples);
     return {
       combo: sample.combo,
       weight: sample.weight,

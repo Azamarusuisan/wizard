@@ -2224,8 +2224,18 @@ fn solve_plo_fast(
         .into_iter()
         .filter(|sample| !sample.conflicts_board(&board))
         .collect::<Vec<_>>();
+    let opponent_samples = filter_plo_samples(sample_pool, spot.villain_range.as_deref())
+        .map_err(|err| JsValue::from_str(&err))?
+        .into_iter()
+        .filter(|sample| !sample.conflicts_board(&board))
+        .collect::<Vec<_>>();
     if samples.is_empty() {
         return Err(JsValue::from_str("board blocks every PLO representative"));
+    }
+    if opponent_samples.is_empty() {
+        return Err(JsValue::from_str(
+            "board blocks every PLO opponent representative",
+        ));
     }
     let combo_cap = if game == "PLO5" { 30_000.0 } else { 20_000.0 };
     let bet_amounts = bet_amounts_for_spot(&spot, board_len);
@@ -2244,7 +2254,7 @@ fn solve_plo_fast(
         .collect::<Vec<_>>();
     let blocker_metrics = samples
         .iter()
-        .flat_map(|sample| plo_fast_blocker_metrics(sample.combo, &samples))
+        .flat_map(|sample| plo_fast_blocker_metrics(sample.combo, &opponent_samples))
         .collect::<Vec<_>>();
     let (rows, best_raise_amounts): (Vec<_>, Vec<_>) = samples
         .iter()
@@ -2561,6 +2571,14 @@ fn validate_spot(spot: &NativeSpot) -> Result<(), String> {
         .is_some_and(|range| !range.trim().is_empty())
     {
         parse_plo_range_terms(spot.hero_range.as_deref().unwrap_or_default())?;
+    }
+    if spot.game.as_deref().unwrap_or("NLH") != "NLH"
+        && spot
+            .villain_range
+            .as_deref()
+            .is_some_and(|range| !range.trim().is_empty())
+    {
+        parse_plo_range_terms(spot.villain_range.as_deref().unwrap_or_default())?;
     }
     if let Some(bet_tree) = spot.bet_tree.as_deref() {
         tree::parse_bet_tree(bet_tree)?;
@@ -4389,6 +4407,15 @@ mod tests {
         assert!(
             (plo4_aces_native.metrics[plo4_aces_native.combos.len() * 3 + 7] - 0.06).abs() < 1e-12
         );
+        let plo4_aces_vs_rundown = super::solve(
+            r#"{"game":"PLO4","pot":100.0,"bet":20.0,"stack":300.0,"heroRange":"AA**:ds@50","villainRange":"JT98:ds@75"}"#,
+        )
+        .expect("PLO villain range filtered solve starts");
+        let plo4_aces_vs_rundown_payload = super::serialize(plo4_aces_vs_rundown).unwrap();
+        let plo4_aces_vs_rundown_native: super::NativeSolve =
+            serde_json::from_slice(&plo4_aces_vs_rundown_payload).unwrap();
+        assert_eq!(plo4_aces_vs_rundown_native.blocker_metrics[0], 0.0);
+        assert_eq!(plo4_aces_vs_rundown_native.blocker_metrics[1], 0.0);
         let bad_plo_range: super::NativeSpot = serde_json::from_str(
             r#"{"game":"PLO4","pot":100.0,"bet":20.0,"heroRange":"AA**:bad@50"}"#,
         )
