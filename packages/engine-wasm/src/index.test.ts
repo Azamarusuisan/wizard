@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { evaluateNlh7, evaluatePlo, equity, equityAuto, estimateEquityEvaluations, kuhnCfr, parseBetTree, parseCard, parseNlhRange, parsePloRange, plo4FastExploitabilityPctPot, plo5FastExploitabilityPctPot, potLimitMaxRaise, serializeRange, solveRiverSpot } from "./index.js";
+import { concreteBets, evaluateNlh7, evaluatePlo, equity, equityAuto, estimateEquityEvaluations, kuhnCfr, parseBetTree, parseCard, parseNlhRange, parsePloRange, plo4FastExploitabilityPctPot, plo5FastExploitabilityPctPot, potLimitMaxRaise, serializeRange, solveRiverSpot } from "./index.js";
 
 const cs = (s: string) => s.split(/\s+/).map(parseCard);
 
@@ -81,6 +81,8 @@ test("pot limit max raise known formula", () => {
 test("bet tree parser validates street sizes", () => {
   const tree = parseBetTree("flop 33,66,all-in; turn 66,125; river 75,all-in");
   assert.deepEqual(tree.flop, [{ kind: "percent", value: 33 }, { kind: "percent", value: 66 }, { kind: "all-in" }]);
+  assert.deepEqual(concreteBets(tree.flop, 100, 120), [33, 66, 120]);
+  assert.deepEqual(concreteBets([{ kind: "percent", value: 90 }, { kind: "all-in" }], 100, 100), [100]);
   assert.throws(() => parseBetTree("turn 66"), /flop/);
   assert.throws(() => parseBetTree("flop 0"), /bet size/);
 });

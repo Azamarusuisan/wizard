@@ -294,6 +294,15 @@ export function parseBetTree(text: string): BetTree {
   return tree;
 }
 
+export function concreteBets(sizes: BetSize[], pot: number, stack: number): number[] {
+  return [...new Set(sizes
+    .map((size) => size.kind === "all-in" ? stack : pot * size.value / 100)
+    .map((bet) => bet >= stack * 0.85 ? stack : Math.min(bet, stack))
+    .filter((bet) => Number.isFinite(bet) && bet > 0)
+    .sort((a, b) => a - b)
+    .map((bet) => Math.round(bet * 1e9) / 1e9))];
+}
+
 function parseBetSizes(text: string): BetSize[] {
   const sizes = text.split(",").map((raw) => {
     const token = raw.trim();
