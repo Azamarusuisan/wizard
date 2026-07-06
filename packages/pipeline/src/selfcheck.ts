@@ -33,6 +33,8 @@ const deps = {
 };
 await completeCheckoutSession({ mode: "payment", payment_status: "unpaid", customer: "cus_1", metadata: { orderId: "order-4", paymentMethod: "konbini" } }, deps);
 if (status !== "waiting_payment" || subscriptions !== 0) throw new Error("unpaid webhook branch failed");
+await completeCheckoutSession({ mode: "subscription", payment_status: "no_payment_required", customer: "cus_1", metadata: { orderId: "order-5", paymentMethod: "card" } }, deps);
+if (status !== "paid") throw new Error("card trial webhook branch failed");
 await completeCheckoutSession({ mode: "payment", payment_status: "paid", customer: "cus_1", metadata: { orderId: "order-4", paymentMethod: "konbini" } }, deps);
 await completeCheckoutSession({ mode: "payment", payment_status: "paid", customer: "cus_1", metadata: { orderId: "order-4", paymentMethod: "konbini" } }, deps);
 if (subscriptions !== 1) throw new Error("webhook idempotency failed");

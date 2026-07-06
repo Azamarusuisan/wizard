@@ -9,7 +9,7 @@ export async function machineCheck(distDir: string, phone: string) {
     phone.match(/^0\d{1,4}-?\d{1,4}-?\d{3,4}$/) ? "" : "電話番号の形式を確認してください",
     html.includes("LocalBusiness") ? "" : "構造化データがありません",
     html.includes("og:image") ? "" : "OGP画像がありません",
-    html.includes("preview-banner") && !html.includes('name="robots" content="noindex,nofollow"') ? "勝手にプレビューにnoindexがありません" : "",
+    html.includes('class="preview-banner"') && !html.includes('name="robots" content="noindex,nofollow"') ? "勝手にプレビューにnoindexがありません" : "",
     ...missingLocalAssets(html, distDir),
     ...missingInternalAnchors(html)
   ].filter(Boolean);

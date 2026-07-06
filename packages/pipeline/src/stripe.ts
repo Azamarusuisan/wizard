@@ -103,7 +103,7 @@ export async function completeCheckoutSession(
 ) {
   const orderId = session.metadata?.orderId;
   if (!orderId) throw new Error("Missing orderId");
-  if (session.payment_status !== "paid") {
+  if (session.payment_status === "unpaid") {
     await deps.updateOrderPayment({ orderId, status: ORDER_STATUS.waitingPayment });
     return;
   }
