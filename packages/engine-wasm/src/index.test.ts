@@ -97,10 +97,13 @@ test("TS river solve fallback emits CFR-trained rows", () => {
   assert.deepEqual(result.nodes[0], { id: "root", label: "Root", street: "preflop", actions: ["fold", "call", "raise"], infoSet: "preflop:root" });
   assert.ok(result.nodes.some((node) => node.id === "root/call"));
   assert.ok(result.nodes.some((node) => node.id === "root/bet-33"));
+  assert.ok(result.nodes.some((node) => node.id === "root/bet-33/fold"));
+  assert.ok(result.nodes.some((node) => node.id === "root/bet-33/call"));
   assert.ok(result.nodes.some((node) => node.id === "root/bet-all-in"));
   assert.equal(result.nodes.find((node) => node.id === "root/bet-33")?.infoSet, "preflop:root/bet-33");
   assert.equal(result.informationSets.find((infoSet) => infoSet.nodeId === "root/bet-33")?.key, "preflop:root/bet-33");
   assert.equal(result.informationSets.find((infoSet) => infoSet.nodeId === "root/bet-33")?.strategyRef, "bet-response");
+  assert.equal(result.informationSets.find((infoSet) => infoSet.nodeId === "root/bet-33/call")?.metricRef, "response:call");
   assert.equal(result.informationSets.find((infoSet) => infoSet.nodeId === "root/call")?.metricRef, "action:call");
   assert.deepEqual(result.nodes.find((node) => node.id === "root/bet-33")?.actions, ["fold", "call"]);
   assert.equal(result.nodes.find((node) => node.id === "root/bet-33")?.amount, 33);

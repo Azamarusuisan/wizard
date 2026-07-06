@@ -498,7 +498,14 @@ function rootNodes(boardLen: number, pot: number, bet: number, stack: number, ga
   return [
     withInfoSet({ id: "root", label: "Root", street, actions }),
     ...actions.map((action) => withInfoSet({ id: `root/${action}`, label: action.toUpperCase(), street, actions: [] })),
-    ...betNodes.map((bet) => withInfoSet({ id: `root/bet-${bet.label}`, label: `BET ${bet.label}`, street, actions: ["fold", "call"], amount: bet.amount, pot: bet.pot }))
+    ...betNodes.flatMap((bet) => {
+      const id = `root/bet-${bet.label}`;
+      return [
+        withInfoSet({ id, label: `BET ${bet.label}`, street, actions: ["fold", "call"], amount: bet.amount, pot: bet.pot }),
+        withInfoSet({ id: `${id}/fold`, label: "FOLD", street, actions: [], amount: bet.amount, pot: bet.pot }),
+        withInfoSet({ id: `${id}/call`, label: "CALL", street, actions: [], amount: bet.amount, pot: bet.pot })
+      ];
+    })
   ];
 }
 
@@ -511,7 +518,8 @@ function infoSetsFromNodes(nodes: SolveNode[]): SolveInfoSet[] {
 }
 
 function infoSetRefs(node: SolveNode): Pick<SolveInfoSet, "strategyRef" | "metricRef"> {
-  if (node.amount !== undefined) return { strategyRef: "bet-response", metricRef: "bet-response" };
+  if (node.amount !== undefined && node.actions.length) return { strategyRef: "bet-response", metricRef: "bet-response" };
+  if (node.amount !== undefined) return { strategyRef: "terminal", metricRef: `response:${node.id.endsWith("/call") ? "call" : "fold"}` };
   if (node.id === "root") return { strategyRef: "root", metricRef: "root" };
   if (node.id.startsWith("root/")) return { strategyRef: "terminal", metricRef: `action:${node.id.slice("root/".length)}` };
   return { strategyRef: node.id, metricRef: node.id };

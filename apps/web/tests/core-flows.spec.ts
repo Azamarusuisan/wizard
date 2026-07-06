@@ -66,6 +66,7 @@ test("solver runs and displays strategy metrics", async ({ page }) => {
   await expect(page.getByText("Action composition")).toBeVisible();
   await expect(page.getByLabel("solve nodes")).toContainText("root/call");
   await expect(page.getByLabel("solve nodes")).toContainText("root/bet-33");
+  await expect(page.getByLabel("solve nodes")).toContainText("root/bet-33/call");
   await page.getByRole("button", { name: /CALL \(root\/call/ }).click();
   await expect(page.getByText("Node: root/call")).toBeVisible();
   await expect(page.getByText("Info set: flop:root/call")).toBeVisible();

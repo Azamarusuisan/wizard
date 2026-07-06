@@ -2761,14 +2761,14 @@ pub fn poll_progress(handle: u32) -> Result<String, JsValue> {
 pub fn get_strategy(handle: u32, node_id: &str) -> Result<Vec<f64>, JsValue> {
     with_solve(handle, |solve| {
         let node = node_for_id(solve, node_id)?;
+        if node.actions.is_empty() {
+            return Ok(Vec::new());
+        }
         if let Some(amount) = node.amount {
             let (fold, call) = bet_response_strategy(node.pot.unwrap_or(solve.spot.pot), amount);
             return Ok(std::iter::repeat_n([fold, call], solve.combos.len())
                 .flatten()
                 .collect());
-        }
-        if node.actions.is_empty() {
-            return Ok(Vec::new());
         }
         Ok(solve.strategy.clone())
     })
@@ -2779,6 +2779,14 @@ pub fn get_hand_metrics(handle: u32, node_id: &str) -> Result<Vec<f64>, JsValue>
     with_solve(handle, |solve| {
         let node = node_for_id(solve, node_id)?;
         if let Some(amount) = node.amount {
+            if node.actions.is_empty() {
+                return Ok(bet_response_action_metrics(
+                    solve,
+                    node.pot.unwrap_or(solve.spot.pot),
+                    amount,
+                    node.id.ends_with("/call"),
+                ));
+            }
             return Ok(bet_response_metrics(
                 solve,
                 node.pot.unwrap_or(solve.spot.pot),
@@ -2834,6 +2842,30 @@ fn bet_response_metrics(solve: &NativeSolve, pot: f64, amount: f64) -> Vec<f64> 
             let equity = metric[1];
             let call_ev = br::action_evs(equity, pot, amount, rake_pct, rake_cap).1;
             let ev = (fold_freq * pot + call_freq * call_ev) / 100.0;
+            let eqr = ev / (equity * pot / 100.0).max(0.0001);
+            [ev, equity, eqr]
+        })
+        .collect()
+}
+
+fn bet_response_action_metrics(
+    solve: &NativeSolve,
+    pot: f64,
+    amount: f64,
+    call_branch: bool,
+) -> Vec<f64> {
+    let (rake_pct, rake_cap) = spot_rake(&solve.spot);
+    solve
+        .metrics
+        .chunks_exact(3)
+        .take(solve.combos.len())
+        .flat_map(|metric| {
+            let equity = metric[1];
+            let ev = if call_branch {
+                br::action_evs(equity, pot, amount, rake_pct, rake_cap).1 / 100.0
+            } else {
+                pot / 100.0
+            };
             let eqr = ev / (equity * pot / 100.0).max(0.0001);
             [ev, equity, eqr]
         })
@@ -3019,16 +3051,27 @@ fn root_nodes(board_len: usize, bet_nodes: &[BetNode]) -> Vec<NativeNode> {
             None,
         )
     }));
-    nodes.extend(bet_nodes.iter().map(|bet| {
-        native_node(
-            format!("root/bet-{}", bet.label),
+    for bet in bet_nodes {
+        let id = format!("root/bet-{}", bet.label);
+        nodes.push(native_node(
+            id.clone(),
             format!("BET {}", bet.label),
             street,
             vec!["fold".to_string(), "call".to_string()],
             Some(bet.amount),
             Some(bet.pot),
-        )
-    }));
+        ));
+        for action in ["fold", "call"] {
+            nodes.push(native_node(
+                format!("{id}/{action}"),
+                action.to_ascii_uppercase(),
+                street,
+                Vec::new(),
+                Some(bet.amount),
+                Some(bet.pot),
+            ));
+        }
+    }
     nodes
 }
 
@@ -3069,8 +3112,13 @@ fn information_sets_from_nodes(nodes: &[NativeNode]) -> Vec<NativeInfoSet> {
 }
 
 fn info_set_refs(node: &NativeNode) -> (String, String) {
-    if node.amount.is_some() {
+    if node.amount.is_some() && !node.actions.is_empty() {
         return ("bet-response".to_string(), "bet-response".to_string());
+    }
+    if node.amount.is_some() {
+        if let Some(action) = node.id.rsplit('/').next() {
+            return ("terminal".to_string(), format!("response:{action}"));
+        }
     }
     if node.id == "root" {
         return ("root".to_string(), "root".to_string());
@@ -3552,6 +3600,8 @@ mod tests {
         );
         assert!(super::has_node_id(&native, "root/call"));
         assert!(super::has_node_id(&native, "root/bet-33"));
+        assert!(super::has_node_id(&native, "root/bet-33/fold"));
+        assert!(super::has_node_id(&native, "root/bet-33/call"));
         assert_eq!(
             native
                 .nodes
@@ -3593,6 +3643,9 @@ mod tests {
         assert_eq!(bet_metrics.len(), native.combos.len() * 3);
         assert!(bet_metrics[0].is_finite());
         assert!(bet_metrics[1] > 0.0);
+        let bet_call_metrics = super::get_hand_metrics(handle, "root/bet-33/call").unwrap();
+        assert_eq!(bet_call_metrics.len(), native.combos.len() * 3);
+        assert!(bet_call_metrics[0].is_finite());
         assert!(native.action_evs[2] >= native.action_evs[1]);
         assert!(native.action_evs[2] > br::action_evs(equity, 100.0, 66.0, 0.0, 0.0).2 / 100.0);
         assert!(native.metrics[(native.combos.len() - 1) * 3] >= 0.0);

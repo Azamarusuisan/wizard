@@ -71,11 +71,11 @@ class LocalEngine implements EngineAPI {
   async getStrategy(handle: EngineHandle, nodeId = "root"): Promise<StrategyTable> {
     const result = this.mustGet(handle);
     const node = nodeForId(result, nodeId);
+    if (!node.actions.length) return { combos: [], actions: new Float64Array() };
     if (node.amount !== undefined && node.pot !== undefined) {
       const [fold, call] = betResponseStrategy(node.pot, node.amount);
       return { combos: result.rows.map((r) => r.combo), actions: Float64Array.from(result.rows.flatMap(() => [fold, call])) };
     }
-    if (!node.actions.length) return { combos: [], actions: new Float64Array() };
     return {
       combos: result.rows.map((r: SolverRow) => r.combo),
       actions: Float64Array.from(result.rows.flatMap((r: SolverRow) => [r.fold, r.call, r.raise]))
@@ -85,6 +85,7 @@ class LocalEngine implements EngineAPI {
   async getHandMetrics(handle: EngineHandle, nodeId = "root"): Promise<HandMetrics> {
     const result = this.mustGet(handle);
     const node = nodeForId(result, nodeId);
+    if (node.amount !== undefined && node.pot !== undefined && !node.actions.length) return betResponseActionMetrics(result, node.pot, node.amount, node.id.endsWith("/call"));
     if (node.amount !== undefined && node.pot !== undefined) return betResponseMetrics(result, node.pot, node.amount);
     const action = nodeActionKey(node.id);
     if (action) return actionNodeMetrics(result, action);
@@ -148,6 +149,13 @@ function betResponseMetrics(result: SolveResult, pot: number, amount: number): H
     const callEv = row.equity * (pot + amount) - (1 - row.equity) * amount;
     return (foldFreq * pot + callFreq * callEv) / 100;
   }));
+  const equity = Float32Array.from(result.rows.map((row) => row.equity));
+  const eqr = Float32Array.from(result.rows.map((row, i) => ev[i]! / Math.max(0.0001, row.equity * pot / 100)));
+  return { ev, equity, eqr };
+}
+
+function betResponseActionMetrics(result: SolveResult, pot: number, amount: number, callBranch: boolean): HandMetrics {
+  const ev = Float32Array.from(result.rows.map((row) => callBranch ? (row.equity * (pot + amount) - (1 - row.equity) * amount) / 100 : pot / 100));
   const equity = Float32Array.from(result.rows.map((row) => row.equity));
   const eqr = Float32Array.from(result.rows.map((row, i) => ev[i]! / Math.max(0.0001, row.equity * pot / 100)));
   return { ev, equity, eqr };
