@@ -24,12 +24,12 @@ Decision:
 ## Abstraction Presets
 
 Decision:
-- Fast: 32 buckets, 6k MC samples.
-- Balanced: 96 buckets, 25k MC samples.
-- Precise: 256 buckets, 100k MC samples.
+- Current production precision controls CFR iteration depth: Fast = 512, Balanced = 2,048, Precise = 4,096.
+- Current flop abstraction quality gate uses 2 / 4 / 6 representative buckets to prove the direction of improvement.
+- Target card-abstraction allocation remains Fast / Balanced / Precise = 32 / 96 / 256 buckets with 6k / 25k / 100k samples when the full public tree replaces the compact continuation path.
 
 Reason:
-- Browser workers need predictable latency. The UI reports approximation status rather than pretending exactness.
+- Browser workers need predictable latency. The UI reports approximation status and memory estimates rather than pretending exactness.
 - Bucketing uses fixed-seed k-means++ over ten features: eight equity quantiles plus EHS and EHS2. The seed makes test and cache behavior reproducible.
 
 ## Class Counts

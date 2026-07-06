@@ -42,6 +42,7 @@
 - Solver Studio guards against duplicate solve clicks while a run is active; Playwright waits for the cancel button lifecycle before asserting same-spot cache hits.
 - Solver spot payload/cache/share URL now carries hero position, villain position, pot type, and precision. Solver Studio exposes the controls, Rust native validation/serialization preserves them, `docs/formats.md` documents the spot JSON, and Playwright covers URL reload persistence.
 - Precision now changes the current abstract CFR iteration budget (`fast` 512, `balanced` 2,048, `precise` 4,096) in Rust native and TypeScript fallback solve paths; package tests cover that precision changes strategy rows.
+- DECISIONS now distinguishes current production precision behavior from the target full-tree card-abstraction bucket/sample presets.
 - Solver spot payload now carries optional effective stack, and native/TS fallback/UI compute SPR as `stack / pot` instead of using a fixed display value.
 - Solver spot payload/cache key now carries optional board text from the Solver Studio input. Native and TS fallback river rows parse/validate board cards, expand compact NLH range labels to concrete combos, and recompute board-aware combo equities from exact NLH enumeration when board text is present. This is still compact range row solving, not full range/tree board-aware CFR.
 - Solver board validation now rejects 1-card and 2-card boards in Rust native, TypeScript fallback, and Solver Studio UI; valid solver boards are empty, flop, turn, or river.
@@ -119,7 +120,7 @@
 - IndexedDB solve cache keys are canonical JSON SHA-256 via WebCrypto in the web layer.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `default_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~11.66 ns/eval, default river rows ~501.65 us. The evaluator now exceeds the original 50M eval/s target on this machine.
-- Last verified: `bash scripts/verify.sh` exited 0 after adding Solver Studio memory estimates. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
+- Last verified: `bash scripts/verify.sh` exited 0 before the DECISIONS precision-log cleanup. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
 - Git remote `origin` is set to `https://github.com/Azamarusuisan/wizard.git`; do not push until §6 is actually complete.
 
 ## Important Caveat
