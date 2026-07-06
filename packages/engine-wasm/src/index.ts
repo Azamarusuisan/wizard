@@ -324,7 +324,7 @@ function parseBetSizes(text: string): BetSize[] {
   return sizes;
 }
 
-export type SolverRow = { combo: string; weight: number; fold: number; call: number; raise: number; foldEv: number; callEv: number; raiseEv: number; equity: number; ev: number; eqr: number };
+export type SolverRow = { combo: string; weight: number; blockedCombos: number; blockerPct: number; fold: number; call: number; raise: number; foldEv: number; callEv: number; raiseEv: number; equity: number; ev: number; eqr: number };
 export type SolveNode = { id: string; label: string; street: string; actions: string[]; amount?: number; pot?: number };
 export type SolveResult = { nodes: SolveNode[]; rows: SolverRow[]; exploitability: { iteration: number; value: number }[]; metrics: { spr: number; mdf: number; alpha: number; potOdds: number; brGapPctPot?: number; ploFastExploitability?: number } };
 export const DEFAULT_RIVER_SPECS = [
@@ -358,7 +358,8 @@ export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2, boar
     const { callEv, raiseEv } = rowActionEvs(eq, pot, bet, betAmounts, rakePct, rakeCap);
     const { fold, call, raise } = cfrStrategyFromActionEvs(0, callEv, raiseEv, iterations);
     const ev = (call * callEv + raise * raiseEv) / 100;
-    return { combo, weight, fold, call, raise, foldEv: 0, callEv: callEv / 100, raiseEv: raiseEv / 100, equity: eq, ev, eqr: ev / Math.max(0.0001, eq * pot / 100) };
+    const blockers = blockerStats(holes, board, villains);
+    return { combo, weight, ...blockers, fold, call, raise, foldEv: 0, callEv: callEv / 100, raiseEv: raiseEv / 100, equity: eq, ev, eqr: ev / Math.max(0.0001, eq * pot / 100) };
   });
   return {
     nodes: rootNodes(board.length, pot, bet, stack, game, betTree),
@@ -382,6 +383,8 @@ export function solveNlhComboSpot(pot: number, bet: number, stack = pot * 4.2, b
   const row = {
     combo: holes.map(formatCard).join(""),
     weight: 1,
+    blockedCombos: 0,
+    blockerPct: 0,
     ...strategy,
     foldEv: 0,
     callEv: callEv / 100,
@@ -416,7 +419,7 @@ function ploFastExploitabilityPctPot(samples: readonly PloFastSample[]): number 
   return samples.reduce((sum, row) => {
     const eq = ploFastSampleEquity(row);
     const strategy = cfrStrategy(eq, 100, 66, 0, 0, 2_048);
-    const mixed = [{ combo: row.combo, weight: row.weight, equity: eq, ...strategy, foldEv: 0, callEv: 0, raiseEv: 0, ev: 0, eqr: 0 }];
+    const mixed = [{ combo: row.combo, weight: row.weight, blockedCombos: 0, blockerPct: 0, equity: eq, ...strategy, foldEv: 0, callEv: 0, raiseEv: 0, ev: 0, eqr: 0 }];
     return sum + row.weight * riverExploitability(mixed, 100, 66, 0, 0);
   }, 0) / total;
 }
@@ -453,6 +456,8 @@ function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack
     return {
       combo: sample.combo,
       weight: sample.weight,
+      blockedCombos: 0,
+      blockerPct: 0,
       ...strategy,
       foldEv: 0,
       callEv: callEv / 100,
@@ -634,6 +639,14 @@ function comboEquity(hero: Card[], fallback: number, board: Card[], villainCombo
     return { equity: sum.equity + villain.weight * value, weight: sum.weight + villain.weight };
   }, { equity: 0, weight: 0 });
   return weighted.equity / weighted.weight;
+}
+
+function blockerStats(hero: Card[], board: Card[], villainCombos: RiverCombo[]): { blockedCombos: number; blockerPct: number } {
+  const total = villainCombos.reduce((sum, combo) => sum + combo.weight, 0);
+  const blocked = new Set([...board, ...hero]);
+  const available = villainCombos.filter((combo) => !combo.holes.some((card) => blocked.has(card))).reduce((sum, combo) => sum + combo.weight, 0);
+  const blockedCombos = total - available;
+  return { blockedCombos, blockerPct: total ? blockedCombos / total : 0 };
 }
 
 function comboKey(cards: Card[]): string {

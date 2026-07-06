@@ -79,6 +79,7 @@ Solve cache records:
   "blob": {
     "combos": ["AA"],
     "weights": "Float32Array",
+    "blockers": "Float32Array pairs: blocked combo weight, blocked fraction",
     "fold": "Uint16 probability table",
     "call": "Uint16 probability table",
     "raise": "Uint16 probability table",

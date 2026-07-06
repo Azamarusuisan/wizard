@@ -1774,6 +1774,7 @@ struct NativeSolve {
     strategy: Vec<f64>,
     action_evs: Vec<f64>,
     weights: Vec<f64>,
+    blocker_metrics: Vec<f64>,
     metrics: Vec<f64>,
 }
 
@@ -1825,6 +1826,10 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
         .map(|entry| entry.label.clone())
         .collect::<Vec<_>>();
     let weights = entries.iter().map(|entry| entry.weight).collect::<Vec<_>>();
+    let blocker_metrics = entries
+        .iter()
+        .flat_map(|entry| blocker_metrics(entry.holes, &board, &villain_entries))
+        .collect::<Vec<_>>();
     let mut strategy = Vec::with_capacity(entries.len() * 3);
     let mut action_evs = Vec::with_capacity(entries.len() * 3);
     let mut metrics = Vec::with_capacity(entries.len() * 3 + 4);
@@ -1880,6 +1885,7 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
         strategy,
         action_evs,
         weights,
+        blocker_metrics,
         metrics,
     };
     let mut guard = engine()
@@ -1924,6 +1930,7 @@ fn solve_plo_fast(
         .iter()
         .map(|sample| sample.weight)
         .collect::<Vec<_>>();
+    let blocker_metrics = vec![0.0; samples.len() * 2];
     let rows = samples
         .iter()
         .map(|sample| {
@@ -1977,6 +1984,7 @@ fn solve_plo_fast(
         strategy,
         action_evs,
         weights,
+        blocker_metrics,
         metrics,
     };
     let mut guard = engine()
@@ -2371,6 +2379,26 @@ fn combo_equity_cached(
                 )
             });
     equity_sum / weight_sum
+}
+
+fn blocker_metrics(
+    hero: [eval::Card; 2],
+    board: &[eval::Card],
+    entries: &[RiverEntry],
+) -> [f64; 2] {
+    let total: f64 = entries.iter().map(|entry| entry.weight).sum();
+    let available: f64 = entries
+        .iter()
+        .filter(|entry| {
+            !hero.contains(&entry.holes[0])
+                && !hero.contains(&entry.holes[1])
+                && !board.contains(&entry.holes[0])
+                && !board.contains(&entry.holes[1])
+        })
+        .map(|entry| entry.weight)
+        .sum();
+    let blocked = total - available;
+    [blocked, if total > 0.0 { blocked / total } else { 0.0 }]
 }
 
 fn combo_key(cards: [eval::Card; 2]) -> String {
@@ -3349,6 +3377,15 @@ mod tests {
             .weights
             .iter()
             .all(|weight| (*weight - 0.25).abs() < 1e-12));
+        let blockers = super::solve(
+            r#"{"pot":100.0,"bet":66.0,"stack":250.0,"board":"Kd 7c 2s","heroRange":"AA","villainRange":"AA"}"#,
+        )
+        .unwrap();
+        let blockers_payload = super::serialize(blockers).unwrap();
+        let blockers_native: super::NativeSolve =
+            serde_json::from_slice(&blockers_payload).unwrap();
+        assert!(blockers_native.blocker_metrics[0] > 0.0);
+        assert!(blockers_native.blocker_metrics[1] > 0.0);
         let default_villains = super::solve(
             r#"{"pot":100.0,"bet":66.0,"stack":250.0,"board":"Ah Kd 7c","heroRange":"QQ"}"#,
         )
@@ -3364,6 +3401,7 @@ mod tests {
         assert_ne!(default_native.metrics[1], aa_native.metrics[1]);
         super::cancel(custom).unwrap();
         super::cancel(weighted).unwrap();
+        super::cancel(blockers).unwrap();
         super::cancel(default_villains).unwrap();
         super::cancel(aa_villains).unwrap();
     }

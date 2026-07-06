@@ -38,6 +38,7 @@ type NativeSolve = {
   action_evs?: number[];
   metrics: number[];
   weights?: number[];
+  blocker_metrics?: number[];
 };
 
 class LocalEngine implements EngineAPI {
@@ -250,6 +251,8 @@ function nativeToResult(native: NativeSolve): SolveResult {
     rows: combos.map((combo, i) => ({
       combo,
       weight: native.weights?.[i] ?? 1,
+      blockedCombos: native.blocker_metrics?.[i * 2] ?? 0,
+      blockerPct: native.blocker_metrics?.[i * 2 + 1] ?? 0,
       fold: native.strategy[i * 3] ?? 0,
       call: native.strategy[i * 3 + 1] ?? 0,
       raise: native.strategy[i * 3 + 2] ?? 0,

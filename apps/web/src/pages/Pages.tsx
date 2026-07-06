@@ -229,6 +229,7 @@ export function SolverStudio() {
           <Metric label="Range EV" value={`${nodeSummary.ev.toFixed(3)}bb`} />
           <Metric label="Range Equity" value={`${(nodeSummary.equity * 100).toFixed(1)}%`} />
           <Metric label="Range EQR" value={nodeSummary.eqr.toFixed(2)} />
+          <Metric label="Blockers" value={`${nodeSummary.blockedCombos.toFixed(1)} (${(nodeSummary.blockerPct * 100).toFixed(0)}%)`} />
           <Metric label="Action mix" value={`F ${(nodeSummary.fold * 100).toFixed(0)} / C ${(nodeSummary.call * 100).toFixed(0)} / R ${(nodeSummary.raise * 100).toFixed(0)}`} />
           <div className="card" aria-label="solve nodes"><b>Nodes</b><div className="grid" style={{ gap: 8, marginTop: 12 }}>{shown.nodes.map((node) => <button className="btn" key={node.id} aria-pressed={(selectedNode?.id ?? "root") === node.id} onClick={() => setSelectedNodeId(node.id)}>{node.label} ({node.id}{node.actions.length ? `: ${node.actions.join(", ")}` : ""})</button>)}</div></div>
           <div className="card" style={{ height: 220 }}><Curve data={progress.length ? progress : shown.exploitability} /></div>
@@ -263,8 +264,8 @@ function rowEqrDenominator(row: SolverRow): number {
   return Math.max(0.0001, row.eqr === 0 ? row.equity : row.ev / row.eqr);
 }
 
-function summarizeRows(rows: SolverRow[]): Pick<SolverRow, "fold" | "call" | "raise" | "ev" | "equity" | "eqr"> {
-  if (!rows.length) return { fold: 0, call: 0, raise: 0, ev: 0, equity: 0, eqr: 0 };
+function summarizeRows(rows: SolverRow[]): Pick<SolverRow, "fold" | "call" | "raise" | "ev" | "equity" | "eqr" | "blockedCombos" | "blockerPct"> {
+  if (!rows.length) return { fold: 0, call: 0, raise: 0, ev: 0, equity: 0, eqr: 0, blockedCombos: 0, blockerPct: 0 };
   const totalWeight = rows.reduce((sum, row) => sum + row.weight, 0);
   const total = rows.reduce((sum, row) => ({
     fold: sum.fold + row.weight * row.fold,
@@ -272,15 +273,19 @@ function summarizeRows(rows: SolverRow[]): Pick<SolverRow, "fold" | "call" | "ra
     raise: sum.raise + row.weight * row.raise,
     ev: sum.ev + row.weight * row.ev,
     equity: sum.equity + row.weight * row.equity,
-    eqr: sum.eqr + row.weight * row.eqr
-  }), { fold: 0, call: 0, raise: 0, ev: 0, equity: 0, eqr: 0 });
+    eqr: sum.eqr + row.weight * row.eqr,
+    blockedCombos: sum.blockedCombos + row.weight * row.blockedCombos,
+    blockerPct: sum.blockerPct + row.weight * row.blockerPct
+  }), { fold: 0, call: 0, raise: 0, ev: 0, equity: 0, eqr: 0, blockedCombos: 0, blockerPct: 0 });
   return {
     fold: total.fold / totalWeight,
     call: total.call / totalWeight,
     raise: total.raise / totalWeight,
     ev: total.ev / totalWeight,
     equity: total.equity / totalWeight,
-    eqr: total.eqr / totalWeight
+    eqr: total.eqr / totalWeight,
+    blockedCombos: total.blockedCombos / totalWeight,
+    blockerPct: total.blockerPct / totalWeight
   };
 }
 
