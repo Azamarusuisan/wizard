@@ -2190,11 +2190,38 @@ pub fn get_hand_metrics(handle: u32, node_id: &str) -> Result<Vec<f64>, JsValue>
         if let Some(amount) = node.amount {
             return Ok(bet_response_metrics(solve, node.pot.unwrap_or(solve.spot.pot), amount));
         }
+        if let Some(action_idx) = node_action_index(&node.id) {
+            return Ok(action_node_metrics(solve, action_idx));
+        }
         if node.actions.is_empty() {
             return Ok(Vec::new());
         }
         Ok(solve.metrics.clone())
     })
+}
+
+fn node_action_index(node_id: &str) -> Option<usize> {
+    match node_id {
+        "root/fold" => Some(0),
+        "root/call" => Some(1),
+        "root/raise" => Some(2),
+        _ => None,
+    }
+}
+
+fn action_node_metrics(solve: &NativeSolve, action_idx: usize) -> Vec<f64> {
+    solve
+        .metrics
+        .chunks_exact(3)
+        .zip(solve.action_evs.chunks_exact(3))
+        .take(solve.combos.len())
+        .flat_map(|(metric, action_evs)| {
+            let ev = action_evs[action_idx];
+            let equity = metric[1];
+            let eqr = ev / (equity * solve.spot.pot / 100.0).max(0.0001);
+            [ev, equity, eqr]
+        })
+        .collect()
 }
 
 fn bet_response_strategy(pot: f64, amount: f64) -> (f64, f64) {
@@ -2724,7 +2751,10 @@ mod tests {
         assert!(super::has_node_id(&native, "root"));
         assert!(!super::has_node_id(&native, "turn:blank"));
         assert!(super::get_strategy(handle, "root/call").unwrap().is_empty());
-        assert!(super::get_hand_metrics(handle, "root/call").unwrap().is_empty());
+        let call_metrics = super::get_hand_metrics(handle, "root/call").unwrap();
+        assert_eq!(call_metrics.len(), native.combos.len() * 3);
+        assert!((call_metrics[0] - native.action_evs[1]).abs() < 1e-12);
+        assert!(call_metrics[1] > 0.0);
         let bet_strategy = super::get_strategy(handle, "root/bet-33").unwrap();
         assert_eq!(bet_strategy.len(), native.combos.len() * 2);
         assert!((bet_strategy[0] - 33.0 / 133.0).abs() < 1e-12);

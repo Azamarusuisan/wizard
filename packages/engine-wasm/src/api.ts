@@ -82,6 +82,8 @@ class LocalEngine implements EngineAPI {
     const result = this.mustGet(handle);
     const node = nodeForId(result, nodeId);
     if (node.amount !== undefined && node.pot !== undefined) return betResponseMetrics(result, node.pot, node.amount);
+    const action = nodeActionKey(node.id);
+    if (action) return actionNodeMetrics(result, action);
     if (!node.actions.length) return { ev: new Float32Array(), equity: new Float32Array(), eqr: new Float32Array() };
     return {
       ev: Float32Array.from(result.rows.map((r: SolverRow) => r.ev)),
@@ -117,6 +119,23 @@ function nodeForId(result: SolveResult, nodeId: string): SolveNode {
 
 function betResponseStrategy(pot: number, amount: number): [number, number] {
   return [amount / (pot + amount), pot / (pot + amount)];
+}
+
+function nodeActionKey(nodeId: string): "foldEv" | "callEv" | "raiseEv" | null {
+  if (nodeId === "root/fold") return "foldEv";
+  if (nodeId === "root/call") return "callEv";
+  if (nodeId === "root/raise") return "raiseEv";
+  return null;
+}
+
+function actionNodeMetrics(result: SolveResult, action: "foldEv" | "callEv" | "raiseEv"): HandMetrics {
+  const ev = Float32Array.from(result.rows.map((row) => row[action]));
+  const equity = Float32Array.from(result.rows.map((row) => row.equity));
+  const eqr = Float32Array.from(result.rows.map((row, i) => {
+    const rootDenominator = row.eqr === 0 ? row.equity : row.ev / row.eqr;
+    return ev[i]! / Math.max(0.0001, rootDenominator);
+  }));
+  return { ev, equity, eqr };
 }
 
 function betResponseMetrics(result: SolveResult, pot: number, amount: number): HandMetrics {
