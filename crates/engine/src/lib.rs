@@ -2116,7 +2116,10 @@ pub fn poll_progress(handle: u32) -> Result<String, JsValue> {
 #[wasm_bindgen]
 pub fn get_strategy(handle: u32, node_id: &str) -> Result<Vec<f64>, JsValue> {
     with_solve(handle, |solve| {
-        validate_node_id(solve, node_id)?;
+        let node = node_for_id(solve, node_id)?;
+        if node.actions.is_empty() {
+            return Ok(Vec::new());
+        }
         Ok(solve.strategy.clone())
     })
 }
@@ -2124,7 +2127,10 @@ pub fn get_strategy(handle: u32, node_id: &str) -> Result<Vec<f64>, JsValue> {
 #[wasm_bindgen]
 pub fn get_hand_metrics(handle: u32, node_id: &str) -> Result<Vec<f64>, JsValue> {
     with_solve(handle, |solve| {
-        validate_node_id(solve, node_id)?;
+        let node = node_for_id(solve, node_id)?;
+        if node.actions.is_empty() {
+            return Ok(Vec::new());
+        }
         Ok(solve.metrics.clone())
     })
 }
@@ -2186,12 +2192,11 @@ fn street_for_board(board_len: usize) -> &'static str {
     }
 }
 
-fn validate_node_id(solve: &NativeSolve, node_id: &str) -> Result<(), JsValue> {
+fn node_for_id<'a>(solve: &'a NativeSolve, node_id: &str) -> Result<&'a NativeNode, JsValue> {
     solve
         .nodes
         .iter()
-        .any(|node| node.id == node_id)
-        .then_some(())
+        .find(|node| node.id == node_id)
         .ok_or_else(|| JsValue::from_str("unknown node id"))
 }
 
@@ -2571,6 +2576,8 @@ mod tests {
         );
         assert!(super::has_node_id(&native, "root"));
         assert!(!super::has_node_id(&native, "turn:blank"));
+        assert!(super::get_strategy(handle, "root/call").unwrap().is_empty());
+        assert!(super::get_hand_metrics(handle, "root/call").unwrap().is_empty());
         assert!(native.action_evs[2] >= native.action_evs[1]);
         assert!(native.metrics[(native.combos.len() - 1) * 3] >= 0.0);
         let base = native.combos.len() * 3;

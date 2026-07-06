@@ -66,7 +66,8 @@ class LocalEngine implements EngineAPI {
 
   async getStrategy(handle: EngineHandle, nodeId = "root"): Promise<StrategyTable> {
     const result = this.mustGet(handle);
-    validateNodeId(result, nodeId);
+    const node = nodeForId(result, nodeId);
+    if (!node.actions.length) return { combos: [], actions: new Float64Array() };
     return {
       combos: result.rows.map((r: SolverRow) => r.combo),
       actions: Float64Array.from(result.rows.flatMap((r: SolverRow) => [r.fold, r.call, r.raise]))
@@ -75,7 +76,8 @@ class LocalEngine implements EngineAPI {
 
   async getHandMetrics(handle: EngineHandle, nodeId = "root"): Promise<HandMetrics> {
     const result = this.mustGet(handle);
-    validateNodeId(result, nodeId);
+    const node = nodeForId(result, nodeId);
+    if (!node.actions.length) return { ev: new Float32Array(), equity: new Float32Array(), eqr: new Float32Array() };
     return {
       ev: Float32Array.from(result.rows.map((r: SolverRow) => r.ev)),
       equity: Float32Array.from(result.rows.map((r: SolverRow) => r.equity)),
@@ -102,8 +104,10 @@ class LocalEngine implements EngineAPI {
   }
 }
 
-function validateNodeId(result: SolveResult, nodeId: string): void {
-  if (!result.nodes.some((node) => node.id === nodeId)) throw new Error("unknown node id");
+function nodeForId(result: SolveResult, nodeId: string): SolveNode {
+  const node = result.nodes.find((node) => node.id === nodeId);
+  if (!node) throw new Error("unknown node id");
+  return node;
 }
 
 class WasmPreferredEngine implements EngineAPI {
@@ -140,13 +144,15 @@ class WasmPreferredEngine implements EngineAPI {
     const wasm = await this.loadWasm();
     if (!wasm) return await this.local.getStrategy(handle, nodeId);
     const native = JSON.parse(new TextDecoder().decode(wasm.serialize(handle))) as NativeSolve;
-    return { combos: native.combos, actions: wasm.get_strategy(handle, nodeId) };
+    const actions = wasm.get_strategy(handle, nodeId);
+    return { combos: actions.length ? native.combos : [], actions };
   }
 
   async getHandMetrics(handle: EngineHandle, nodeId: string): Promise<HandMetrics> {
     const wasm = await this.loadWasm();
     if (!wasm) return await this.local.getHandMetrics(handle, nodeId);
     const raw = wasm.get_hand_metrics(handle, nodeId);
+    if (!raw.length) return { ev: new Float32Array(), equity: new Float32Array(), eqr: new Float32Array() };
     const native = JSON.parse(new TextDecoder().decode(wasm.serialize(handle))) as NativeSolve;
     return splitMetrics(raw, native.combos.length || FALLBACK_COMBOS.length);
   }
