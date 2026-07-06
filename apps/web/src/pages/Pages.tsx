@@ -150,7 +150,7 @@ export function SolverStudio() {
           <Metric label="Pot odds" value={`${(shown.metrics.potOdds * 100).toFixed(1)}%`} />
           {shown.metrics.brGapPctPot !== undefined ? <Metric label="BR gap" value={`${shown.metrics.brGapPctPot.toFixed(2)}% pot`} /> : null}
           {shown.metrics.ploFastExploitability !== undefined ? <Metric label="PLO Fast BR" value={`${shown.metrics.ploFastExploitability.toFixed(2)}% pot`} /> : null}
-          <div className="card"><b>Nodes</b><p className="muted">{shown.nodes.map((node) => `${node.label} (${node.id}: ${node.actions.join(", ")})`).join(" / ")}</p></div>
+          <div className="card" aria-label="solve nodes"><b>Nodes</b><ul className="muted">{shown.nodes.map((node) => <li key={node.id}>{node.label} ({node.id}{node.actions.length ? `: ${node.actions.join(", ")}` : ""})</li>)}</ul></div>
           <div className="card" style={{ height: 220 }}><Curve data={progress.length ? progress : shown.exploitability} /></div>
         </> : <div className="card"><p className="muted">No valid spot.</p></div>}
       </section>

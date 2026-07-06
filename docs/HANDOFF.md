@@ -82,13 +82,14 @@
 - Root solve node metadata now includes action labels (`fold`, `call`, `raise`) across Rust/TS/cache/UI.
 - Root solve node street now derives from board length (`preflop` / `flop` / `turn` / `river`) in Rust native and TypeScript fallback results.
 - Solve node serialization now includes first-level action nodes (`root/fold`, `root/call`, `root/raise`) in Rust native and TypeScript fallback results. EngineAPI node-id validation accepts these nodes, and IndexedDB round-trip tests prove they persist.
+- Solver Studio now renders solve nodes as a readable list and Playwright verifies `root/call` is surfaced after a solve.
 - The TypeScript fallback evaluator test also covers PLO5 exact two-hole usage and board-only hands being unplayable.
 - `crates/engine` now exports wasm-bindgen handle/progress functions matching the EngineAPI shape: `init`, `solve`, `poll_progress`, `get_strategy`, `get_hand_metrics`, `cancel`, and `serialize`. Native serialized solve payloads include combo labels, so TypeScript no longer owns solver row identity for the WASM path.
 - README, architecture, and formats docs now reflect the current Plan A Rust/WASM path, IndexedDB solve cache shape, and remaining default-combo / sampled-PLO limitations.
 - IndexedDB solve cache keys are canonical JSON SHA-256 via WebCrypto in the web layer.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `default_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~11.66 ns/eval, default river rows ~501.65 us. The evaluator now exceeds the original 50M eval/s target on this machine.
-- Last verified: `bash scripts/verify.sh` exited 0 after adding first-level action solve nodes. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
+- Last verified: `bash scripts/verify.sh` exited 0 after surfacing first-level action nodes in Solver Studio. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
 - Git remote `origin` is set to `https://github.com/Azamarusuisan/wizard.git`; do not push until §6 is actually complete.
 
 ## Important Caveat
