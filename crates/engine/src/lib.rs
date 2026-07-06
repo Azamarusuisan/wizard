@@ -1773,6 +1773,7 @@ struct NativeSolve {
     progress: Vec<NativeProgress>,
     strategy: Vec<f64>,
     action_evs: Vec<f64>,
+    weights: Vec<f64>,
     metrics: Vec<f64>,
 }
 
@@ -1823,6 +1824,7 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
         .iter()
         .map(|entry| entry.label.clone())
         .collect::<Vec<_>>();
+    let weights = entries.iter().map(|entry| entry.weight).collect::<Vec<_>>();
     let mut strategy = Vec::with_capacity(entries.len() * 3);
     let mut action_evs = Vec::with_capacity(entries.len() * 3);
     let mut metrics = Vec::with_capacity(entries.len() * 3 + 4);
@@ -1858,9 +1860,9 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
         mdf,
         alpha,
         pot_odds,
-        river_exploitability_from_action_evs(&rows, &action_evs, spot.pot),
+        river_exploitability_from_action_evs(&rows, &action_evs, &weights, spot.pot),
     ]);
-    let progress = river_progress_from_action_evs(&rows, &action_evs, spot.pot, 36)
+    let progress = river_progress_from_action_evs(&rows, &action_evs, &weights, spot.pot, 36)
         .into_iter()
         .enumerate()
         .map(|(i, exploitability_pct)| NativeProgress {
@@ -1877,6 +1879,7 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
         progress,
         strategy,
         action_evs,
+        weights,
         metrics,
     };
     let mut guard = engine()
@@ -1917,6 +1920,10 @@ fn solve_plo_fast(
         .iter()
         .map(|sample| sample.combo.to_string())
         .collect::<Vec<_>>();
+    let weights = samples
+        .iter()
+        .map(|sample| sample.weight)
+        .collect::<Vec<_>>();
     let rows = samples
         .iter()
         .map(|sample| {
@@ -1949,10 +1956,10 @@ fn solve_plo_fast(
         mdf,
         alpha,
         pot_odds,
-        river_exploitability_from_action_evs(&rows, &action_evs, spot.pot),
+        river_exploitability_from_action_evs(&rows, &action_evs, &weights, spot.pot),
         metric,
     ]);
-    let progress = river_progress_from_action_evs(&rows, &action_evs, spot.pot, 36)
+    let progress = river_progress_from_action_evs(&rows, &action_evs, &weights, spot.pot, 36)
         .into_iter()
         .enumerate()
         .map(|(i, exploitability_pct)| NativeProgress {
@@ -1969,6 +1976,7 @@ fn solve_plo_fast(
         progress,
         strategy,
         action_evs,
+        weights,
         metrics,
     };
     let mut guard = engine()
@@ -2537,23 +2545,27 @@ fn row_action_evs(
 fn river_exploitability_from_action_evs(
     rows: &[br::RiverCombo],
     action_evs: &[f64],
+    weights: &[f64],
     pot: f64,
 ) -> f64 {
     let mut strategy_ev = 0.0;
     let mut best_ev = 0.0;
-    for (row, evs) in rows.iter().zip(action_evs.chunks_exact(3)) {
+    let mut total_weight = 0.0;
+    for ((row, evs), weight) in rows.iter().zip(action_evs.chunks_exact(3)).zip(weights) {
         let fold_ev = evs[0] * 100.0;
         let call_ev = evs[1] * 100.0;
         let raise_ev = evs[2] * 100.0;
-        strategy_ev += row.fold * fold_ev + row.call * call_ev + row.raise * raise_ev;
-        best_ev += fold_ev.max(call_ev).max(raise_ev);
+        strategy_ev += weight * (row.fold * fold_ev + row.call * call_ev + row.raise * raise_ev);
+        best_ev += weight * fold_ev.max(call_ev).max(raise_ev);
+        total_weight += weight;
     }
-    ((best_ev - strategy_ev) / rows.len() as f64 / pot * 100.0).max(0.0)
+    ((best_ev - strategy_ev) / total_weight / pot * 100.0).max(0.0)
 }
 
 fn river_progress_from_action_evs(
     rows: &[br::RiverCombo],
     action_evs: &[f64],
+    weights: &[f64],
     pot: f64,
     points: usize,
 ) -> Vec<f64> {
@@ -2569,7 +2581,7 @@ fn river_progress_from_action_evs(
                     raise: (1.0 - t) / 3.0 + t * row.raise,
                 })
                 .collect::<Vec<_>>();
-            river_exploitability_from_action_evs(&mixed, action_evs, pot)
+            river_exploitability_from_action_evs(&mixed, action_evs, weights, pot)
         })
         .collect()
 }
@@ -3326,6 +3338,17 @@ mod tests {
             .all(|combo| combo.starts_with('Q')
                 || combo.starts_with('J')
                 || combo.starts_with('T')));
+        let weighted = super::solve(
+            r#"{"pot":100.0,"bet":66.0,"stack":250.0,"board":"Ah Kd 7c","heroRange":"QQ:0.25","villainRange":"AA"}"#,
+        )
+        .unwrap();
+        let weighted_payload = super::serialize(weighted).unwrap();
+        let weighted_native: super::NativeSolve =
+            serde_json::from_slice(&weighted_payload).unwrap();
+        assert!(weighted_native
+            .weights
+            .iter()
+            .all(|weight| (*weight - 0.25).abs() < 1e-12));
         let default_villains = super::solve(
             r#"{"pot":100.0,"bet":66.0,"stack":250.0,"board":"Ah Kd 7c","heroRange":"QQ"}"#,
         )
@@ -3340,6 +3363,7 @@ mod tests {
         let aa_native: super::NativeSolve = serde_json::from_slice(&aa_payload).unwrap();
         assert_ne!(default_native.metrics[1], aa_native.metrics[1]);
         super::cancel(custom).unwrap();
+        super::cancel(weighted).unwrap();
         super::cancel(default_villains).unwrap();
         super::cancel(aa_villains).unwrap();
     }

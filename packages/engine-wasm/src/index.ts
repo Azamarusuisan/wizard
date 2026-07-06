@@ -324,7 +324,7 @@ function parseBetSizes(text: string): BetSize[] {
   return sizes;
 }
 
-export type SolverRow = { combo: string; fold: number; call: number; raise: number; foldEv: number; callEv: number; raiseEv: number; equity: number; ev: number; eqr: number };
+export type SolverRow = { combo: string; weight: number; fold: number; call: number; raise: number; foldEv: number; callEv: number; raiseEv: number; equity: number; ev: number; eqr: number };
 export type SolveNode = { id: string; label: string; street: string; actions: string[]; amount?: number; pot?: number };
 export type SolveResult = { nodes: SolveNode[]; rows: SolverRow[]; exploitability: { iteration: number; value: number }[]; metrics: { spr: number; mdf: number; alpha: number; potOdds: number; brGapPctPot?: number; ploFastExploitability?: number } };
 export const DEFAULT_RIVER_SPECS = [
@@ -353,12 +353,12 @@ export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2, boar
   const combos = nlhRiverCombosFromRange(heroRange, board);
   const villains = nlhRiverCombosFromRange(villainRange, board);
   const equityCache = new Map<string, number>();
-  const rows = combos.map(({ combo, fallback, holes }) => {
+  const rows = combos.map(({ combo, fallback, holes, weight }) => {
     const eq = comboEquity(holes, fallback, board, villains, equityCache);
     const { callEv, raiseEv } = rowActionEvs(eq, pot, bet, betAmounts, rakePct, rakeCap);
     const { fold, call, raise } = cfrStrategyFromActionEvs(0, callEv, raiseEv, iterations);
     const ev = (call * callEv + raise * raiseEv) / 100;
-    return { combo, fold, call, raise, foldEv: 0, callEv: callEv / 100, raiseEv: raiseEv / 100, equity: eq, ev, eqr: ev / Math.max(0.0001, eq * pot / 100) };
+    return { combo, weight, fold, call, raise, foldEv: 0, callEv: callEv / 100, raiseEv: raiseEv / 100, equity: eq, ev, eqr: ev / Math.max(0.0001, eq * pot / 100) };
   });
   return {
     nodes: rootNodes(board.length, pot, bet, stack, game, betTree),
@@ -381,6 +381,7 @@ export function solveNlhComboSpot(pot: number, bet: number, stack = pot * 4.2, b
   const strategy = cfrStrategy(eq, pot, bet, rakePct, rakeCap, 2_048);
   const row = {
     combo: holes.map(formatCard).join(""),
+    weight: 1,
     ...strategy,
     foldEv: 0,
     callEv: callEv / 100,
@@ -415,7 +416,7 @@ function ploFastExploitabilityPctPot(samples: readonly PloFastSample[]): number 
   return samples.reduce((sum, row) => {
     const eq = ploFastSampleEquity(row);
     const strategy = cfrStrategy(eq, 100, 66, 0, 0, 2_048);
-    const mixed = [{ combo: row.combo, equity: eq, ...strategy, foldEv: 0, callEv: 0, raiseEv: 0, ev: 0, eqr: 0 }];
+    const mixed = [{ combo: row.combo, weight: row.weight, equity: eq, ...strategy, foldEv: 0, callEv: 0, raiseEv: 0, ev: 0, eqr: 0 }];
     return sum + row.weight * riverExploitability(mixed, 100, 66, 0, 0);
   }, 0) / total;
 }
@@ -451,6 +452,7 @@ function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack
     const ev = (strategy.call * callEv + strategy.raise * raiseEv) / 100;
     return {
       combo: sample.combo,
+      weight: sample.weight,
       ...strategy,
       foldEv: 0,
       callEv: callEv / 100,
@@ -670,10 +672,11 @@ function riverExploitability(rows: SolverRow[], pot: number, bet: number, rakePc
   for (const row of rows) {
     const foldEv = 0;
     const { callEv, raiseEv } = actionEvs(row.equity, pot, bet, rakePct, rakeCap);
-    strategyEv += row.fold * foldEv + row.call * callEv + row.raise * raiseEv;
-    bestEv += Math.max(foldEv, callEv, raiseEv);
+    strategyEv += row.weight * (row.fold * foldEv + row.call * callEv + row.raise * raiseEv);
+    bestEv += row.weight * Math.max(foldEv, callEv, raiseEv);
   }
-  return Math.max(0, (bestEv - strategyEv) / rows.length / pot * 100);
+  const totalWeight = rows.reduce((sum, row) => sum + row.weight, 0);
+  return Math.max(0, (bestEv - strategyEv) / totalWeight / pot * 100);
 }
 
 function riverExploitabilityFromRows(rows: SolverRow[], pot: number): number {
@@ -683,10 +686,11 @@ function riverExploitabilityFromRows(rows: SolverRow[], pot: number): number {
     const foldEv = row.foldEv * 100;
     const callEv = row.callEv * 100;
     const raiseEv = row.raiseEv * 100;
-    strategyEv += row.fold * foldEv + row.call * callEv + row.raise * raiseEv;
-    bestEv += Math.max(foldEv, callEv, raiseEv);
+    strategyEv += row.weight * (row.fold * foldEv + row.call * callEv + row.raise * raiseEv);
+    bestEv += row.weight * Math.max(foldEv, callEv, raiseEv);
   }
-  return Math.max(0, (bestEv - strategyEv) / rows.length / pot * 100);
+  const totalWeight = rows.reduce((sum, row) => sum + row.weight, 0);
+  return Math.max(0, (bestEv - strategyEv) / totalWeight / pot * 100);
 }
 
 export function kuhnCfr(iterations = 80_000): number {

@@ -265,21 +265,22 @@ function rowEqrDenominator(row: SolverRow): number {
 
 function summarizeRows(rows: SolverRow[]): Pick<SolverRow, "fold" | "call" | "raise" | "ev" | "equity" | "eqr"> {
   if (!rows.length) return { fold: 0, call: 0, raise: 0, ev: 0, equity: 0, eqr: 0 };
+  const totalWeight = rows.reduce((sum, row) => sum + row.weight, 0);
   const total = rows.reduce((sum, row) => ({
-    fold: sum.fold + row.fold,
-    call: sum.call + row.call,
-    raise: sum.raise + row.raise,
-    ev: sum.ev + row.ev,
-    equity: sum.equity + row.equity,
-    eqr: sum.eqr + row.eqr
+    fold: sum.fold + row.weight * row.fold,
+    call: sum.call + row.weight * row.call,
+    raise: sum.raise + row.weight * row.raise,
+    ev: sum.ev + row.weight * row.ev,
+    equity: sum.equity + row.weight * row.equity,
+    eqr: sum.eqr + row.weight * row.eqr
   }), { fold: 0, call: 0, raise: 0, ev: 0, equity: 0, eqr: 0 });
   return {
-    fold: total.fold / rows.length,
-    call: total.call / rows.length,
-    raise: total.raise / rows.length,
-    ev: total.ev / rows.length,
-    equity: total.equity / rows.length,
-    eqr: total.eqr / rows.length
+    fold: total.fold / totalWeight,
+    call: total.call / totalWeight,
+    raise: total.raise / totalWeight,
+    ev: total.ev / totalWeight,
+    equity: total.equity / totalWeight,
+    eqr: total.eqr / totalWeight
   };
 }
 

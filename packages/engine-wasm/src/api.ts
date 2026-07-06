@@ -37,6 +37,7 @@ type NativeSolve = {
   strategy: number[];
   action_evs?: number[];
   metrics: number[];
+  weights?: number[];
 };
 
 class LocalEngine implements EngineAPI {
@@ -243,11 +244,12 @@ function splitMetrics(raw: ArrayLike<number>, rows: number): HandMetrics {
 
 function nativeToResult(native: NativeSolve): SolveResult {
   const combos = native.combos.length ? native.combos : FALLBACK_COMBOS;
-    const metrics = splitMetrics(native.metrics, combos.length);
+  const metrics = splitMetrics(native.metrics, combos.length);
   return {
     nodes: native.nodes?.length ? native.nodes : [{ id: "root", label: "Root", street: "preflop", actions: ["fold", "call", "raise"] }],
     rows: combos.map((combo, i) => ({
       combo,
+      weight: native.weights?.[i] ?? 1,
       fold: native.strategy[i * 3] ?? 0,
       call: native.strategy[i * 3 + 1] ?? 0,
       raise: native.strategy[i * 3 + 2] ?? 0,

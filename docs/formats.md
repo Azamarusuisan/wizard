@@ -78,6 +78,7 @@ Solve cache records:
   "meta": { "version": 1, "createdAt": 0, "spot": {} },
   "blob": {
     "combos": ["AA"],
+    "weights": "Float32Array",
     "fold": "Uint16 probability table",
     "call": "Uint16 probability table",
     "raise": "Uint16 probability table",
