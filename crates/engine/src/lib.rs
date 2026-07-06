@@ -2209,7 +2209,7 @@ fn solve_plo_fast(
         .collect::<Vec<_>>();
     let hand_classes = samples
         .iter()
-        .map(|_| "sample".to_string())
+        .map(|sample| plo_fast_hand_class(sample.combo))
         .collect::<Vec<_>>();
     let weights = samples
         .iter()
@@ -2293,6 +2293,50 @@ fn solve_plo_fast(
     guard.next += 1;
     guard.solves.insert(handle, solve);
     Ok(handle)
+}
+
+fn plo_fast_hand_class(combo: &str) -> String {
+    let ranks = combo
+        .as_bytes()
+        .chunks_exact(2)
+        .map(|card| card[0] as char)
+        .collect::<Vec<_>>();
+    let suits = combo
+        .as_bytes()
+        .chunks_exact(2)
+        .map(|card| card[1] as char)
+        .collect::<Vec<_>>();
+    let paired = ranks
+        .iter()
+        .enumerate()
+        .any(|(i, rank)| ranks[..i].contains(rank));
+    let aces = ranks.iter().filter(|rank| **rank == 'A').count();
+    let double_suited = suits
+        .iter()
+        .collect::<std::collections::HashSet<_>>()
+        .iter()
+        .filter(|suit| suits.iter().filter(|candidate| candidate == *suit).count() >= 2)
+        .count()
+        >= 2;
+    let mut values = ranks
+        .iter()
+        .filter_map(|rank| "23456789TJQKA".find(*rank))
+        .collect::<Vec<_>>();
+    values.sort_unstable();
+    values.dedup();
+    let rundown = values.windows(4).any(|window| {
+        window
+            .windows(2)
+            .all(|pair| pair[1].saturating_sub(pair[0]) == 1)
+    });
+    match (aces >= 2, double_suited, rundown, paired) {
+        (true, true, _, _) => "AA double-suited".to_string(),
+        (true, false, _, _) => "AA".to_string(),
+        (_, true, true, _) => "double-suited rundown".to_string(),
+        (_, _, true, _) => "rundown".to_string(),
+        (_, _, _, true) => "pair".to_string(),
+        _ => "unpaired".to_string(),
+    }
 }
 
 fn validate_spot(spot: &NativeSpot) -> Result<(), String> {
@@ -3984,6 +4028,11 @@ mod tests {
         let plo4_plain_native: super::NativeSolve =
             serde_json::from_slice(&plo4_plain_payload).unwrap();
         assert_eq!(plo4_native.combos[0], "AsAhKsKh");
+        assert_eq!(plo4_native.hand_classes[0], "AA double-suited");
+        assert!(plo4_native
+            .hand_classes
+            .iter()
+            .any(|class| class.contains("rundown")));
         assert!(super::has_node_id(&plo4_native, "root/bet-160"));
         assert!(!super::has_node_id(&plo4_native, "root/bet-300"));
         assert!(plo4_native.action_evs[2] > plo4_plain_native.action_evs[2]);

@@ -31,6 +31,7 @@ test("solver runs and displays strategy metrics", async ({ page }) => {
   await expect(page.getByLabel("Bet amount")).toHaveValue("33");
   await page.getByLabel("Game").selectOption("PLO5");
   await expect(page.getByRole("table", { name: "strategy table" })).toContainText("AsAhKsKhQs");
+  await expect(page.getByLabel("Hand class")).toContainText("AA double-suited");
   await expect(page.getByText("PLO Fast BR")).toBeVisible();
   await expect(page.getByText("PLO sample set")).toBeVisible();
   await expect(page.getByText("PLO iterations")).toBeVisible();

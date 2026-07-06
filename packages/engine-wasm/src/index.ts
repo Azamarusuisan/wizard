@@ -455,6 +455,23 @@ const PLO5_FAST_SAMPLES = [
 const PLO_COMBO_CAP = { PLO4: 20_000, PLO5: 30_000 } as const;
 const PLO_FAST_EQUITY_SAMPLES = 512;
 
+function ploFastHandClass(combo: string): string {
+  const cards = combo.match(/../g) ?? [];
+  const ranks = cards.map((card) => card[0]!);
+  const suits = cards.map((card) => card[1]!);
+  const paired = new Set(ranks).size < ranks.length;
+  const aces = ranks.filter((rank) => rank === "A").length;
+  const doubleSuited = new Set(suits.filter((suit) => suits.filter((candidate) => candidate === suit).length >= 2)).size >= 2;
+  const values = [...new Set(ranks.map((rank) => "23456789TJQKA".indexOf(rank)).filter((value) => value >= 0))].sort((a, b) => a - b);
+  const rundown = values.some((value, index) => values.slice(index, index + 4).every((next, offset) => next === value + offset));
+  if (aces >= 2 && doubleSuited) return "AA double-suited";
+  if (aces >= 2) return "AA";
+  if (doubleSuited && rundown) return "double-suited rundown";
+  if (rundown) return "rundown";
+  if (paired) return "pair";
+  return "unpaired";
+}
+
 function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack: number, rakePct: number, rakeCap: number, potOdds: number, mdf: number, alpha: number, boardLen = 0, betTree = "", precision: "fast" | "balanced" | "precise" = "balanced"): SolveResult {
   const samples = game === "PLO4" ? PLO4_FAST_SAMPLES : PLO5_FAST_SAMPLES;
   const betAmounts = betAmountsForSpot(game, boardLen, pot, bet, stack, betTree);
@@ -467,7 +484,7 @@ function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack
     return {
       combo: sample.combo,
       weight: sample.weight,
-      handClass: "sample",
+      handClass: ploFastHandClass(sample.combo),
       blockedCombos: 0,
       blockerPct: 0,
       ...strategy,

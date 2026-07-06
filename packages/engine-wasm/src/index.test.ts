@@ -198,6 +198,8 @@ test("TS river solve fallback subtracts capped rake from showdown EV", () => {
 test("TS solve fallback reports PLO Fast BR metrics", () => {
   const plo4 = solveRiverSpot(100, 20, 300, "", 0, 0, "PLO4", "flop 50,200,all-in");
   assert.equal(plo4.rows[0]!.combo, "AsAhKsKh");
+  assert.equal(plo4.rows[0]!.handClass, "AA double-suited");
+  assert.ok(plo4.rows.some((row) => row.handClass.includes("rundown")));
   assert.ok(plo4.nodes.some((node) => node.id === "root/bet-160"));
   assert.ok(!plo4.nodes.some((node) => node.id === "root/bet-300"));
   assert.ok(plo4.rows[0]!.raiseEv > solveRiverSpot(100, 20, 300, "", 0, 0, "PLO4").rows[0]!.raiseEv);
