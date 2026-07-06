@@ -143,7 +143,8 @@ test("TS river solve fallback rejects invalid spots", () => {
   assert.throws(() => solveRiverSpot(0, 66), /pot/);
   assert.throws(() => solveRiverSpot(100, -1), /bet/);
   assert.throws(() => solveRiverSpot(100, 66, 0), /stack/);
-  assert.throws(() => solveRiverSpot(100, 66, 250, "Ah Ah"), /duplicate/);
+  assert.throws(() => solveRiverSpot(100, 66, 250, "Ah Ah Kd"), /duplicate/);
+  assert.throws(() => solveRiverSpot(100, 66, 250, "Ah Kd"), /empty, flop, turn, or river/);
   assert.throws(() => solveRiverSpot(100, 66, 250, "", -1, 0), /rake/);
   assert.throws(() => solveRiverSpot(100, 66, 250, "", 0, 0, "NLH", "turn 66"), /flop/);
 });

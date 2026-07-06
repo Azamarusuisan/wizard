@@ -2198,6 +2198,9 @@ fn parse_board(text: &str) -> Result<Vec<eval::Card>, String> {
     if cards.len() > 5 {
         return Err("board cannot have more than five cards".to_string());
     }
+    if cards.len() == 1 || cards.len() == 2 {
+        return Err("solver board must be empty, flop, turn, or river".to_string());
+    }
     let mut uniq = cards.clone();
     uniq.sort_unstable();
     uniq.dedup();
@@ -3569,6 +3572,23 @@ mod tests {
             bet: 66.0,
             stack: None,
             board: None,
+            rake_pct: None,
+            rake_cap: None,
+            bet_tree: None,
+            hero_range: None,
+            villain_range: None,
+        })
+        .is_err());
+        assert!(super::validate_spot(&super::NativeSpot {
+            game: None,
+            position: None,
+            villain_position: None,
+            pot_type: None,
+            precision: None,
+            pot: 100.0,
+            bet: 66.0,
+            stack: None,
+            board: Some("Ah Kd".to_string()),
             rake_pct: None,
             rake_cap: None,
             bet_tree: None,

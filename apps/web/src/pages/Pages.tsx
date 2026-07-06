@@ -365,6 +365,7 @@ function validateSolverInputs(game: Game, pot: number, bet: number, stack: numbe
   if (!flopBetSizes(betTree, pot, bet, stack, game).length) parseBetTree(betTree);
   const cards = board.trim() ? board.trim().split(/\s+/).map(parseCard) : [];
   if (cards.length > 5) throw new Error("board cannot have more than five cards");
+  if (cards.length === 1 || cards.length === 2) throw new Error("solver board must be empty, flop, turn, or river");
   if (new Set(cards).size !== cards.length) throw new Error("duplicate board cards");
 }
 

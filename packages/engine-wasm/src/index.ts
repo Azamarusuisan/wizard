@@ -602,6 +602,7 @@ function rakeAmount(potAfterCall: number, rakePct: number, rakeCap: number): num
 function parseBoardText(text: string): Card[] {
   const board = text.trim() ? text.trim().split(/\s+/).map(parseCard) : [];
   if (board.length > 5) throw new Error("board cannot have more than five cards");
+  if (board.length === 1 || board.length === 2) throw new Error("solver board must be empty, flop, turn, or river");
   if (new Set(board).size !== board.length) throw new Error("duplicate board cards");
   return board;
 }
