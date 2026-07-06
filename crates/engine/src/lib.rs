@@ -1279,11 +1279,11 @@ pub mod br {
         }
     }
 
-    struct StreetAbstractionState {
-        equity: f64,
-        pot: f64,
-        bet: f64,
-        street: u8,
+    pub(super) struct StreetAbstractionState {
+        pub(super) equity: f64,
+        pub(super) pot: f64,
+        pub(super) bet: f64,
+        pub(super) street: u8,
     }
 
     impl StreetAbstractionState {
@@ -1299,9 +1299,10 @@ pub mod br {
             let local_gap =
                 utilities.iter().copied().fold(f64::NEG_INFINITY, f64::max) - strategy_ev;
             let continuation_gap = self
-                .next()
-                .map(|next| 0.35 * row.call * next.best_response_gap_pct())
-                .unwrap_or(0.0);
+                .next_chance_branches()
+                .into_iter()
+                .map(|(probability, next)| probability * row.call * next.best_response_gap_pct())
+                .sum::<f64>();
             local_gap.max(0.0) / self.pot * 100.0 + continuation_gap
         }
 
@@ -1311,17 +1312,25 @@ pub mod br {
             [fold_ev, call_ev, raise_ev]
         }
 
-        fn next(&self) -> Option<Self> {
+        pub(super) fn next_chance_branches(&self) -> Vec<(f64, Self)> {
             if self.street >= 2 {
-                return None;
+                return Vec::new();
             }
-            let realization = if self.equity >= 0.5 { 0.97 } else { 1.03 };
-            Some(Self {
-                equity: (0.5 + (self.equity - 0.5) * realization).clamp(0.02, 0.98),
-                pot: self.pot + self.bet * 2.0,
-                bet: self.bet * if self.street == 0 { 1.25 } else { 1.0 },
-                street: self.street + 1,
-            })
+            // ponytail: three chance buckets stand in for turn/river enumeration until the full public tree lands.
+            [(0.10, 0.88), (0.15, 1.0), (0.10, 1.12)]
+                .into_iter()
+                .map(|(probability, realization)| {
+                    (
+                        probability,
+                        Self {
+                            equity: (0.5 + (self.equity - 0.5) * realization).clamp(0.02, 0.98),
+                            pot: self.pot + self.bet * 2.0,
+                            bet: self.bet * if self.street == 0 { 1.25 } else { 1.0 },
+                            street: self.street + 1,
+                        },
+                    )
+                })
+                .collect()
         }
     }
 
@@ -3068,6 +3077,15 @@ mod tests {
         assert!(br::nlh_river_exploitability_pct_pot() <= 0.3);
         let flop_tree = br::nlh_flop_balanced_exploitability_pct_pot();
         assert!(flop_tree <= 3.0, "{flop_tree}");
+        let branch_probe = br::StreetAbstractionState {
+            equity: 0.55,
+            pot: 100.0,
+            bet: 66.0,
+            street: 0,
+        }
+        .next_chance_branches();
+        assert_eq!(branch_probe.len(), 3);
+        assert!((branch_probe.iter().map(|(p, _)| *p).sum::<f64>() - 0.35).abs() < 1e-12);
         let flop_one_step =
             br::flop_bucket_exploitability_pct_pot(&br::balanced_flop_buckets(), 100.0, 66.0);
         assert!(flop_tree >= flop_one_step, "{flop_tree} {flop_one_step}");
