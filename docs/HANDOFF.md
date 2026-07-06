@@ -93,6 +93,7 @@
 - EngineAPI native-to-result fallback information-set reconstruction also classifies bet-response terminal child nodes with the same `response:<node id>` metric refs.
 - Flop and turn solve payloads now expose public chance branch nodes (`root/turn-low|mid|high`, `root/river-low|mid|high`) with unique information-set keys and branch-derived compact strategy/metric tables. Rust native, TS fallback, EngineAPI, and Playwright cover the nodes; the full street tree still needs to replace this compact abstraction.
 - NLH chance branch metric tables now use next-street card equity quantiles instead of fixed low/high shifts when board and combo cards are available. Rust native, TS fallback, EngineAPI, and Playwright cover the path; PLO and invalid/incomplete card data still use the compact fallback.
+- Chance branch metric tables now also use the configured destination-street bet-tree sizes for compact call/raise EVs, so turn and river branch rows no longer reuse only the original spot bet amount.
 - First-level terminal action nodes (`root/fold`, `root/call`, `root/raise`) still return empty strategy payloads but now return their branch EV/equity/EQR hand metrics from the stored action-EV table.
 - Rust native spot validation now parses `flop` / `turn` / `river` bet-tree text with numeric `% pot` sizes and `all-in`, rejecting malformed trees before solve creation.
 - Rust bet-tree utilities now expand `% pot` / `all-in` sizes into concrete bet amounts, applying the spec's 85% stack all-in rounding and de-duplicating equivalent all-ins.
@@ -154,7 +155,7 @@
 - IndexedDB solve cache keys are canonical JSON SHA-256 via WebCrypto in the web layer.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `default_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~11.66 ns/eval, default river rows ~501.65 us. The evaluator now exceeds the original 50M eval/s target on this machine.
-- Last verified: `bash scripts/verify.sh` exited 0 after adding card-derived NLH chance branch metrics. Targeted checks also passed: Rust `native_solve_uses_shared_river_strategy_rows`, `pnpm --filter @gto-lab/engine-wasm test`, `pnpm --filter @gto-lab/web typecheck`, `wasm-pack build`, `pnpm exec playwright test apps/web/tests/core-flows.spec.ts --grep "solver runs"`, and `cargo clippy -p gto_lab_engine -- -D warnings`. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
+- Last verified: `bash scripts/verify.sh` exited 0 after making chance branch EVs use destination-street bet-tree sizes. Targeted checks also passed: Rust `native_solve_uses_shared_river_strategy_rows`, `pnpm --filter @gto-lab/engine-wasm test`, `pnpm --filter @gto-lab/web typecheck`, `wasm-pack build`, `pnpm exec playwright test apps/web/tests/core-flows.spec.ts --grep "solver runs"`, and `cargo clippy -p gto_lab_engine -- -D warnings`. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
 - Git remote `origin` is set to `https://github.com/Azamarusuisan/wizard.git`; do not push until §6 is actually complete.
 
 ## Important Caveat

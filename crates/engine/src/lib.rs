@@ -3317,6 +3317,8 @@ fn is_chance_node(node: &NativeNode) -> bool {
 fn chance_node_rows(solve: &NativeSolve, node: &NativeNode) -> Vec<br::RiverCombo> {
     let pot = chance_node_pot(solve);
     let (rake_pct, rake_cap) = spot_rake(&solve.spot);
+    let bet_amounts = chance_node_bet_amounts(solve, node, pot);
+    let call_bet = bet_amounts.first().copied().unwrap_or(solve.spot.bet);
     solve
         .metrics
         .chunks_exact(3)
@@ -3329,7 +3331,7 @@ fn chance_node_rows(solve: &NativeSolve, node: &NativeNode) -> Vec<br::RiverComb
                 shifted_chance_node_equity(metric[1], &node.id)
             };
             let (fold_ev, call_ev, raise_ev) =
-                br::action_evs(equity, pot, solve.spot.bet, rake_pct, rake_cap);
+                row_action_evs(equity, pot, call_bet, &bet_amounts, rake_pct, rake_cap);
             br::cfr_combo_from_action_evs(equity, fold_ev, call_ev, raise_ev, 256)
         })
         .collect()
@@ -3338,16 +3340,27 @@ fn chance_node_rows(solve: &NativeSolve, node: &NativeNode) -> Vec<br::RiverComb
 fn chance_node_metrics(solve: &NativeSolve, node: &NativeNode) -> Vec<f64> {
     let pot = chance_node_pot(solve);
     let (rake_pct, rake_cap) = spot_rake(&solve.spot);
+    let bet_amounts = chance_node_bet_amounts(solve, node, pot);
+    let call_bet = bet_amounts.first().copied().unwrap_or(solve.spot.bet);
     chance_node_rows(solve, node)
         .into_iter()
         .flat_map(|row| {
             let (fold_ev, call_ev, raise_ev) =
-                br::action_evs(row.equity, pot, solve.spot.bet, rake_pct, rake_cap);
+                row_action_evs(row.equity, pot, call_bet, &bet_amounts, rake_pct, rake_cap);
             let ev = (row.fold * fold_ev + row.call * call_ev + row.raise * raise_ev) / 100.0;
             let eqr = ev / (row.equity * pot / 100.0).max(0.0001);
             [ev, row.equity, eqr]
         })
         .collect()
+}
+
+fn chance_node_bet_amounts(solve: &NativeSolve, node: &NativeNode, pot: f64) -> Vec<f64> {
+    let board_len = match node.street.as_str() {
+        "turn" => 4,
+        "river" => 5,
+        _ => return vec![solve.spot.bet],
+    };
+    bet_amounts_for_context(&solve.spot, board_len, pot, solve.spot.bet)
 }
 
 fn chance_node_pot(solve: &NativeSolve) -> f64 {
@@ -3508,22 +3521,26 @@ fn with_solve<T>(
 }
 
 fn bet_amounts_for_spot(spot: &NativeSpot, board_len: usize) -> Vec<f64> {
+    bet_amounts_for_context(spot, board_len, spot.pot, spot.bet)
+}
+
+fn bet_amounts_for_context(spot: &NativeSpot, board_len: usize, pot: f64, call: f64) -> Vec<f64> {
     let stack = spot.stack.unwrap_or(spot.pot * 4.2);
     let Some(tree) = spot
         .bet_tree
         .as_deref()
         .and_then(|text| tree::parse_bet_tree(text).ok())
     else {
-        return vec![spot.bet];
+        return vec![call];
     };
     let sizes = bet_sizes_for_board(&tree, board_len);
     let amounts = if matches!(spot.game.as_deref().unwrap_or("NLH"), "PLO4" | "PLO5") {
-        tree::concrete_pot_limit_bets(sizes, spot.pot, spot.bet, stack)
+        tree::concrete_pot_limit_bets(sizes, pot, call, stack)
     } else {
-        tree::concrete_bets(sizes, spot.pot, stack)
+        tree::concrete_bets(sizes, pot, stack)
     };
     if amounts.is_empty() {
-        vec![spot.bet]
+        vec![call]
     } else {
         amounts
     }
@@ -4331,6 +4348,20 @@ mod tests {
             super::get_hand_metrics(flop_handle, "turn:root/turn-high").unwrap();
         assert!(turn_low_metrics[1] <= turn_mid_metrics[1]);
         assert!(turn_mid_metrics[1] <= turn_high_metrics[1]);
+        let small_turn_handle = super::solve(
+            r#"{"pot":100.0,"bet":66.0,"stack":250.0,"board":"Ah Kd 7c","betTree":"flop 33; turn 25; river 75"}"#,
+        )
+        .expect("small turn solve starts");
+        let large_turn_handle = super::solve(
+            r#"{"pot":100.0,"bet":66.0,"stack":250.0,"board":"Ah Kd 7c","betTree":"flop 33; turn 125; river 75"}"#,
+        )
+        .expect("large turn solve starts");
+        let small_turn_metrics =
+            super::get_hand_metrics(small_turn_handle, "turn:root/turn-mid").unwrap();
+        let large_turn_metrics =
+            super::get_hand_metrics(large_turn_handle, "turn:root/turn-mid").unwrap();
+        assert_eq!(small_turn_metrics[1], large_turn_metrics[1]);
+        assert_ne!(small_turn_metrics[0], large_turn_metrics[0]);
         let turn_handle =
             super::solve(r#"{"pot":100.0,"bet":66.0,"stack":250.0,"board":"Ah Kd 7c 2s"}"#)
                 .expect("turn solve starts");

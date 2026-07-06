@@ -157,7 +157,7 @@ export function SolverStudio() {
   const memoryEstimate = estimateSolverMemory(game, precision, board);
   const selectedNode = shown?.nodes.find((node) => node.id === selectedNodeId) ?? shown?.nodes[0];
   const selectedInfoSet = selectedNode ? shown?.informationSets.find((infoSet) => infoSet.nodeId === selectedNode.id || infoSet.key === selectedNode.infoSet) : null;
-  const nodeRows = shown && selectedNode ? rowsForNode(shown, selectedNode, { pot, bet, board, villainRange, rakePct, rakeCap }) : [];
+  const nodeRows = shown && selectedNode ? rowsForNode(shown, selectedNode, { game, pot, bet, stack, board, villainRange, rakePct, rakeCap, betTree }) : [];
   const handClasses = [...new Set(nodeRows.map((row) => row.handClass))].sort();
   const shownRows = handClassFilter === "all" ? nodeRows : nodeRows.filter((row) => row.handClass === handClassFilter);
   const nodeSummary = summarizeRows(shownRows);
@@ -289,7 +289,7 @@ function parseBoardCards(value: string): number[] {
   }
 }
 
-function rowsForNode(result: SolveResult, node: SolveNode, spot: { pot: number; bet: number; board: string; villainRange: string; rakePct: number; rakeCap: number }): SolverRow[] {
+function rowsForNode(result: SolveResult, node: SolveNode, spot: { game: Game; pot: number; bet: number; stack: number; board: string; villainRange: string; rakePct: number; rakeCap: number; betTree: string }): SolverRow[] {
   if (node.id === "root") return result.rows;
   if (node.id === "root/fold") return result.rows.map((row) => actionRow(row, "fold", row.foldEv));
   if (node.id === "root/call") return result.rows.map((row) => actionRow(row, "call", row.callEv));
@@ -302,15 +302,31 @@ function rowsForNode(result: SolveResult, node: SolveNode, spot: { pot: number; 
   return [];
 }
 
-function chanceRow(row: SolverRow, nodeId: string, spot: { pot: number; bet: number; board: string; villainRange: string; rakePct: number; rakeCap: number }): SolverRow {
+function chanceRow(row: SolverRow, nodeId: string, spot: { game: Game; pot: number; bet: number; stack: number; board: string; villainRange: string; rakePct: number; rakeCap: number; betTree: string }): SolverRow {
   const equity = nlhChanceEquity(row.combo, row.equity, spot.board, nodeId, spot.villainRange);
   const nextPot = spot.pot + spot.bet * 2;
-  const rake = Math.min((nextPot + spot.bet) * (spot.rakePct / 100), spot.rakeCap);
-  const callEv = (equity * (nextPot + spot.bet - rake) - (1 - equity) * spot.bet) / 100;
-  const raiseEv = callEv + (equity * spot.bet * 0.15) / 100;
+  const betAmounts = chanceBetAmounts(spot, nodeId, nextPot);
+  const bet = betAmounts[0] ?? spot.bet;
+  const rake = Math.min((nextPot + bet) * (spot.rakePct / 100), spot.rakeCap);
+  const callEv = (equity * (nextPot + bet - rake) - (1 - equity) * bet) / 100;
+  const raiseEv = Math.max(...betAmounts.map((amount) => {
+    const raiseRake = Math.min((nextPot + amount) * (spot.rakePct / 100), spot.rakeCap);
+    const base = equity * (nextPot + amount - raiseRake) - (1 - equity) * amount;
+    return (base + equity * amount * 0.15) / 100;
+  }));
   const { fold, call, raise } = regretMix([0, callEv, raiseEv]);
   const ev = call * callEv + raise * raiseEv;
   return { ...row, fold, call, raise, equity, callEv, raiseEv, ev, eqr: ev / Math.max(0.0001, equity * nextPot / 100) };
+}
+
+function chanceBetAmounts(spot: { game: Game; pot: number; bet: number; stack: number; betTree: string }, nodeId: string, pot: number): number[] {
+  if (!spot.betTree.trim()) return [spot.bet];
+  const boardLen = nodeId.startsWith("root/turn-") ? 4 : nodeId.startsWith("root/river-") ? 5 : 0;
+  if (!boardLen) return [spot.bet];
+  const tree = parseBetTree(spot.betTree);
+  const sizes = boardLen === 4 ? tree.turn : tree.river;
+  const amounts = spot.game === "NLH" ? concreteBets(sizes, pot, spot.stack) : concretePotLimitBets(sizes, pot, spot.bet, spot.stack);
+  return amounts.length ? amounts : [spot.bet];
 }
 
 function regretMix(evs: [number, number, number]): Pick<SolverRow, "fold" | "call" | "raise"> {

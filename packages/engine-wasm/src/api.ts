@@ -1,4 +1,4 @@
-import { nlhChanceEquity, solveRiverSpot, type SolveInfoSet, type SolveNode, type SolveResult, type SolverRow } from "./index.js";
+import { concreteBets, concretePotLimitBets, nlhChanceEquity, parseBetTree, solveRiverSpot, type SolveInfoSet, type SolveNode, type SolveResult, type SolverRow } from "./index.js";
 
 export type Progress = { iteration: number; exploitabilityPct: number; elapsed: number };
 export type EngineHandle = number;
@@ -381,20 +381,39 @@ function isChanceNode(node: SolveNode): boolean {
 
 function chanceRows(result: SolveResult, spot: LocalSpot, node: SolveNode): SolverRow[] {
   const pot = node.pot ?? spot.pot + spot.bet * 2;
-  const bet = spot.bet;
+  const betAmounts = chanceBetAmounts(spot, node, pot);
+  const bet = betAmounts[0] ?? spot.bet;
   return result.rows.map((row) => {
     const equity = nlhChanceEquity(row.combo, row.equity, spot.board ?? "", node.id, spot.villainRange ?? "");
-    const { callEv, raiseEv } = localActionEvs(equity, pot, bet, spot.rakePct ?? 0, spot.rakeCap ?? 0);
+    const { callEv, raiseEv } = localActionEvs(equity, pot, bet, spot.rakePct ?? 0, spot.rakeCap ?? 0, betAmounts);
     const strategy = localCfrStrategy(0, callEv, raiseEv);
     const ev = (strategy.call * callEv + strategy.raise * raiseEv) / 100;
     return { ...row, ...strategy, equity, callEv: callEv / 100, raiseEv: raiseEv / 100, ev, eqr: ev / Math.max(0.0001, equity * pot / 100) };
   });
 }
 
-function localActionEvs(equity: number, pot: number, bet: number, rakePct: number, rakeCap: number): { callEv: number; raiseEv: number } {
+function chanceBetAmounts(spot: LocalSpot, node: SolveNode, pot: number): number[] {
+  if (!spot.betTree?.trim()) return [spot.bet];
+  const boardLen = node.street === "turn" ? 4 : node.street === "river" ? 5 : 0;
+  if (!boardLen) return [spot.bet];
+  const tree = parseBetTree(spot.betTree);
+  const sizes = boardLen === 4 ? tree.turn : tree.river;
+  const stack = spot.stack ?? spot.pot * 4.2;
+  const amounts = spot.game === "PLO4" || spot.game === "PLO5"
+    ? concretePotLimitBets(sizes, pot, spot.bet, stack)
+    : concreteBets(sizes, pot, stack);
+  return amounts.length ? amounts : [spot.bet];
+}
+
+function localActionEvs(equity: number, pot: number, bet: number, rakePct: number, rakeCap: number, raiseBets = [bet]): { callEv: number; raiseEv: number } {
   const rake = Math.min((pot + bet) * (rakePct / 100), rakeCap);
   const callEv = equity * (pot + bet - rake) - (1 - equity) * bet;
-  return { callEv, raiseEv: callEv + equity * bet * 0.15 };
+  const raiseEv = Math.max(...raiseBets.map((amount) => {
+    const raiseRake = Math.min((pot + amount) * (rakePct / 100), rakeCap);
+    const base = equity * (pot + amount - raiseRake) - (1 - equity) * amount;
+    return base + equity * amount * 0.15;
+  }));
+  return { callEv, raiseEv };
 }
 
 function localCfrStrategy(foldEv: number, callEv: number, raiseEv: number): Pick<SolverRow, "fold" | "call" | "raise"> {
