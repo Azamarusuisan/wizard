@@ -2160,12 +2160,21 @@ fn with_solve<T>(
 }
 
 fn root_nodes(board_len: usize) -> Vec<NativeNode> {
-    vec![NativeNode {
+    let street = street_for_board(board_len);
+    let actions = ["fold", "call", "raise"];
+    let mut nodes = vec![NativeNode {
         id: "root".to_string(),
         label: "Root".to_string(),
-        street: street_for_board(board_len).to_string(),
-        actions: vec!["fold".to_string(), "call".to_string(), "raise".to_string()],
-    }]
+        street: street.to_string(),
+        actions: actions.iter().map(|action| action.to_string()).collect(),
+    }];
+    nodes.extend(actions.iter().map(|action| NativeNode {
+        id: format!("root/{action}"),
+        label: action.to_ascii_uppercase(),
+        street: street.to_string(),
+        actions: Vec::new(),
+    }));
+    nodes
 }
 
 fn street_for_board(board_len: usize) -> &'static str {
@@ -2552,6 +2561,7 @@ mod tests {
         assert_eq!(native.spot.bet_tree.as_deref(), Some("flop 33,66,all-in"));
         assert_eq!(native.nodes[0].id, "root");
         assert_eq!(native.nodes[0].street, "preflop");
+        assert!(super::has_node_id(&native, "root/call"));
         let first = br::cfr_combo(br::DEFAULT_RIVER_SPECS[0].1, 100.0, 66.0, 2_048);
         assert_eq!(native.combos[0], "AcAd");
         assert_eq!(native.combos.len(), 28);

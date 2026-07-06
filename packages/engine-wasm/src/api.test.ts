@@ -11,11 +11,13 @@ test("EngineAPI prefers generated wasm package when present", async () => {
   const handle = await engine.solve(JSON.stringify({ pot: 100, bet: 66 }));
   const result = await engine.result(handle);
   assert.equal(result.nodes[0]?.id, "root");
+  assert.ok(result.nodes.some((node) => node.id === "root/call"));
   assert.equal(result.rows[0]?.combo, "AcAd");
   assert.ok(result.rows[0]!.raiseEv >= result.rows[0]!.callEv);
   assert.ok(result.exploitability.length > 0);
   assert.equal(result.metrics.brGapPctPot, result.exploitability.at(-1)?.value);
   assert.equal((await engine.getStrategy(handle, "root")).combos[0], "AcAd");
+  assert.equal((await engine.getStrategy(handle, "root/call")).combos[0], "AcAd");
   const plo4 = await engine.solve(JSON.stringify({ game: "PLO4", pot: 100, bet: 66 }));
   const plo4Result = await engine.result(plo4);
   assert.equal(plo4Result.rows[0]?.combo, "AsAhKsKh");

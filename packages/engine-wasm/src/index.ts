@@ -465,7 +465,11 @@ function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack
 
 function rootNodes(boardLen: number): SolveNode[] {
   const street = boardLen === 0 ? "preflop" : boardLen === 3 ? "flop" : boardLen === 4 ? "turn" : "river";
-  return [{ id: "root", label: "Root", street, actions: ["fold", "call", "raise"] }];
+  const actions = ["fold", "call", "raise"];
+  return [
+    { id: "root", label: "Root", street, actions },
+    ...actions.map((action) => ({ id: `root/${action}`, label: action.toUpperCase(), street, actions: [] }))
+  ];
 }
 
 function ploFastSampleEquity(row: PloFastSample): number {
