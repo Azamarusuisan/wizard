@@ -294,7 +294,7 @@ function rowsForNode(result: SolveResult, node: SolveNode, spot: { game: Game; p
   if (node.id === "root/fold") return result.rows.map((row) => actionRow(row, "fold", row.foldEv));
   if (node.id === "root/call") return result.rows.map((row) => actionRow(row, "call", row.callEv));
   if (node.id === "root/raise") return result.rows.map((row) => actionRow(row, "raise", row.raiseEv));
-  if (node.id === "root/raise-sizes") return result.rows;
+  if (node.id === "root/raise-sizes") return result.rows.map((row) => raiseSizeRow(row, node.actions, spot));
   const chanceParent = chanceParentId(node.id);
   const sourceRows = chanceParent ? result.rows.map((row) => chanceRow(row, chanceParent, spot)) : result.rows;
   if (node.amount !== undefined && node.pot !== undefined && node.id.endsWith("/fold")) return sourceRows.map((row) => betResponseActionRow(row, "fold", node.pot!));
@@ -327,6 +327,35 @@ function chanceRow(row: SolverRow, nodeId: string, spot: { game: Game; pot: numb
   const { fold, call, raise } = regretMix([0, callEv, raiseEv]);
   const ev = call * callEv + raise * raiseEv;
   return { ...row, fold, call, raise, equity, callEv, raiseEv, ev, eqr: ev / Math.max(0.0001, equity * nextPot / 100) };
+}
+
+function raiseSizeRow(row: SolverRow, actions: string[], spot: { pot: number; stack: number; rakePct: number; rakeCap: number }): SolverRow {
+  const evs = actions.map((action) => {
+    const amount = action === "all-in" ? spot.stack : Number(action);
+    const rake = Math.min((spot.pot + amount) * (spot.rakePct / 100), spot.rakeCap);
+    const callEv = row.equity * (spot.pot + amount - rake) - (1 - row.equity) * amount;
+    return callEv + row.equity * amount * 0.15;
+  });
+  const mix = cfrAverage(evs, 256);
+  const ev = mix.reduce((sum, frequency, i) => sum + frequency * row.raise * (evs[i] ?? 0), 0) / 100;
+  return { ...row, ev, eqr: ev / Math.max(0.0001, row.equity * spot.pot / 100) };
+}
+
+function cfrAverage(evs: number[], iterations: number): number[] {
+  const regrets = evs.map(() => 0);
+  const sums = evs.map(() => 0);
+  for (let iter = 0; iter < iterations; iter++) {
+    const positives = regrets.map((value) => Math.max(0, value));
+    const total = positives.reduce((sum, value) => sum + value, 0);
+    const strategy = total > 0 ? positives.map((value) => value / total) : positives.map(() => 1 / positives.length);
+    const nodeEv = strategy.reduce((sum, value, i) => sum + value * (evs[i] ?? 0), 0);
+    for (let i = 0; i < evs.length; i++) {
+      regrets[i]! += (evs[i] ?? 0) - nodeEv;
+      sums[i]! += strategy[i] ?? 0;
+    }
+  }
+  const total = sums.reduce((sum, value) => sum + value, 0);
+  return total > 0 ? sums.map((value) => value / total) : sums;
 }
 
 function chanceBetAmounts(spot: { game: Game; pot: number; bet: number; stack: number; betTree: string }, nodeId: string, pot: number): number[] {

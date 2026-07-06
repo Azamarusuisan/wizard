@@ -110,6 +110,7 @@ class LocalEngine implements EngineAPI {
         eqr: Float32Array.from(rows.map((r) => r.eqr))
       };
     }
+    if (node.id === "root/raise-sizes") return raiseSizeMetrics(result, node.actions, spot);
     const action = nodeActionKey(node.id);
     if (action) return actionNodeMetrics(result, action);
     if (!node.actions.length) return { ev: new Float32Array(), equity: new Float32Array(), eqr: new Float32Array() };
@@ -158,6 +159,20 @@ function raiseSizeActions(row: SolverRow, actions: string[], spot: LocalSpot): n
   const evs = actions.map((action) => actionEvs(row.equity, spot.pot, raiseActionAmount(action, stack), spot.rakePct ?? 0, spot.rakeCap ?? 0).raiseEv);
   const mix = cfrAverageStrategy(evs, 256);
   return mix.map((frequency) => frequency * row.raise);
+}
+
+function raiseSizeMetrics(result: SolveResult, actions: string[], spot: LocalSpot): HandMetrics {
+  const ev = Float32Array.from(result.rows.map((row) => raiseSizeEv(row, actions, spot)));
+  const equity = Float32Array.from(result.rows.map((row) => row.equity));
+  const eqr = Float32Array.from(result.rows.map((row, i) => ev[i]! / Math.max(0.0001, row.equity * spot.pot / 100)));
+  return { ev, equity, eqr };
+}
+
+function raiseSizeEv(row: SolverRow, actions: string[], spot: LocalSpot): number {
+  const stack = spot.stack ?? spot.pot * 4.2;
+  const evs = actions.map((action) => actionEvs(row.equity, spot.pot, raiseActionAmount(action, stack), spot.rakePct ?? 0, spot.rakeCap ?? 0).raiseEv);
+  const mix = cfrAverageStrategy(evs, 256);
+  return mix.reduce((sum, frequency, i) => sum + frequency * row.raise * (evs[i] ?? 0), 0) / 100;
 }
 
 function raiseActionAmount(action: string, stack: number): number {

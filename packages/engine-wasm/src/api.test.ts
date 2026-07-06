@@ -43,6 +43,10 @@ test("EngineAPI prefers generated wasm package when present", async () => {
   assert.equal(raiseSizeStrategy.actions.length, raiseSizeStrategy.combos.length * raiseSizeNode.actions.length);
   assert.ok(Math.abs([...raiseSizeStrategy.actions.slice(0, raiseSizeNode.actions.length)].reduce((sum, value) => sum + value, 0) - betResult.rows[0]!.raise) < 1e-12);
   assert.equal(betResult.informationSets.find((infoSet) => infoSet.nodeId === "root/raise-sizes")?.strategyRef, "raise-sizes");
+  const raiseSizeMetrics = await engine.getHandMetrics(betHandle, "root/raise-sizes");
+  assert.equal(raiseSizeMetrics.ev.length, betStrategy.combos.length);
+  assert.ok(Math.abs(raiseSizeMetrics.equity[0]! - betResult.rows[0]!.equity) < 1e-6);
+  assert.ok(Number.isFinite(raiseSizeMetrics.ev[0]));
   const betMetrics = await engine.getHandMetrics(betHandle, "root/bet-33");
   assert.equal(betMetrics.ev.length, betStrategy.combos.length);
   assert.ok(Number.isFinite(betMetrics.ev[0]));

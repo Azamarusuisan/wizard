@@ -3233,6 +3233,43 @@ fn raise_size_mix(
     }
 }
 
+fn raise_size_metrics(solve: &NativeSolve, node: &NativeNode) -> Vec<f64> {
+    let stack = solve.spot.stack.unwrap_or(solve.spot.pot * 4.2);
+    let rake_pct = solve.spot.rake_pct.unwrap_or(0.0);
+    let rake_cap = solve.spot.rake_cap.unwrap_or(0.0);
+    solve
+        .metrics
+        .chunks_exact(3)
+        .zip(solve.strategy.chunks_exact(3))
+        .take(solve.combos.len())
+        .flat_map(|(metric, strategy)| {
+            let equity = metric[1];
+            let evs = node
+                .actions
+                .iter()
+                .map(|action| raise_action_amount(action, stack))
+                .map(|amount| br::action_evs(equity, solve.spot.pot, amount, rake_pct, rake_cap).2)
+                .collect::<Vec<_>>();
+            let mix = raise_size_mix(
+                equity,
+                solve.spot.pot,
+                stack,
+                rake_pct,
+                rake_cap,
+                &node.actions,
+            );
+            let ev = mix
+                .iter()
+                .zip(evs)
+                .map(|(frequency, action_ev)| frequency * strategy[2] * action_ev)
+                .sum::<f64>()
+                / 100.0;
+            let eqr = ev / (equity * solve.spot.pot / 100.0).max(0.0001);
+            [ev, equity, eqr]
+        })
+        .collect()
+}
+
 fn regret_matching_vec(regrets: &[f64]) -> Vec<f64> {
     let positives = regrets
         .iter()
@@ -3293,6 +3330,9 @@ pub fn get_hand_metrics(handle: u32, node_id: &str) -> Result<Vec<f64>, JsValue>
         }
         if let Some(action_idx) = node_action_index(&node.id) {
             return Ok(action_node_metrics(solve, action_idx));
+        }
+        if node.id == "root/raise-sizes" {
+            return Ok(raise_size_metrics(solve, node));
         }
         if is_chance_node(node) {
             return Ok(chance_node_metrics(solve, node));
@@ -4581,6 +4621,10 @@ mod tests {
                 .count()
                 > 1
         );
+        let raise_size_metrics = super::get_hand_metrics(handle, "root/raise-sizes").unwrap();
+        assert_eq!(raise_size_metrics.len(), native.combos.len() * 3);
+        assert_eq!(raise_size_metrics[1], native.metrics[1]);
+        assert_ne!(raise_size_metrics[0], native.metrics[0]);
         let bet_metrics = super::get_hand_metrics(handle, "root/bet-33").unwrap();
         assert_eq!(bet_metrics.len(), native.combos.len() * 3);
         assert!(bet_metrics[0].is_finite());
