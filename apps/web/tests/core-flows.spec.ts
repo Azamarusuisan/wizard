@@ -142,6 +142,8 @@ test("trainer displays decision controls", async ({ page }) => {
   await page.goto("/trainer");
   await expect(page.getByText("BTN vs BB, SRP")).toBeVisible();
   await expect(page.locator('[aria-label="Street: flop"]')).toBeVisible();
+  await expect(page.getByRole("button", { name: "Bet 66bb" })).toBeVisible();
+  await expect(page.locator('[aria-label="Best size: Bet 66bb"]')).toBeVisible();
   await page.getByRole("button", { name: "Next drill" }).click();
   await expect(page.getByText("CO vs BB, SRP")).toBeVisible();
   await page.keyboard.press("B");

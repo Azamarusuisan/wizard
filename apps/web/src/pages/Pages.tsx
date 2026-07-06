@@ -512,17 +512,19 @@ export function Trainer() {
   const loss = chosenEv === null ? null : bestEv - chosenEv;
   const grade = loss === null ? "Choose an action" : gradeForLoss(loss);
   const avgLoss = history.length ? history.reduce((sum, result) => sum + result.evLoss, 0) / history.length : null;
+  const raiseLabel = row.bestRaiseAmount ? `Bet ${Math.round(row.bestRaiseAmount)}bb` : "Bet";
   return (
     <div className="grid">
       <h1 className="title">Trainer</h1>
       <div className="card">
         <p className="muted">{drill.label}. Hero: {formatComboForDisplay(row.combo)}.</p>
         <div className="cards">{[...comboCards(row.combo), ...drill.board.split(/\s+/).map(parseCard)].map((card) => <CardView key={card} card={card} />)}</div>
-        <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}><button className="btn" onClick={() => answer("fold")}>Fold</button><button className="btn" onClick={() => answer("call")}>Call</button><button className="btn primary" onClick={() => answer("raise")}>Bet 66%</button><button className="btn" onClick={nextDrill}>Next drill</button></div>
+        <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}><button className="btn" onClick={() => answer("fold")}>Fold</button><button className="btn" onClick={() => answer("call")}>Call</button><button className="btn primary" onClick={() => answer("raise")}>{raiseLabel}</button><button className="btn" onClick={nextDrill}>Next drill</button></div>
         <div className="grid cols-3" style={{ marginTop: 16 }}>
           <Metric label="EV loss" value={loss === null ? "-" : `${loss.toFixed(3)}bb`} />
           <Metric label="Grade" value={grade} />
           <Metric label="GTO raise" value={`${(row.raise * 100).toFixed(0)}%`} />
+          <Metric label="Best size" value={raiseLabel} />
         </div>
         <div className="grid cols-3" style={{ marginTop: 16 }}>
           <Metric label="Attempts" value={history.length} />
