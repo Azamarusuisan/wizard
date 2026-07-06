@@ -1,9 +1,9 @@
 import type { SolverRow } from "@gto-lab/engine-wasm";
 
-export function StrategyTable({ rows }: { rows: SolverRow[] }) {
+export function StrategyTable({ rows, sizeActions }: { rows: SolverRow[]; sizeActions?: string[] }) {
   return (
     <table aria-label="strategy table">
-      <thead><tr><th>Combo</th><th>Class</th><th>Wt</th><th>Blk</th><th>Fold</th><th>Call</th><th>Raise</th><th>Best</th><th>F EV</th><th>C EV</th><th>R EV</th><th>EV</th><th>EQR</th></tr></thead>
+      <thead><tr><th>Combo</th><th>Class</th><th>Wt</th><th>Blk</th>{sizeActions ? sizeActions.map((action) => <th key={action}>{action}</th>) : <><th>Fold</th><th>Call</th><th>Raise</th></>}<th>Best</th><th>F EV</th><th>C EV</th><th>R EV</th><th>EV</th><th>EQR</th></tr></thead>
       <tbody>
         {rows.map((r) => (
           <tr key={r.combo}>
@@ -11,9 +11,11 @@ export function StrategyTable({ rows }: { rows: SolverRow[] }) {
             <td>{r.handClass}</td>
             <td className="num">{(r.weight * 100).toFixed(0)}%</td>
             <td className="num">{r.blockedCombos.toFixed(1)}</td>
-            <td className="num">{(r.fold * 100).toFixed(0)}%</td>
-            <td className="num">{(r.call * 100).toFixed(0)}%</td>
-            <td className="num">{(r.raise * 100).toFixed(0)}%</td>
+            {sizeActions ? sizeActions.map((action) => <td className="num" key={action}>{(raiseSizeFrequency(r, action, sizeActions) * 100).toFixed(0)}%</td>) : <>
+              <td className="num">{(r.fold * 100).toFixed(0)}%</td>
+              <td className="num">{(r.call * 100).toFixed(0)}%</td>
+              <td className="num">{(r.raise * 100).toFixed(0)}%</td>
+            </>}
             <td className="num">{r.bestRaiseAmount ? r.bestRaiseAmount.toFixed(0) : "-"}</td>
             <td className="num">{r.foldEv.toFixed(3)}</td>
             <td className="num">{r.callEv.toFixed(3)}</td>
@@ -25,4 +27,10 @@ export function StrategyTable({ rows }: { rows: SolverRow[] }) {
       </tbody>
     </table>
   );
+}
+
+function raiseSizeFrequency(row: SolverRow, action: string, actions: string[]): number {
+  const exact = Number.isInteger(row.bestRaiseAmount) ? String(row.bestRaiseAmount) : row.bestRaiseAmount.toFixed(2);
+  const target = actions.includes(exact) ? exact : actions.includes("all-in") ? "all-in" : exact;
+  return action === target ? row.raise : 0;
 }
