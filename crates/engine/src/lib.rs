@@ -1358,6 +1358,16 @@ pub mod br {
         iterations: usize,
     ) -> RiverCombo {
         let (fold_ev, call_ev, raise_ev) = action_evs(equity, pot, bet, rake_pct, rake_cap);
+        cfr_combo_from_action_evs(equity, fold_ev, call_ev, raise_ev, iterations)
+    }
+
+    pub fn cfr_combo_from_action_evs(
+        equity: f64,
+        fold_ev: f64,
+        call_ev: f64,
+        raise_ev: f64,
+        iterations: usize,
+    ) -> RiverCombo {
         let utils = [fold_ev, call_ev, raise_ev];
         let mut regrets = [0.0; 3];
         let mut strategy_sum = [0.0; 3];
@@ -1790,6 +1800,7 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
     let alpha = spot.bet / (spot.pot + spot.bet);
     let spr = spot.stack.unwrap_or(spot.pot * 4.2) / spot.pot;
     let (rake_pct, rake_cap) = spot_rake(&spot);
+    let bet_amounts = bet_amounts_for_spot(&spot, board.len());
     if matches!(spot.game.as_deref().unwrap_or("NLH"), "PLO4" | "PLO5") {
         return solve_plo_fast(spot, spr, mdf, alpha, pot_odds, rake_pct, rake_cap);
     }
@@ -1805,27 +1816,24 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
     let rows = entries
         .iter()
         .map(|entry| {
-            br::cfr_combo_with_rake(
-                combo_equity_cached(
-                    entry.holes,
-                    entry.fallback,
-                    &board,
-                    &entries,
-                    &mut equity_cache,
-                ),
-                spot.pot,
-                spot.bet,
-                rake_pct,
-                rake_cap,
-                2_048,
-            )
+            let equity = combo_equity_cached(
+                entry.holes,
+                entry.fallback,
+                &board,
+                &entries,
+                &mut equity_cache,
+            );
+            let (fold_ev, call_ev, _) =
+                br::action_evs(equity, spot.pot, spot.bet, rake_pct, rake_cap);
+            let raise_ev = best_raise_ev(equity, spot.pot, &bet_amounts, rake_pct, rake_cap);
+            br::cfr_combo_from_action_evs(equity, fold_ev, call_ev, raise_ev, 2_048)
         })
         .collect::<Vec<_>>();
     for row in &rows {
         let equity = row.equity;
         let (fold_ev, call_ev, raise_ev) =
-            br::action_evs(equity, spot.pot, spot.bet, rake_pct, rake_cap);
-        let ev = br::strategy_ev_with_rake(*row, spot.pot, spot.bet, rake_pct, rake_cap) / 100.0;
+            row_action_evs(equity, spot.pot, spot.bet, &bet_amounts, rake_pct, rake_cap);
+        let ev = (row.fold * fold_ev + row.call * call_ev + row.raise * raise_ev) / 100.0;
         let eqr = ev / (equity * spot.pot / 100.0).max(0.0001);
         strategy.extend([row.fold, row.call, row.raise]);
         action_evs.extend([fold_ev / 100.0, call_ev / 100.0, raise_ev / 100.0]);
@@ -1836,20 +1844,17 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
         mdf,
         alpha,
         pot_odds,
-        br::river_best_response_exploitability_pct_pot_with_rake(
-            &rows, spot.pot, spot.bet, rake_pct, rake_cap,
-        ),
+        river_exploitability_from_action_evs(&rows, &action_evs, spot.pot),
     ]);
-    let progress =
-        br::river_strategy_progress_with_rake(&rows, spot.pot, spot.bet, 36, rake_pct, rake_cap)
-            .into_iter()
-            .enumerate()
-            .map(|(i, exploitability_pct)| NativeProgress {
-                iter: (i as u32 + 1) * 50,
-                exploitability_pct,
-                elapsed: 0.0,
-            })
-            .collect();
+    let progress = river_progress_from_action_evs(&rows, &action_evs, spot.pot, 36)
+        .into_iter()
+        .enumerate()
+        .map(|(i, exploitability_pct)| NativeProgress {
+            iter: (i as u32 + 1) * 50,
+            exploitability_pct,
+            elapsed: 0.0,
+        })
+        .collect();
     let nodes = root_nodes_for_spot(&spot, board.len());
     let solve = NativeSolve {
         spot,
@@ -2188,7 +2193,11 @@ pub fn get_hand_metrics(handle: u32, node_id: &str) -> Result<Vec<f64>, JsValue>
     with_solve(handle, |solve| {
         let node = node_for_id(solve, node_id)?;
         if let Some(amount) = node.amount {
-            return Ok(bet_response_metrics(solve, node.pot.unwrap_or(solve.spot.pot), amount));
+            return Ok(bet_response_metrics(
+                solve,
+                node.pot.unwrap_or(solve.spot.pot),
+                amount,
+            ));
         }
         if let Some(action_idx) = node_action_index(&node.id) {
             return Ok(action_node_metrics(solve, action_idx));
@@ -2273,6 +2282,90 @@ fn with_solve<T>(
         .get(&handle)
         .ok_or_else(|| JsValue::from_str("unknown solve handle"))?;
     f(solve)
+}
+
+fn bet_amounts_for_spot(spot: &NativeSpot, board_len: usize) -> Vec<f64> {
+    let stack = spot.stack.unwrap_or(spot.pot * 4.2);
+    let Some(tree) = spot
+        .bet_tree
+        .as_deref()
+        .and_then(|text| tree::parse_bet_tree(text).ok())
+    else {
+        return vec![spot.bet];
+    };
+    let sizes = bet_sizes_for_board(&tree, board_len);
+    let amounts = if matches!(spot.game.as_deref().unwrap_or("NLH"), "PLO4" | "PLO5") {
+        tree::concrete_pot_limit_bets(sizes, spot.pot, spot.bet, stack)
+    } else {
+        tree::concrete_bets(sizes, spot.pot, stack)
+    };
+    if amounts.is_empty() {
+        vec![spot.bet]
+    } else {
+        amounts
+    }
+}
+
+fn best_raise_ev(equity: f64, pot: f64, bets: &[f64], rake_pct: f64, rake_cap: f64) -> f64 {
+    bets.iter()
+        .map(|amount| br::action_evs(equity, pot, *amount, rake_pct, rake_cap).2)
+        .fold(f64::NEG_INFINITY, f64::max)
+}
+
+fn row_action_evs(
+    equity: f64,
+    pot: f64,
+    call_bet: f64,
+    raise_bets: &[f64],
+    rake_pct: f64,
+    rake_cap: f64,
+) -> (f64, f64, f64) {
+    let (fold_ev, call_ev, _) = br::action_evs(equity, pot, call_bet, rake_pct, rake_cap);
+    (
+        fold_ev,
+        call_ev,
+        best_raise_ev(equity, pot, raise_bets, rake_pct, rake_cap),
+    )
+}
+
+fn river_exploitability_from_action_evs(
+    rows: &[br::RiverCombo],
+    action_evs: &[f64],
+    pot: f64,
+) -> f64 {
+    let mut strategy_ev = 0.0;
+    let mut best_ev = 0.0;
+    for (row, evs) in rows.iter().zip(action_evs.chunks_exact(3)) {
+        let fold_ev = evs[0] * 100.0;
+        let call_ev = evs[1] * 100.0;
+        let raise_ev = evs[2] * 100.0;
+        strategy_ev += row.fold * fold_ev + row.call * call_ev + row.raise * raise_ev;
+        best_ev += fold_ev.max(call_ev).max(raise_ev);
+    }
+    ((best_ev - strategy_ev) / rows.len() as f64 / pot * 100.0).max(0.0)
+}
+
+fn river_progress_from_action_evs(
+    rows: &[br::RiverCombo],
+    action_evs: &[f64],
+    pot: f64,
+    points: usize,
+) -> Vec<f64> {
+    (1..=points)
+        .map(|i| {
+            let t = i as f64 / points as f64;
+            let mixed = rows
+                .iter()
+                .map(|row| br::RiverCombo {
+                    equity: row.equity,
+                    fold: (1.0 - t) / 3.0 + t * row.fold,
+                    call: (1.0 - t) / 3.0 + t * row.call,
+                    raise: (1.0 - t) / 3.0 + t * row.raise,
+                })
+                .collect::<Vec<_>>();
+            river_exploitability_from_action_evs(&mixed, action_evs, pot)
+        })
+        .collect()
 }
 
 fn root_nodes_for_spot(spot: &NativeSpot, board_len: usize) -> Vec<NativeNode> {
@@ -2741,7 +2834,10 @@ mod tests {
         assert!(super::has_node_id(&native, "root/call"));
         assert!(super::has_node_id(&native, "root/bet-33"));
         assert!(super::has_node_id(&native, "root/bet-all-in"));
-        let first = br::cfr_combo(br::DEFAULT_RIVER_SPECS[0].1, 100.0, 66.0, 2_048);
+        let equity = br::DEFAULT_RIVER_SPECS[0].1;
+        let (fold_ev, call_ev, _) = br::action_evs(equity, 100.0, 66.0, 0.0, 0.0);
+        let raise_ev = super::best_raise_ev(equity, 100.0, &[33.0, 66.0, 250.0], 0.0, 0.0);
+        let first = br::cfr_combo_from_action_evs(equity, fold_ev, call_ev, raise_ev, 2_048);
         assert_eq!(native.combos[0], "AcAd");
         assert_eq!(native.combos.len(), 28);
         assert_eq!(
@@ -2764,6 +2860,7 @@ mod tests {
         assert!(bet_metrics[0].is_finite());
         assert!(bet_metrics[1] > 0.0);
         assert!(native.action_evs[2] >= native.action_evs[1]);
+        assert!(native.action_evs[2] > br::action_evs(equity, 100.0, 66.0, 0.0, 0.0).2 / 100.0);
         assert!(native.metrics[(native.combos.len() - 1) * 3] >= 0.0);
         let base = native.combos.len() * 3;
         assert_eq!(native.metrics[base], 2.5);

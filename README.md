@@ -39,7 +39,7 @@ See `docs/ARCHITECTURE.md`.
 ## Accuracy and Limits
 
 - Implemented: NLH/PLO hand evaluation, exact-two PLO evaluation, exact and Monte Carlo equity with 2-6 players and dead cards, range parsers, pot-limit sizing, Kuhn/Leduc gates, default NLH river combo rows, PLO4/PLO5 Fast BR reporting, IndexedDB solve cache, and Playwright flows.
-- Current limitation: the production solve path is still default-combo river solving, not the required full postflop CFR tree. NLH flop Balanced and PLO Fast gates currently use compact abstractions/proxies.
+- Current limitation: the production solve path is still default-combo river solving, not the required full postflop CFR tree. NLH root rows now consider configured bet-tree raise sizes for the abstract raise EV, but this is not full multi-size tree CFR. NLH flop Balanced and PLO Fast gates currently use compact abstractions/proxies.
 - PLO5 is computationally expensive; current Fast reporting is sampled and must be replaced by the requested MCCFR path before completion.
 
 Completion is defined only by `/Users/zettai/Downloads/codex-prompt-completion-directive.md` §6. This repository is not complete until that checklist is fully proven.

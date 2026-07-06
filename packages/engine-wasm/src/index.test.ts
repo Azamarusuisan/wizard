@@ -110,6 +110,7 @@ test("TS river solve fallback emits CFR-trained rows", () => {
   assert.ok(result.exploitability[0]!.value >= result.exploitability.at(-1)!.value);
   assert.ok(result.exploitability.at(-1)!.value <= 0.3);
   assert.ok(result.rows[0]!.raiseEv >= result.rows[0]!.callEv);
+  assert.ok(result.rows[0]!.raiseEv > solveRiverSpot(100, 66, 250).rows[0]!.raiseEv);
   assert.ok(result.rows.at(-1)!.ev >= 0);
   assert.equal(result.metrics.spr, 2.5);
   assert.equal(result.metrics.mdf, 100 / 166);

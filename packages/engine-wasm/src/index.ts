@@ -348,20 +348,21 @@ export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2, boar
   const mdf = pot / (pot + bet);
   const alpha = bet / (pot + bet);
   if (game === "PLO4" || game === "PLO5") return solvePloFastSpot(game, pot, bet, stack, rakePct, rakeCap, potOdds, mdf, alpha, board.length, betTree);
+  const betAmounts = betAmountsForSpot(game, board.length, pot, bet, stack, betTree);
   const combos = defaultRiverCombos(board);
   const equityCache = new Map<string, number>();
   const rows = combos.map(({ combo, fallback, holes }) => {
     const eq = comboEquity(holes, fallback, board, combos, equityCache);
-    const { callEv, raiseEv } = actionEvs(eq, pot, bet, rakePct, rakeCap);
-    const { fold, call, raise } = cfrStrategy(eq, pot, bet, rakePct, rakeCap, 2_048);
+    const { callEv, raiseEv } = rowActionEvs(eq, pot, bet, betAmounts, rakePct, rakeCap);
+    const { fold, call, raise } = cfrStrategyFromActionEvs(0, callEv, raiseEv, 2_048);
     const ev = (call * callEv + raise * raiseEv) / 100;
     return { combo, fold, call, raise, foldEv: 0, callEv: callEv / 100, raiseEv: raiseEv / 100, equity: eq, ev, eqr: ev / Math.max(0.0001, eq * pot / 100) };
   });
   return {
     nodes: rootNodes(board.length, pot, bet, stack, game, betTree),
     rows,
-    exploitability: riverStrategyProgress(rows, pot, bet, 36, rakePct, rakeCap).map((value, i) => ({ iteration: (i + 1) * 50, value })),
-    metrics: { spr: stack / pot, mdf, alpha, potOdds, brGapPctPot: riverExploitability(rows, pot, bet, rakePct, rakeCap) }
+    exploitability: riverStrategyProgressFromRows(rows, pot, 36).map((value, i) => ({ iteration: (i + 1) * 50, value })),
+    metrics: { spr: stack / pot, mdf, alpha, potOdds, brGapPctPot: riverExploitabilityFromRows(rows, pot) }
   };
 }
 
@@ -479,6 +480,14 @@ function rootNodes(boardLen: number, pot: number, bet: number, stack: number, ga
   ];
 }
 
+function betAmountsForSpot(game: Game, boardLen: number, pot: number, call: number, stack: number, betTree: string): number[] {
+  if (!betTree.trim()) return [call];
+  const tree = parseBetTree(betTree);
+  const sizes = boardLen === 4 ? tree.turn : boardLen === 5 ? tree.river : tree.flop;
+  const amounts = game === "NLH" ? concreteBets(sizes, pot, stack) : concretePotLimitBets(sizes, pot, call, stack);
+  return amounts.length ? amounts : [call];
+}
+
 function formatBetNode(amount: number, stack: number): string {
   return Math.abs(amount - stack) <= 1e-9 ? "all-in" : Number.isInteger(amount) ? String(amount) : amount.toFixed(2);
 }
@@ -509,7 +518,12 @@ function ploVsRandomEquity(hero: Card[], samples: number, seed: number): number 
 
 function cfrStrategy(equityValue: number, pot: number, bet: number, rakePct: number, rakeCap: number, iterations: number): { fold: number; call: number; raise: number } {
   const { callEv, raiseEv } = actionEvs(equityValue, pot, bet, rakePct, rakeCap);
+  return cfrStrategyFromActionEvs(0, callEv, raiseEv, iterations);
+}
+
+function cfrStrategyFromActionEvs(foldEv: number, callEv: number, raiseEv: number, iterations: number): { fold: number; call: number; raise: number } {
   const utils = [0, callEv, raiseEv];
+  utils[0] = foldEv;
   const regrets = [0, 0, 0];
   const sum = [0, 0, 0];
   for (let i = 0; i < Math.max(1, iterations); i++) {
@@ -522,6 +536,12 @@ function cfrStrategy(equityValue: number, pot: number, bet: number, rakePct: num
   }
   const total = sum[0]! + sum[1]! + sum[2]!;
   return { fold: sum[0]! / total, call: sum[1]! / total, raise: sum[2]! / total };
+}
+
+function rowActionEvs(equityValue: number, pot: number, callBet: number, raiseBets: number[], rakePct: number, rakeCap: number): { callEv: number; raiseEv: number } {
+  const { callEv } = actionEvs(equityValue, pot, callBet, rakePct, rakeCap);
+  const raiseEv = Math.max(...raiseBets.map((amount) => actionEvs(equityValue, pot, amount, rakePct, rakeCap).raiseEv));
+  return { callEv, raiseEv };
 }
 
 function regretMatching(regrets: number[]): number[] {
@@ -610,12 +630,38 @@ function riverStrategyProgress(rows: SolverRow[], pot: number, bet: number, poin
   });
 }
 
+function riverStrategyProgressFromRows(rows: SolverRow[], pot: number, points: number): number[] {
+  return Array.from({ length: points }, (_, i) => {
+    const t = (i + 1) / points;
+    const mixed = rows.map((row) => ({
+      ...row,
+      fold: (1 - t) / 3 + t * row.fold,
+      call: (1 - t) / 3 + t * row.call,
+      raise: (1 - t) / 3 + t * row.raise
+    }));
+    return riverExploitabilityFromRows(mixed, pot);
+  });
+}
+
 function riverExploitability(rows: SolverRow[], pot: number, bet: number, rakePct: number, rakeCap: number): number {
   let strategyEv = 0;
   let bestEv = 0;
   for (const row of rows) {
     const foldEv = 0;
     const { callEv, raiseEv } = actionEvs(row.equity, pot, bet, rakePct, rakeCap);
+    strategyEv += row.fold * foldEv + row.call * callEv + row.raise * raiseEv;
+    bestEv += Math.max(foldEv, callEv, raiseEv);
+  }
+  return Math.max(0, (bestEv - strategyEv) / rows.length / pot * 100);
+}
+
+function riverExploitabilityFromRows(rows: SolverRow[], pot: number): number {
+  let strategyEv = 0;
+  let bestEv = 0;
+  for (const row of rows) {
+    const foldEv = row.foldEv * 100;
+    const callEv = row.callEv * 100;
+    const raiseEv = row.raiseEv * 100;
     strategyEv += row.fold * foldEv + row.call * callEv + row.raise * raiseEv;
     bestEv += Math.max(foldEv, callEv, raiseEv);
   }
