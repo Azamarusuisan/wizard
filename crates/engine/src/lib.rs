@@ -1271,12 +1271,9 @@ pub mod br {
                 .map(|bucket| weighted(bucket.turn_equities[i], bucket.weight))
                 .sum()
         });
-        let turn_weights = std::array::from_fn(|i| {
-            buckets
-                .iter()
-                .map(|bucket| weighted(bucket.turn_weights[i], bucket.weight))
-                .sum()
-        });
+        let turn_weights = normalize_three(std::array::from_fn(|i| {
+            buckets.iter().map(|bucket| bucket.turn_weights[i]).sum()
+        }));
         let river_equities = std::array::from_fn(|i| {
             std::array::from_fn(|j| {
                 buckets
@@ -1286,12 +1283,12 @@ pub mod br {
             })
         });
         let river_weights = std::array::from_fn(|i| {
-            std::array::from_fn(|j| {
+            normalize_three(std::array::from_fn(|j| {
                 buckets
                     .iter()
-                    .map(|bucket| weighted(bucket.river_weights[i][j], bucket.weight))
+                    .map(|bucket| bucket.river_weights[i][j])
                     .sum()
-            })
+            }))
         });
         FlopBucket {
             representative: best_response_combo(equity, 100.0, 66.0),
@@ -1385,6 +1382,15 @@ pub mod br {
             return [1.0 / 3.0; 3];
         }
         sampled_chance_partitions(total).map(|(start, end)| (end - start) as f64 / total as f64)
+    }
+
+    fn normalize_three(values: [f64; 3]) -> [f64; 3] {
+        let total: f64 = values.iter().sum();
+        if total > 0.0 {
+            values.map(|value| value / total)
+        } else {
+            [1.0 / 3.0; 3]
+        }
     }
 
     pub fn flop_abstraction_tree_exploitability_pct_pot(
