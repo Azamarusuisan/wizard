@@ -295,6 +295,7 @@ export function Trainer() {
           <Metric label="Average loss" value={avgLoss === null ? "-" : `${avgLoss.toFixed(3)}bb`} />
           <Metric label="Last action" value={history[0]?.action ?? "-"} />
           <Metric label="Node" value={history[0]?.nodeId ?? node.id} />
+          <Metric label="Street" value={history[0]?.street ?? node.street} />
         </div>
       </div>
     </div>
