@@ -94,7 +94,7 @@ test("Kuhn value converges near -1/18", () => {
 
 test("TS river solve fallback emits CFR-trained rows", () => {
   const result = solveRiverSpot(100, 66, 250);
-  assert.deepEqual(result.nodes, [{ id: "root", label: "Root", street: "river", actions: ["fold", "call", "raise"] }]);
+  assert.deepEqual(result.nodes, [{ id: "root", label: "Root", street: "preflop", actions: ["fold", "call", "raise"] }]);
   assert.equal(result.rows.length, 28);
   assert.deepEqual(result.rows.slice(0, 2).map((r) => r.combo), ["AcAd", "AcAh"]);
   assert.deepEqual(
@@ -124,6 +124,7 @@ test("TS river solve fallback rejects invalid spots", () => {
 test("TS river solve fallback uses board in concrete combo equities", () => {
   const empty = solveRiverSpot(100, 66, 250);
   const boarded = solveRiverSpot(100, 66, 250, "Ah Kd 7c");
+  assert.equal(boarded.nodes[0]!.street, "flop");
   assert.notEqual(empty.rows[0]!.equity, boarded.rows[0]!.equity);
   assert.ok(!boarded.rows.some((r) => r.combo.includes("Ah")));
 });

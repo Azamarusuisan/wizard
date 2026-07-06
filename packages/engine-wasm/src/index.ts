@@ -347,7 +347,7 @@ export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2, boar
   const potOdds = bet / (pot + 2 * bet);
   const mdf = pot / (pot + bet);
   const alpha = bet / (pot + bet);
-  if (game === "PLO4" || game === "PLO5") return solvePloFastSpot(game, pot, bet, stack, rakePct, rakeCap, potOdds, mdf, alpha);
+  if (game === "PLO4" || game === "PLO5") return solvePloFastSpot(game, pot, bet, stack, rakePct, rakeCap, potOdds, mdf, alpha, board.length);
   const rows = defaultRiverCombos(board).map(({ combo, fallback, holes }) => {
     const eq = comboEquity(holes, fallback, board);
     const { callEv, raiseEv } = actionEvs(eq, pot, bet, rakePct, rakeCap);
@@ -356,7 +356,7 @@ export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2, boar
     return { combo, fold, call, raise, foldEv: 0, callEv: callEv / 100, raiseEv: raiseEv / 100, equity: eq, ev, eqr: ev / Math.max(0.0001, eq * pot / 100) };
   });
   return {
-    nodes: ROOT_NODES,
+    nodes: rootNodes(board.length),
     rows,
     exploitability: riverStrategyProgress(rows, pot, bet, 36, rakePct, rakeCap).map((value, i) => ({ iteration: (i + 1) * 50, value })),
     metrics: { spr: stack / pot, mdf, alpha, potOdds, brGapPctPot: riverExploitability(rows, pot, bet, rakePct, rakeCap) }
@@ -401,7 +401,7 @@ const PLO5_FAST_SAMPLES = [
   { combo: "Ac9d6s2h2c", weight: 0.13, seed: 53 }
 ] as const;
 
-function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack: number, rakePct: number, rakeCap: number, potOdds: number, mdf: number, alpha: number): SolveResult {
+function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack: number, rakePct: number, rakeCap: number, potOdds: number, mdf: number, alpha: number, boardLen = 0): SolveResult {
   const samples = game === "PLO4" ? PLO4_FAST_SAMPLES : PLO5_FAST_SAMPLES;
   const rows = samples.map((sample) => {
     const eq = ploFastSampleEquity(sample);
@@ -420,14 +420,17 @@ function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack
     };
   });
   return {
-    nodes: ROOT_NODES,
+    nodes: rootNodes(boardLen),
     rows,
     exploitability: riverStrategyProgress(rows, pot, bet, 36, rakePct, rakeCap).map((value, i) => ({ iteration: (i + 1) * 50, value })),
     metrics: { spr: stack / pot, mdf, alpha, potOdds, brGapPctPot: riverExploitability(rows, pot, bet, rakePct, rakeCap), ploFastExploitability: game === "PLO4" ? plo4FastExploitabilityPctPot() : plo5FastExploitabilityPctPot() }
   };
 }
 
-const ROOT_NODES: SolveNode[] = [{ id: "root", label: "Root", street: "river", actions: ["fold", "call", "raise"] }];
+function rootNodes(boardLen: number): SolveNode[] {
+  const street = boardLen === 0 ? "preflop" : boardLen === 3 ? "flop" : boardLen === 4 ? "turn" : "river";
+  return [{ id: "root", label: "Root", street, actions: ["fold", "call", "raise"] }];
+}
 
 function ploFastSampleEquity(row: PloFastSample): number {
   return ploVsRandomEquity(parseComboCards(row.combo), 512, row.seed);

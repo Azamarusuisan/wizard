@@ -1841,7 +1841,7 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
             .collect();
     let solve = NativeSolve {
         spot,
-        nodes: root_nodes(),
+        nodes: root_nodes(board.len()),
         combos,
         progress,
         strategy,
@@ -1866,6 +1866,9 @@ fn solve_plo_fast(
     rake_pct: f64,
     rake_cap: f64,
 ) -> Result<u32, JsValue> {
+    let board_len = parse_board(spot.board.as_deref().unwrap_or(""))
+        .map_err(|err| JsValue::from_str(&err))?
+        .len();
     let game = spot.game.as_deref().unwrap_or("PLO4");
     let samples = if game == "PLO5" {
         &br::PLO5_FAST_SAMPLES
@@ -1928,7 +1931,7 @@ fn solve_plo_fast(
             .collect();
     let solve = NativeSolve {
         spot,
-        nodes: root_nodes(),
+        nodes: root_nodes(board_len),
         combos,
         progress,
         strategy,
@@ -2156,13 +2159,22 @@ fn with_solve<T>(
     f(solve)
 }
 
-fn root_nodes() -> Vec<NativeNode> {
+fn root_nodes(board_len: usize) -> Vec<NativeNode> {
     vec![NativeNode {
         id: "root".to_string(),
         label: "Root".to_string(),
-        street: "river".to_string(),
+        street: street_for_board(board_len).to_string(),
         actions: vec!["fold".to_string(), "call".to_string(), "raise".to_string()],
     }]
+}
+
+fn street_for_board(board_len: usize) -> &'static str {
+    match board_len {
+        0 => "preflop",
+        3 => "flop",
+        4 => "turn",
+        _ => "river",
+    }
 }
 
 fn validate_node_id(solve: &NativeSolve, node_id: &str) -> Result<(), JsValue> {
@@ -2539,6 +2551,7 @@ mod tests {
             serde_json::from_slice(&payload).expect("native solve json");
         assert_eq!(native.spot.bet_tree.as_deref(), Some("flop 33,66,all-in"));
         assert_eq!(native.nodes[0].id, "root");
+        assert_eq!(native.nodes[0].street, "preflop");
         let first = br::cfr_combo(br::DEFAULT_RIVER_SPECS[0].1, 100.0, 66.0, 2_048);
         assert_eq!(native.combos[0], "AcAd");
         assert_eq!(native.combos.len(), 28);
@@ -2698,6 +2711,7 @@ mod tests {
         let board_payload = super::serialize(boarded).unwrap();
         let empty_native: super::NativeSolve = serde_json::from_slice(&empty_payload).unwrap();
         let board_native: super::NativeSolve = serde_json::from_slice(&board_payload).unwrap();
+        assert_eq!(board_native.nodes[0].street, "flop");
         assert_ne!(empty_native.metrics[1], board_native.metrics[1]);
         assert!(board_native
             .combos
