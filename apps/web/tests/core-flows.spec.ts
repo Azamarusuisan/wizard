@@ -103,8 +103,10 @@ test("range explorer shows PLO category search and list", async ({ page }) => {
 
 test("trainer displays decision controls", async ({ page }) => {
   await page.goto("/trainer");
-  await expect(page.getByText("BTN vs BB")).toBeVisible();
+  await expect(page.getByText("BTN vs BB, SRP")).toBeVisible();
   await expect(page.locator('[aria-label="Street: flop"]')).toBeVisible();
+  await page.getByRole("button", { name: "Next drill" }).click();
+  await expect(page.getByText("CO vs BB, SRP")).toBeVisible();
   await page.keyboard.press("B");
   await expect(page.locator('[aria-label="EV loss: 0.000bb"]')).toBeVisible();
   await expect(page.locator('[aria-label="Grade: Perfect"]')).toBeVisible();

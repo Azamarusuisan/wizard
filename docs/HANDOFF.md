@@ -33,6 +33,7 @@
 - Trainer fixed spot now solves the displayed `Ah Kd 7c` board, so persisted drill metadata reports `flop` instead of an inconsistent preflop root. The fixed solve is memoized to avoid repeating board-aware equity enumeration on every answer render.
 - Trainer displayed hero hand now matches the scored solve row (`AcAd`) instead of showing an unrelated `AsQs` combo.
 - TypeScript engine now exposes `solveNlhComboSpot()` for single-combo board-aware drills. Trainer uses it instead of building every default solve row; Playwright Trainer flow dropped from about 10s to about 0.6s in the full verify run.
+- Trainer now has a small NLH drill pool and a Next drill control instead of one fixed spot. It still uses single-combo solved rows, but persisted history records the active spot label. Playwright covers drill switching and scoring.
 - TypeScript board-aware `solveRiverSpot()` now caches unordered hero/villain matchup equities within one solve, avoiding duplicate exact enumeration for reversed pairings. The board-aware fallback test is now about 6s instead of about 11s on this machine.
 - TypeScript combo-card parsing now rejects empty or odd-length combo strings before card slicing, and `solveNlhComboSpot()` tests cover malformed combo input.
 - Rust native board-aware solve now also caches unordered hero/villain matchup equities within one solve. A Rust test compares cached and uncached combo equity for the same board.
@@ -101,7 +102,7 @@
 - IndexedDB solve cache keys are canonical JSON SHA-256 via WebCrypto in the web layer.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `default_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~11.66 ns/eval, default river rows ~501.65 us. The evaluator now exceeds the original 50M eval/s target on this machine.
-- Last verified: `bash scripts/verify.sh` exited 0 after wiring precision into current abstract CFR iteration counts. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
+- Last verified: `bash scripts/verify.sh` exited 0 after adding a Trainer drill pool and Next drill flow. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
 - Git remote `origin` is set to `https://github.com/Azamarusuisan/wizard.git`; do not push until §6 is actually complete.
 
 ## Important Caveat

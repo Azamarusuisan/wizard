@@ -360,7 +360,14 @@ export function EquityLab() {
 }
 
 export function Trainer() {
-  const spot = useMemo(() => solveNlhComboSpot(100, 66, 420, "Ah Kd 7c", "AcAd"), []);
+  const drills = useMemo(() => [
+    { label: "BTN vs BB, SRP, flop Ah Kd 7c", board: "Ah Kd 7c", combo: "AcAd", position: "BTN vs BB", potType: "SRP" },
+    { label: "CO vs BB, SRP, flop Qh Jh 4c", board: "Qh Jh 4c", combo: "KhTh", position: "CO vs BB", potType: "SRP" },
+    { label: "SB vs BB, 3bet, flop 9c 8c 2d", board: "9c 8c 2d", combo: "AcKc", position: "SB vs BB", potType: "3bet" }
+  ], []);
+  const [drillIndex, setDrillIndex] = useState(0);
+  const drill = drills[drillIndex % drills.length]!;
+  const spot = useMemo(() => solveNlhComboSpot(100, 66, 420, drill.board, drill.combo), [drill.board, drill.combo]);
   const node = spot.nodes[0]!;
   const row = spot.rows[0]!;
   const bestEv = Math.max(row.foldEv, row.callEv, row.raiseEv);
@@ -371,9 +378,13 @@ export function Trainer() {
     const evLoss = bestEv - ev;
     const nextGrade = gradeForLoss(evLoss);
     setChoice(action);
-    void saveTrainingResult({ spot: "BTN vs BB SRP Ah Kd 7c", nodeId: node.id, street: node.street, hand: row.combo, action, evLoss, grade: nextGrade })
+    void saveTrainingResult({ spot: drill.label, nodeId: node.id, street: node.street, hand: row.combo, action, evLoss, grade: nextGrade })
       .then(() => listTrainingResults())
       .then(setHistory);
+  };
+  const nextDrill = () => {
+    setChoice(null);
+    setDrillIndex((index) => (index + 1) % drills.length);
   };
   useEffect(() => {
     void listTrainingResults().then(setHistory);
@@ -388,7 +399,7 @@ export function Trainer() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [bestEv, node.id, node.street, row.callEv, row.combo, row.foldEv, row.raiseEv]);
+  }, [bestEv, drill.label, node.id, node.street, row.callEv, row.combo, row.foldEv, row.raiseEv]);
   const chosenEv = choice === "fold" ? row.foldEv : choice === "call" ? row.callEv : choice === "raise" ? row.raiseEv : null;
   const loss = chosenEv === null ? null : bestEv - chosenEv;
   const grade = loss === null ? "Choose an action" : gradeForLoss(loss);
@@ -397,9 +408,9 @@ export function Trainer() {
     <div className="grid">
       <h1 className="title">Trainer</h1>
       <div className="card">
-        <p className="muted">BTN vs BB, SRP, flop Ah Kd 7c. Hero: Ac Ad.</p>
-        <div className="cards"><CardView card={parseCard("Ac")} /><CardView card={parseCard("Ad")} /><CardView card={parseCard("Ah")} /><CardView card={parseCard("Kd")} /><CardView card={parseCard("7c")} /></div>
-        <div style={{ display: "flex", gap: 8, marginTop: 16 }}><button className="btn" onClick={() => answer("fold")}>Fold</button><button className="btn" onClick={() => answer("call")}>Call</button><button className="btn primary" onClick={() => answer("raise")}>Bet 66%</button></div>
+        <p className="muted">{drill.label}. Hero: {formatComboForDisplay(row.combo)}.</p>
+        <div className="cards">{[...comboCards(row.combo), ...drill.board.split(/\s+/).map(parseCard)].map((card) => <CardView key={card} card={card} />)}</div>
+        <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}><button className="btn" onClick={() => answer("fold")}>Fold</button><button className="btn" onClick={() => answer("call")}>Call</button><button className="btn primary" onClick={() => answer("raise")}>Bet 66%</button><button className="btn" onClick={nextDrill}>Next drill</button></div>
         <div className="grid cols-3" style={{ marginTop: 16 }}>
           <Metric label="EV loss" value={loss === null ? "-" : `${loss.toFixed(3)}bb`} />
           <Metric label="Grade" value={grade} />
@@ -409,12 +420,21 @@ export function Trainer() {
           <Metric label="Attempts" value={history.length} />
           <Metric label="Average loss" value={avgLoss === null ? "-" : `${avgLoss.toFixed(3)}bb`} />
           <Metric label="Last action" value={history[0]?.action ?? "-"} />
+          <Metric label="Spot" value={history[0]?.spot ?? drill.position} />
           <Metric label="Node" value={history[0]?.nodeId ?? node.id} />
           <Metric label="Street" value={history[0]?.street ?? node.street} />
         </div>
       </div>
     </div>
   );
+}
+
+function comboCards(combo: string): number[] {
+  return Array.from({ length: combo.length / 2 }, (_, index) => parseCard(combo.slice(index * 2, index * 2 + 2)));
+}
+
+function formatComboForDisplay(combo: string): string {
+  return combo.match(/../g)?.join(" ") ?? combo;
 }
 
 function gradeForLoss(loss: number): string {
