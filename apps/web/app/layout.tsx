@@ -1,6 +1,6 @@
 export const metadata = {
-  title: "職人ホームページ制作所",
-  description: "スマホで写真を送るだけ。まるごとおまかせ9,900円。"
+  title: "Wizard",
+  description: "Local Wizard"
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
