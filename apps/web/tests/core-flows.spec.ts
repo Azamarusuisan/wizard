@@ -36,6 +36,7 @@ test("solver runs and displays strategy metrics", async ({ page }) => {
   await expect(page.getByText("PLO iterations")).toBeVisible();
   await expect(page.getByText("PLO combo cap")).toBeVisible();
   await expect(page.getByText("PLO sampled proxy")).toBeVisible();
+  await expect(page.getByText(/combo cap limits range representation/)).toBeVisible();
   await expect(page.getByText(/external-sampling MCCFR is not active/)).toBeVisible();
   await page.getByLabel("Game").selectOption("PLO4");
   await expect(page.getByRole("table", { name: "strategy table" })).toContainText("AsAhKsKh");

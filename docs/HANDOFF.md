@@ -59,6 +59,7 @@
 - PLO4/PLO5 Fast solve metrics now expose representative sample count and total sample weight coverage in native/TS payloads and Solver Studio.
 - PLO4/PLO5 Fast solve metrics now also expose the precision-driven iteration count in Rust native, EngineAPI conversion, TypeScript fallback, Solver Studio, formats docs, and IndexedDB round-trip tests.
 - PLO4/PLO5 Fast solve metrics now expose the current combo cap (`20,000` / `30,000`) in Rust native, EngineAPI conversion, TypeScript fallback, Solver Studio, formats docs, and IndexedDB round-trip tests.
+- Solver Studio PLO Fast disclosure now states that the combo cap limits range representation before MCCFR. Playwright covers the disclosure.
 - Solve metrics now include `brGapPctPot`, computed from the same rows used for the strategy table and convergence graph. UI shows it as `BR gap`.
 - Solver Studio now includes an editable bet-tree preset string and flop-size buttons that apply `% pot` or all-in values to the active bet amount. The bet-tree string is validated, included in share URLs and solve cache payloads. NLH and PLO Fast root rows now use the configured concrete bet-tree sizes when choosing the abstract raise EV; this is still not full multi-size tree CFR.
 - Solver payloads now preserve `betTree` through the worker type and Rust native serialized spot so cached/native results retain the original betting-tree text.
@@ -122,7 +123,7 @@
 - IndexedDB solve cache keys are canonical JSON SHA-256 via WebCrypto in the web layer.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `default_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~11.66 ns/eval, default river rows ~501.65 us. The evaluator now exceeds the original 50M eval/s target on this machine.
-- Last verified: `bash scripts/verify.sh` exited 0 after exposing PLO combo cap metrics. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
+- Last verified: `bash scripts/verify.sh` exited 0 after adding PLO combo-cap impact disclosure. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
 - Git remote `origin` is set to `https://github.com/Azamarusuisan/wizard.git`; do not push until §6 is actually complete.
 
 ## Important Caveat
