@@ -1276,10 +1276,21 @@ pub mod br {
         }));
         let river_equities = std::array::from_fn(|i| {
             std::array::from_fn(|j| {
-                buckets
+                let branch_weight = buckets
                     .iter()
-                    .map(|bucket| weighted(bucket.river_equities[i][j], bucket.weight))
-                    .sum()
+                    .map(|bucket| bucket.weight * bucket.river_weights[i][j])
+                    .sum::<f64>();
+                if branch_weight > 0.0 {
+                    buckets
+                        .iter()
+                        .map(|bucket| {
+                            bucket.river_equities[i][j] * bucket.weight * bucket.river_weights[i][j]
+                                / branch_weight
+                        })
+                        .sum()
+                } else {
+                    0.0
+                }
             })
         });
         let river_weights = std::array::from_fn(|i| {

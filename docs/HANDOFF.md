@@ -20,6 +20,7 @@
 - Bucket module now has fixed-seed 10-feature k-means++ and a variance-quality gate proving more clusters do not worsen synthetic equity-feature clustering.
 - Rust solver gates now compute compact flop abstraction exploitability from card-derived flop buckets rather than synthetic equity rows.
 - Merged compact flop buckets now normalize turn and river chance-branch mass after grouping, so grouped abstractions keep probability mass at 1.0.
+- Merged compact flop buckets now also average river equities with river branch mass, avoiding unweighted branch blending after grouping.
 - Native WASM solve payload now reuses the shared river best-response row builder instead of duplicating strategy formulas in the handle serializer path.
 - Native and TS fallback river solve rows now use named default row specs instead of independent ad-hoc combo/equity arrays.
 - Rust river gate/bench row generation now goes through the same default concrete combo expansion used by native solve instead of six standalone representative equities.
@@ -124,7 +125,7 @@
 - IndexedDB solve cache keys are canonical JSON SHA-256 via WebCrypto in the web layer.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `default_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~11.66 ns/eval, default river rows ~501.65 us. The evaluator now exceeds the original 50M eval/s target on this machine.
-- Last verified: `bash scripts/verify.sh` exited 0 after normalizing chance mass when merging compact flop buckets. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
+- Last verified: `bash scripts/verify.sh` exited 0 after weighting merged compact flop river equities by river branch mass. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
 - Git remote `origin` is set to `https://github.com/Azamarusuisan/wizard.git`; do not push until §6 is actually complete.
 
 ## Important Caveat
