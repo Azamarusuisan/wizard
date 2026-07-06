@@ -423,9 +423,10 @@ function rowEqrDenominator(row: SolverRow): number {
   return Math.max(0.0001, row.eqr === 0 ? row.equity : row.ev / row.eqr);
 }
 
-function summarizeRows(rows: SolverRow[]): Pick<SolverRow, "fold" | "call" | "raise" | "ev" | "equity" | "eqr" | "blockedCombos" | "blockerPct"> {
+export function summarizeRows(rows: SolverRow[]): Pick<SolverRow, "fold" | "call" | "raise" | "ev" | "equity" | "eqr" | "blockedCombos" | "blockerPct"> {
   if (!rows.length) return { fold: 0, call: 0, raise: 0, ev: 0, equity: 0, eqr: 0, blockedCombos: 0, blockerPct: 0 };
   const totalWeight = rows.reduce((sum, row) => sum + row.weight, 0);
+  if (totalWeight <= 0) return { fold: 0, call: 0, raise: 0, ev: 0, equity: 0, eqr: 0, blockedCombos: 0, blockerPct: 0 };
   const total = rows.reduce((sum, row) => ({
     fold: sum.fold + row.weight * row.fold,
     call: sum.call + row.weight * row.call,
@@ -448,8 +449,9 @@ function summarizeRows(rows: SolverRow[]): Pick<SolverRow, "fold" | "call" | "ra
   };
 }
 
-function summarizeActionComposition(rows: SolverRow[]): string {
+export function summarizeActionComposition(rows: SolverRow[]): string {
   if (!rows.length) return "-";
+  if (rows.reduce((sum, row) => sum + row.weight, 0) <= 0) return "-";
   const actions = ["fold", "call", "raise"] as const;
   return actions.map((action) => {
     const weights = new Map<string, number>();
