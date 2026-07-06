@@ -362,7 +362,7 @@ export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2, boar
     const blockers = blockerStats(holes, board, villains);
     return { combo, weight, handClass: nlhHandClass(holes, board), ...blockers, fold, call, raise, foldEv: 0, callEv: callEv / 100, raiseEv: raiseEv / 100, bestRaiseAmount, equity: eq, ev, eqr: ev / Math.max(0.0001, eq * pot / 100) };
   });
-  const nodes = rootNodes(board.length, pot, bet, stack, game, betTree);
+  const nodes = rootNodes(board, pot, bet, stack, game, betTree);
   const brGapPctPot = nlhFallbackExploitability(rows, pot);
   return {
     nodes,
@@ -404,7 +404,7 @@ export function solveNlhComboSpot(pot: number, bet: number, stack = pot * 4.2, b
   const potOdds = bet / (pot + 2 * bet);
   const mdf = pot / (pot + bet);
   const alpha = bet / (pot + bet);
-  const nodes = rootNodes(board.length, pot, bet, stack, "NLH");
+  const nodes = rootNodes(board, pot, bet, stack, "NLH");
   return {
     nodes,
     informationSets: infoSetsFromNodes(nodes),
@@ -420,6 +420,12 @@ export function nlhChanceEquity(comboText: string, fallback: number, boardText: 
   if (!target || board.length !== target - 1) return shiftedChanceEquity(fallback, nodeId);
   const holes = parseComboCards(comboText);
   if (holes.length !== 2) return shiftedChanceEquity(fallback, nodeId);
+  const exact = exactChanceCard(nodeId);
+  if (exact !== null) {
+    if ([...board, ...holes].includes(exact)) return shiftedChanceEquity(fallback, nodeId);
+    const nextBoard = [...board, exact];
+    return comboEquity(holes, fallback, nextBoard, nlhRiverCombosFromRange(villainRange, nextBoard));
+  }
   const equities = deck([...board, ...holes]).map((next) => {
     const nextBoard = [...board, next];
     return comboEquity(holes, fallback, nextBoard, nlhRiverCombosFromRange(villainRange, nextBoard));
@@ -553,7 +559,7 @@ function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack
       eqr: ev / Math.max(0.0001, eq * pot / 100)
     };
   });
-  const nodes = rootNodes(board.length, pot, bet, stack, game, betTree);
+  const nodes = rootNodes(board, pot, bet, stack, game, betTree);
   const brGapPctPot = riverExploitabilityFromRows(rows, pot);
   return {
     nodes,
@@ -598,7 +604,8 @@ function ploSuitedness(combo: string): "ds" | "ss" | "r" {
   return "r";
 }
 
-function rootNodes(boardLen: number, pot: number, bet: number, stack: number, game: Game, betTree = ""): SolveNode[] {
+function rootNodes(board: Card[], pot: number, bet: number, stack: number, game: Game, betTree = ""): SolveNode[] {
+  const boardLen = board.length;
   const street = boardLen === 0 ? "preflop" : boardLen === 3 ? "flop" : boardLen === 4 ? "turn" : "river";
   const actions = ["fold", "call", "raise"];
   const betNodes = betNodesForContext(game, boardLen, pot, bet, stack, betTree);
@@ -615,7 +622,7 @@ function rootNodes(boardLen: number, pot: number, bet: number, stack: number, ga
         withInfoSet({ id: `${id}/call`, label: "CALL", street, actions: [], amount: bet.amount, pot: bet.pot })
       ];
     }),
-    ...chanceNodes(boardLen, actions, chanceBetNodes)
+    ...chanceNodes(board, game, actions, chanceBetNodes)
   ];
 }
 
@@ -627,13 +634,16 @@ function betNodesForContext(game: Game, boardLen: number, pot: number, bet: numb
     .map((amount) => ({ label: formatBetNode(amount, stack), amount, pot }));
 }
 
-function chanceNodes(boardLen: number, actions: string[], betNodes: { label: string; amount: number; pot: number }[]): SolveNode[] {
+function chanceNodes(board: Card[], game: Game, actions: string[], betNodes: { label: string; amount: number; pot: number }[]): SolveNode[] {
+  const boardLen = board.length;
   const nextStreet = boardLen === 3 ? "turn" : boardLen === 4 ? "river" : "";
   if (!nextStreet) return [];
-  return ["low", "mid", "high"].flatMap((bucket) => {
-    const id = `root/${nextStreet}-${bucket}`;
+  const branches = game === "NLH" ? ["low", "mid", "high", ...deck(board).map(formatCard)] : ["low", "mid", "high"];
+  return branches.flatMap((branch) => {
+    const id = `root/${nextStreet}-${branch}`;
+    const label = ["low", "mid", "high"].includes(branch) ? branch.toUpperCase() : branch;
     return [
-      withInfoSet({ id, label: `${nextStreet.toUpperCase()} ${bucket.toUpperCase()}`, street: nextStreet, actions }),
+      withInfoSet({ id, label: `${nextStreet.toUpperCase()} ${label}`, street: nextStreet, actions }),
       ...betNodes.flatMap((bet) => {
         const betId = `${id}/bet-${bet.label}`;
         return [
@@ -644,6 +654,11 @@ function chanceNodes(boardLen: number, actions: string[], betNodes: { label: str
       })
     ];
   });
+}
+
+function exactChanceCard(nodeId: string): Card | null {
+  const match = /^root\/(?:turn|river)-([2-9TJQKA][cdhs])$/i.exec(nodeId);
+  return match ? parseCard(match[1]!) : null;
 }
 
 function withInfoSet<T extends SolveNode>(node: T): T {

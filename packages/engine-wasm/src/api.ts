@@ -400,11 +400,11 @@ function infoSetRefs(node: SolveNode): Pick<SolveInfoSet, "strategyRef" | "metri
 }
 
 function isChanceNode(node: SolveNode): boolean {
-  return /^root\/(?:turn|river)-(?:low|mid|high)$/.test(node.id);
+  return /^root\/(?:turn|river)-(?:low|mid|high|[2-9TJQKA][cdhs])$/i.test(node.id);
 }
 
 function chanceParentNode(node: SolveNode): SolveNode | null {
-  const match = /^(root\/(?:turn|river)-(?:low|mid|high))\//.exec(node.id);
+  const match = /^(root\/(?:turn|river)-(?:low|mid|high|[2-9TJQKA][cdhs]))\//i.exec(node.id);
   if (!match) return null;
   return { ...node, id: match[1]!, actions: ["fold", "call", "raise"], amount: undefined, pot: undefined };
 }

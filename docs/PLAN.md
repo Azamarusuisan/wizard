@@ -63,7 +63,7 @@ Evidence:
 - Rust bucket tests cover fixed-seed 10-feature k-means++ and verify within-cluster variance does not worsen when bucket count increases.
 - Rust solver gates now compute compact flop abstraction exploitability from card-derived flop buckets instead of synthetic equity rows.
 - Compact NLH flop chance branches are derived from exact enumeration of all remaining turn/river runouts, then compressed into low/mid/high equity quantiles.
-- Solver payloads now expose public chance branch nodes for flop-to-turn and turn-to-river low/mid/high buckets, plus destination-street bet-response child nodes under those branches. NLH nodes derive branch-specific compact strategy/metric tables from next-street card equity quantiles and the configured turn/river bet-tree sizes while the full continuation tree remains pending.
+- Solver payloads now expose public chance branch nodes for flop-to-turn and turn-to-river low/mid/high buckets plus NLH exact public-card branches such as `root/turn-Qs`, with destination-street bet-response child nodes under those branches. NLH bucket nodes derive branch-specific compact strategy/metric tables from next-street card equity quantiles; exact-card nodes compute equity from the board with that card appended. The full continuation tree remains pending.
 - Auxiliary raise-size information sets now expose size-mix EV/EQR instead of root metrics.
 - Bet-response node metrics apply configured rake in Rust native, TypeScript fallback, and Solver Studio preview.
 

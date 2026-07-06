@@ -2244,7 +2244,7 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
             elapsed: 0.0,
         })
         .collect();
-    let nodes = root_nodes_for_spot(&spot, board.len());
+    let nodes = root_nodes_for_spot(&spot, &board);
     let information_sets = information_sets_from_nodes(&nodes);
     let solve = NativeSolve {
         spot,
@@ -2384,7 +2384,7 @@ fn solve_plo_fast(
             elapsed: 0.0,
         })
         .collect();
-    let nodes = root_nodes_for_spot(&spot, board_len);
+    let nodes = root_nodes_for_spot(&spot, &board);
     let information_sets = information_sets_from_nodes(&nodes);
     let solve = NativeSolve {
         spot,
@@ -3371,28 +3371,12 @@ fn action_node_metrics(solve: &NativeSolve, action_idx: usize) -> Vec<f64> {
 }
 
 fn is_chance_node(node: &NativeNode) -> bool {
-    matches!(
-        node.id.as_str(),
-        "root/turn-low"
-            | "root/turn-mid"
-            | "root/turn-high"
-            | "root/river-low"
-            | "root/river-mid"
-            | "root/river-high"
-    )
+    chance_node_kind(&node.id).is_some()
 }
 
 fn chance_parent_id(node_id: &str) -> Option<&str> {
     let (parent, _) = node_id.split_once("/bet-")?;
-    if matches!(
-        parent,
-        "root/turn-low"
-            | "root/turn-mid"
-            | "root/turn-high"
-            | "root/river-low"
-            | "root/river-mid"
-            | "root/river-high"
-    ) {
+    if chance_node_kind(parent).is_some() {
         Some(parent)
     } else {
         None
@@ -3457,11 +3441,7 @@ fn chance_node_pot_for_spot(spot: &NativeSpot) -> f64 {
 }
 
 fn nlh_chance_node_equity(solve: &NativeSolve, combo: &str, fallback: f64, node_id: &str) -> f64 {
-    let target = if node_id.starts_with("root/turn-") {
-        4
-    } else if node_id.starts_with("root/river-") {
-        5
-    } else {
+    let Some((target, branch)) = chance_node_kind(node_id) else {
         return fallback;
     };
     let Ok(board) = parse_board(solve.spot.board.as_deref().unwrap_or("")) else {
@@ -3477,6 +3457,17 @@ fn nlh_chance_node_equity(solve: &NativeSolve, combo: &str, fallback: f64, node_
         .into_iter()
         .chain(board.iter().copied())
         .collect::<Vec<_>>();
+    if let ChanceBranch::Card(card) = branch {
+        if dead.contains(&card) {
+            return shifted_chance_node_equity(fallback, node_id);
+        }
+        let mut next_board = board;
+        next_board.push(card);
+        let villains =
+            nlh_river_entries_from_range(solve.spot.villain_range.as_deref(), &next_board)
+                .unwrap_or_else(|_| default_river_entries(&next_board));
+        return combo_equity_cached(hero, fallback, &next_board, &villains, &mut HashMap::new());
+    }
     let mut equities = (0..52)
         .filter(|card| !dead.contains(card))
         .map(|card| {
@@ -3502,6 +3493,32 @@ fn nlh_chance_node_equity(solve: &NativeSolve, combo: &str, fallback: f64, node_
     let (start, end) = chance_partition(equities.len(), bucket);
     let slice = &equities[start..end];
     slice.iter().sum::<f64>() / slice.len().max(1) as f64
+}
+
+enum ChanceBranch {
+    Bucket,
+    Card(eval::Card),
+}
+
+fn chance_node_kind(node_id: &str) -> Option<(usize, ChanceBranch)> {
+    let (target, value) = node_id
+        .strip_prefix("root/turn-")
+        .map(|value| (4, value))
+        .or_else(|| node_id.strip_prefix("root/river-").map(|value| (5, value)))?;
+    match value {
+        "low" | "mid" | "high" => Some((target, ChanceBranch::Bucket)),
+        card => parse_card_label(card).map(|parsed| (target, ChanceBranch::Card(parsed))),
+    }
+}
+
+fn parse_card_label(card: &str) -> Option<eval::Card> {
+    let bytes = card.as_bytes();
+    if bytes.len() != 2 {
+        return None;
+    }
+    let rank = "23456789TJQKA".find(bytes[0].to_ascii_uppercase() as char)? as u8;
+    let suit = "cdhs".find(bytes[1].to_ascii_lowercase() as char)? as u8;
+    Some(eval::card(rank, suit))
 }
 
 fn parse_combo_label(combo: &str) -> Option<[eval::Card; 2]> {
@@ -3769,7 +3786,8 @@ fn river_progress_from_action_evs(
         .collect()
 }
 
-fn root_nodes_for_spot(spot: &NativeSpot, board_len: usize) -> Vec<NativeNode> {
+fn root_nodes_for_spot(spot: &NativeSpot, board: &[eval::Card]) -> Vec<NativeNode> {
+    let board_len = board.len();
     let bet_nodes = bet_nodes_for_context(spot, board_len, spot.pot, spot.bet);
     let chance_bet_nodes = match board_len {
         3 | 4 => bet_nodes_for_context(
@@ -3780,7 +3798,7 @@ fn root_nodes_for_spot(spot: &NativeSpot, board_len: usize) -> Vec<NativeNode> {
         ),
         _ => Vec::new(),
     };
-    root_nodes(board_len, &bet_nodes, &chance_bet_nodes)
+    root_nodes(spot, board, &bet_nodes, &chance_bet_nodes)
 }
 
 struct BetNode {
@@ -3814,10 +3832,12 @@ fn bet_sizes_for_board(tree: &tree::BetTree, board_len: usize) -> &[tree::BetSiz
 }
 
 fn root_nodes(
-    board_len: usize,
+    spot: &NativeSpot,
+    board: &[eval::Card],
     bet_nodes: &[BetNode],
     chance_bet_nodes: &[BetNode],
 ) -> Vec<NativeNode> {
+    let board_len = board.len();
     let street = street_for_board(board_len);
     let actions = ["fold", "call", "raise"];
     let mut nodes = vec![native_node(
@@ -3869,11 +3889,17 @@ fn root_nodes(
             ));
         }
     }
-    nodes.extend(chance_nodes(board_len, &actions, chance_bet_nodes));
+    nodes.extend(chance_nodes(spot, board, &actions, chance_bet_nodes));
     nodes
 }
 
-fn chance_nodes(board_len: usize, actions: &[&str; 3], bet_nodes: &[BetNode]) -> Vec<NativeNode> {
+fn chance_nodes(
+    spot: &NativeSpot,
+    board: &[eval::Card],
+    actions: &[&str; 3],
+    bet_nodes: &[BetNode],
+) -> Vec<NativeNode> {
+    let board_len = board.len();
     let Some(next_street) = (match board_len {
         3 => Some("turn"),
         4 => Some("river"),
@@ -3881,16 +3907,28 @@ fn chance_nodes(board_len: usize, actions: &[&str; 3], bet_nodes: &[BetNode]) ->
     }) else {
         return Vec::new();
     };
-    ["low", "mid", "high"]
-        .iter()
-        .flat_map(|bucket| {
-            let id = format!("root/{next_street}-{bucket}");
+    let mut branches = ["low".to_string(), "mid".to_string(), "high".to_string()].to_vec();
+    if spot.game.as_deref().unwrap_or("NLH") == "NLH" {
+        branches.extend(
+            (0..52)
+                .filter(|card| !board.contains(card))
+                .map(format_card),
+        );
+    }
+    branches
+        .into_iter()
+        .flat_map(|branch| {
+            let id = format!("root/{next_street}-{branch}");
             let mut nodes = vec![native_node(
                 id.clone(),
                 format!(
                     "{} {}",
                     next_street.to_ascii_uppercase(),
-                    bucket.to_ascii_uppercase()
+                    if matches!(branch.as_str(), "low" | "mid" | "high") {
+                        branch.to_ascii_uppercase()
+                    } else {
+                        branch.clone()
+                    }
                 ),
                 next_street,
                 actions.iter().map(|action| action.to_string()).collect(),
@@ -4509,6 +4547,7 @@ mod tests {
         let flop_native: super::NativeSolve =
             serde_json::from_slice(&flop_payload).expect("flop solve json");
         assert!(super::has_node_id(&flop_native, "root/turn-low"));
+        assert!(super::has_node_id(&flop_native, "root/turn-Qs"));
         assert_eq!(
             flop_native
                 .information_sets
@@ -4517,6 +4556,15 @@ mod tests {
                 .unwrap()
                 .strategy_ref,
             "root/turn-low"
+        );
+        assert_eq!(
+            flop_native
+                .information_sets
+                .iter()
+                .find(|info_set| info_set.node_id == "root/turn-Qs")
+                .unwrap()
+                .strategy_ref,
+            "root/turn-Qs"
         );
         let turn_low_bet_node = flop_native
             .nodes
@@ -4539,15 +4587,26 @@ mod tests {
             super::get_hand_metrics(flop_handle, &format!("turn:{}/call", turn_low_bet_node.id))
                 .unwrap();
         let turn_low_strategy = super::get_strategy(flop_handle, "turn:root/turn-low").unwrap();
+        let turn_qs_strategy = super::get_strategy(flop_handle, "turn:root/turn-Qs").unwrap();
         let flop_root_strategy = super::get_strategy(flop_handle, "root").unwrap();
         assert_ne!(&turn_low_strategy[0..3], &flop_root_strategy[0..3]);
+        assert_eq!(turn_qs_strategy.len(), flop_native.combos.len() * 3);
         let turn_low_metrics = super::get_hand_metrics(flop_handle, "turn:root/turn-low").unwrap();
+        let turn_qs_metrics = super::get_hand_metrics(flop_handle, "turn:root/turn-Qs").unwrap();
         assert_eq!(turn_low_metrics[1], turn_low_bet_call_metrics[1]);
         let turn_mid_metrics = super::get_hand_metrics(flop_handle, "turn:root/turn-mid").unwrap();
         let turn_high_metrics =
             super::get_hand_metrics(flop_handle, "turn:root/turn-high").unwrap();
         assert!(turn_low_metrics[1] <= turn_mid_metrics[1]);
         assert!(turn_mid_metrics[1] <= turn_high_metrics[1]);
+        let direct_turn_handle = super::solve(
+            r#"{"pot":100.0,"bet":66.0,"stack":250.0,"board":"Ah Kd 7c Qs","betTree":"flop 33,66,all-in; turn 66,125; river 75,all-in"}"#,
+        )
+        .expect("direct turn solve starts");
+        let direct_turn_payload = super::serialize(direct_turn_handle).expect("direct serializes");
+        let direct_turn_native: super::NativeSolve =
+            serde_json::from_slice(&direct_turn_payload).expect("direct solve json");
+        assert_eq!(turn_qs_metrics[1], direct_turn_native.metrics[1]);
         let small_turn_handle = super::solve(
             r#"{"pot":100.0,"bet":66.0,"stack":250.0,"board":"Ah Kd 7c","betTree":"flop 33; turn 25; river 75"}"#,
         )
@@ -4569,6 +4628,7 @@ mod tests {
         let turn_native: super::NativeSolve =
             serde_json::from_slice(&turn_payload).expect("turn solve json");
         assert!(super::has_node_id(&turn_native, "root/river-high"));
+        assert!(super::has_node_id(&turn_native, "root/river-Qs"));
         assert!(!super::has_node_id(&turn_native, "root/turn-low"));
         let root_strategy = super::get_strategy(handle, "root").unwrap();
         assert_eq!(

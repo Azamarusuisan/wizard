@@ -83,6 +83,7 @@ test("solver runs and displays strategy metrics", async ({ page }) => {
   await expect(page.getByLabel("solve nodes")).toContainText("root/bet-33");
   await expect(page.getByLabel("solve nodes")).toContainText("root/bet-33/call");
   await expect(page.getByLabel("solve nodes")).toContainText("root/turn-low");
+  await expect(page.getByLabel("solve nodes")).toContainText("root/turn-Qs");
   await expect(page.getByLabel("solve nodes")).toContainText("root/turn-low/bet-");
   await page.getByRole("button", { name: /TURN LOW \(root\/turn-low/ }).click();
   await expect(page.getByText("Node: root/turn-low")).toBeVisible();

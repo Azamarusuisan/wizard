@@ -305,11 +305,11 @@ function rowsForNode(result: SolveResult, node: SolveNode, spot: { game: Game; p
 }
 
 function isChanceBranchId(nodeId: string): boolean {
-  return /^root\/(?:turn|river)-(?:low|mid|high)$/.test(nodeId);
+  return /^root\/(?:turn|river)-(?:low|mid|high|[2-9TJQKA][cdhs])$/i.test(nodeId);
 }
 
 function chanceParentId(nodeId: string): string | null {
-  return /^(root\/(?:turn|river)-(?:low|mid|high))\//.exec(nodeId)?.[1] ?? null;
+  return /^(root\/(?:turn|river)-(?:low|mid|high|[2-9TJQKA][cdhs]))\//i.exec(nodeId)?.[1] ?? null;
 }
 
 function chanceRow(row: SolverRow, nodeId: string, spot: { game: Game; pot: number; bet: number; stack: number; board: string; villainRange: string; rakePct: number; rakeCap: number; betTree: string }): SolverRow {
