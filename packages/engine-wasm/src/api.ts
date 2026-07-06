@@ -20,7 +20,7 @@ export interface EngineAPI {
 const FALLBACK_COMBOS = ["AA", "AKs", "QQ", "JTs", "76s", "A5s"];
 
 type WasmModule = {
-  default: (input?: URL | Uint8Array) => Promise<unknown>;
+  default: (input?: { module_or_path: URL | Uint8Array }) => Promise<unknown>;
   init: (threads?: number | null) => void;
   solve: (spotJson: string) => number;
   poll_progress: (handle: number) => string;
@@ -159,7 +159,7 @@ class WasmPreferredEngine implements EngineAPI {
   async init(threads?: number): Promise<void> {
     const wasm = await this.loadWasm();
     if (wasm) {
-      await wasm.default(await wasmInitInput());
+      await wasm.default({ module_or_path: await wasmInitInput() });
       wasm.init(threads ?? null);
       return;
     }
