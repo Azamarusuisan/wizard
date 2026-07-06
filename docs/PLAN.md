@@ -74,6 +74,7 @@ Evidence:
 - PLO4 AAxx double-suited-over-rainbow monotonicity is tested.
 - PLO Fast now applies the Solver Studio Hero range PLO syntax as a category filter and weight multiplier over the capped representative sample set.
 - PLO Fast applies Villain range PLO syntax to the opponent representative set used by blocker analysis.
+- PLO Fast representative equities are now sampled against the Villain representative set when supplied, falling back to random-hand MC only when no unblocked opponent representative exists.
 
 Remaining:
 - Replace capped representative Fast reporting with external-sampling MCCFR, stratified range caps, PLO bucket tables, and full UI approximation disclosure.

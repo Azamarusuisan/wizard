@@ -482,6 +482,45 @@ pub mod equity {
         }
     }
 
+    pub fn plo_vs_fixed_equity_mc_board(
+        hero: &[Card],
+        villain: &[Card],
+        board: &[Card],
+        samples: usize,
+        seed: u64,
+    ) -> EquityMc {
+        assert!(hero.len() == 4 || hero.len() == 5);
+        assert_eq!(hero.len(), villain.len());
+        assert!(board.len() <= 5);
+        let dead = hero
+            .iter()
+            .chain(villain)
+            .chain(board)
+            .copied()
+            .collect::<Vec<_>>();
+        assert_eq!(unique_len(&dead), dead.len());
+        let deck: Vec<Card> = (0..52).filter(|c| !dead.contains(c)).collect();
+        let mut rng = Lcg(seed);
+        let mut wins = 0.0;
+        for _ in 0..samples {
+            let runout = sample_runout(&deck, 5 - board.len(), &mut rng);
+            let full_board = board.iter().copied().chain(runout).collect::<Vec<_>>();
+            let hero_rank = evaluate_plo(hero, &full_board);
+            let villain_rank = evaluate_plo(villain, &full_board);
+            if hero_rank > villain_rank {
+                wins += 1.0;
+            } else if hero_rank == villain_rank {
+                wins += 0.5;
+            }
+        }
+        let equity = wins / samples as f64;
+        EquityMc {
+            equity,
+            samples,
+            ci95: 1.96 * ((equity * (1.0 - equity)) / samples as f64).sqrt(),
+        }
+    }
+
     pub fn plo4_vs_random_equity_mc(hero: [Card; 4], samples: usize, seed: u64) -> EquityMc {
         plo_vs_random_equity_mc(&hero, samples, seed)
     }
@@ -1830,6 +1869,33 @@ pub mod br {
                 .equity
         }
 
+        pub fn equity_vs_samples_on_board(self, opponents: &[Self], board: &[Card]) -> f64 {
+            let hero = parse_combo_cards(self.combo);
+            let mut weighted = 0.0;
+            let mut total = 0.0;
+            for opponent in opponents {
+                let villain = parse_combo_cards(opponent.combo);
+                if villain.iter().any(|card| hero.contains(card)) {
+                    continue;
+                }
+                let equity = equity::plo_vs_fixed_equity_mc_board(
+                    &hero,
+                    &villain,
+                    board,
+                    PLO_FAST_EQUITY_SAMPLES,
+                    self.seed ^ opponent.seed,
+                )
+                .equity;
+                weighted += opponent.weight * equity;
+                total += opponent.weight;
+            }
+            if total > 0.0 {
+                weighted / total
+            } else {
+                self.equity_on_board(board)
+            }
+        }
+
         pub fn conflicts_board(self, board: &[Card]) -> bool {
             let cards = parse_combo_cards(self.combo);
             cards.iter().any(|card| board.contains(card))
@@ -2259,7 +2325,7 @@ fn solve_plo_fast(
     let (rows, best_raise_amounts): (Vec<_>, Vec<_>) = samples
         .iter()
         .map(|sample| {
-            let equity = sample.equity_on_board(&board);
+            let equity = sample.equity_vs_samples_on_board(&opponent_samples, &board);
             let (fold_ev, call_ev, _) =
                 row_action_evs(equity, spot.pot, spot.bet, &bet_amounts, rake_pct, rake_cap);
             let (best_raise_amount, raise_ev) =
@@ -4416,6 +4482,10 @@ mod tests {
             serde_json::from_slice(&plo4_aces_vs_rundown_payload).unwrap();
         assert_eq!(plo4_aces_vs_rundown_native.blocker_metrics[0], 0.0);
         assert_eq!(plo4_aces_vs_rundown_native.blocker_metrics[1], 0.0);
+        assert_ne!(
+            plo4_aces_vs_rundown_native.metrics[1],
+            plo4_aces_native.metrics[1]
+        );
         let bad_plo_range: super::NativeSpot = serde_json::from_str(
             r#"{"game":"PLO4","pot":100.0,"bet":20.0,"heroRange":"AA**:bad@50"}"#,
         )

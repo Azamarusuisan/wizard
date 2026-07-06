@@ -492,7 +492,7 @@ function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack
   const betAmounts = betAmountsForSpot(game, board.length, pot, bet, stack, betTree);
   const iterations = precisionIterations(precision);
   const rows = samples.map((sample) => {
-    const eq = ploFastSampleEquity(sample, board);
+    const eq = ploFastSampleEquity(sample, board, opponentSamples);
     const { callEv, raiseEv, bestRaiseAmount } = rowActionEvs(eq, pot, bet, betAmounts, rakePct, rakeCap);
     const strategy = cfrStrategyFromActionEvs(0, callEv, raiseEv, iterations);
     const ev = (strategy.call * callEv + strategy.raise * raiseEv) / 100;
@@ -627,8 +627,17 @@ function formatBetNode(amount: number, stack: number): string {
   return Math.abs(amount - stack) <= 1e-9 ? "all-in" : Number.isInteger(amount) ? String(amount) : amount.toFixed(2);
 }
 
-function ploFastSampleEquity(row: PloFastSample, board: Card[] = []): number {
-  return ploVsRandomEquity(parseComboCards(row.combo), board, PLO_FAST_EQUITY_SAMPLES, row.seed);
+function ploFastSampleEquity(row: PloFastSample, board: Card[] = [], opponents: readonly PloFastSample[] = []): number {
+  const hero = parseComboCards(row.combo);
+  let weighted = 0;
+  let total = 0;
+  for (const opponent of opponents) {
+    const villain = parseComboCards(opponent.combo);
+    if (villain.some((card) => hero.includes(card))) continue;
+    weighted += opponent.weight * ploVsFixedEquity(hero, villain, board, PLO_FAST_EQUITY_SAMPLES, row.seed ^ opponent.seed);
+    total += opponent.weight;
+  }
+  return total ? weighted / total : ploVsRandomEquity(hero, board, PLO_FAST_EQUITY_SAMPLES, row.seed);
 }
 
 function parseComboCards(combo: string): Card[] {
@@ -646,6 +655,21 @@ function ploVsRandomEquity(hero: Card[], board: Card[], samples: number, seed: n
     const drawn = sample(available, hero.length + (5 - board.length), rng);
     const villain = drawn.slice(0, hero.length);
     const fullBoard = [...board, ...drawn.slice(hero.length)];
+    const heroRank = evaluatePlo(hero, fullBoard);
+    const villainRank = evaluatePlo(villain, fullBoard);
+    wins += heroRank > villainRank ? 1 : heroRank === villainRank ? 0.5 : 0;
+  }
+  return wins / samples;
+}
+
+function ploVsFixedEquity(hero: Card[], villain: Card[], board: Card[], samples: number, seed: number): number {
+  const rng = mulberry32(seed);
+  const dead = [...hero, ...villain, ...board];
+  if (new Set(dead).size !== dead.length) throw new Error("duplicate PLO hero/villain/board cards");
+  const available = deck(dead);
+  let wins = 0;
+  for (let i = 0; i < samples; i++) {
+    const fullBoard = [...board, ...sample(available, 5 - board.length, rng)];
     const heroRank = evaluatePlo(hero, fullBoard);
     const villainRank = evaluatePlo(villain, fullBoard);
     wins += heroRank > villainRank ? 1 : heroRank === villainRank ? 0.5 : 0;

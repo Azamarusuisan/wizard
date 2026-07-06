@@ -229,6 +229,7 @@ test("TS solve fallback reports PLO Fast BR metrics", () => {
   const plo4AcesVsRundown = solveRiverSpot(100, 20, 300, "", 0, 0, "PLO4", "flop 50,200,all-in", "balanced", "AA**:ds@50", "JT98:ds@75");
   assert.equal(plo4AcesVsRundown.rows[0]!.blockedCombos, 0);
   assert.equal(plo4AcesVsRundown.rows[0]!.blockerPct, 0);
+  assert.notEqual(plo4AcesVsRundown.rows[0]!.equity, plo4Aces.rows[0]!.equity);
   assert.throws(() => solveRiverSpot(100, 20, 300, "", 0, 0, "PLO4", "", "balanced", "AA**:bad@50"), /suitedness/);
   const plo5 = solveRiverSpot(100, 66, 250, "", 0, 0, "PLO5");
   assert.equal(plo5.rows[0]!.combo, "AsAhKsKhQs");
