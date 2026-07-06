@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { concreteBets, concretePotLimitBets, evaluateNlh7, evaluatePlo, equity, equityAuto, estimateEquityEvaluations, kuhnCfr, parseBetTree, parseCard, parseNlhRange, parsePloRange, potLimitMaxRaise, serializeRange, solveNlhComboSpot, solveRiverSpot } from "./index.js";
+import { concreteBets, concretePotLimitBets, evaluateNlh7, evaluatePlo, equity, equityAuto, estimateEquityEvaluations, kuhnCfr, nlhChanceEquity, parseBetTree, parseCard, parseNlhRange, parsePloRange, potLimitMaxRaise, serializeRange, solveNlhComboSpot, solveRiverSpot } from "./index.js";
 
 const cs = (s: string) => s.split(/\s+/).map(parseCard);
 
@@ -167,6 +167,10 @@ test("TS river solve fallback uses board in concrete combo equities", () => {
   const turn = solveRiverSpot(100, 66, 250, "Ah Kd 7c 2s");
   assert.ok(turn.nodes.some((node) => node.id === "root/river-high" && node.street === "river"));
   assert.ok(!turn.nodes.some((node) => node.id === "root/turn-low"));
+  const low = nlhChanceEquity("AcAd", boarded.rows[0]!.equity, "Ah Kd 7c", "root/turn-low");
+  const mid = nlhChanceEquity("AcAd", boarded.rows[0]!.equity, "Ah Kd 7c", "root/turn-mid");
+  const high = nlhChanceEquity("AcAd", boarded.rows[0]!.equity, "Ah Kd 7c", "root/turn-high");
+  assert.ok(low <= mid && mid <= high);
 });
 
 test("TS river solve fallback uses custom NLH ranges", () => {

@@ -414,6 +414,34 @@ export function solveNlhComboSpot(pot: number, bet: number, stack = pot * 4.2, b
   };
 }
 
+export function nlhChanceEquity(comboText: string, fallback: number, boardText: string, nodeId: string, villainRange = ""): number {
+  const board = parseBoardText(boardText);
+  const target = nodeId.startsWith("root/turn-") ? 4 : nodeId.startsWith("root/river-") ? 5 : 0;
+  if (!target || board.length !== target - 1) return shiftedChanceEquity(fallback, nodeId);
+  const holes = parseComboCards(comboText);
+  if (holes.length !== 2) return shiftedChanceEquity(fallback, nodeId);
+  const equities = deck([...board, ...holes]).map((next) => {
+    const nextBoard = [...board, next];
+    return comboEquity(holes, fallback, nextBoard, nlhRiverCombosFromRange(villainRange, nextBoard));
+  }).sort((a, b) => a - b);
+  if (!equities.length) return shiftedChanceEquity(fallback, nodeId);
+  const bucket = nodeId.includes("-low") ? 0 : nodeId.includes("-high") ? 2 : 1;
+  const [start, end] = chancePartition(equities.length, bucket);
+  const slice = equities.slice(start, end);
+  return slice.reduce((sum, value) => sum + value, 0) / Math.max(1, slice.length);
+}
+
+function shiftedChanceEquity(equity: number, nodeId: string): number {
+  const delta = nodeId.includes("-low") ? -0.12 : nodeId.includes("-high") ? 0.12 : 0;
+  return Math.min(0.98, Math.max(0.02, equity + delta));
+}
+
+function chancePartition(total: number, bucket: number): [number, number] {
+  const low = Math.floor(total / 3);
+  const middle = Math.floor((total - low) / 2);
+  return [[0, low], [low, low + middle], [low + middle, total]][bucket] as [number, number];
+}
+
 export function plo4FastExploitabilityPctPot(iterations = 2_048): number {
   return ploFastExploitabilityPctPot(PLO4_FAST_SAMPLES, iterations);
 }

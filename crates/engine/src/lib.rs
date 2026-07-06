@@ -3320,9 +3320,14 @@ fn chance_node_rows(solve: &NativeSolve, node: &NativeNode) -> Vec<br::RiverComb
     solve
         .metrics
         .chunks_exact(3)
+        .zip(&solve.combos)
         .take(solve.combos.len())
-        .map(|metric| {
-            let equity = chance_node_equity(metric[1], &node.id);
+        .map(|(metric, combo)| {
+            let equity = if solve.spot.game.as_deref().unwrap_or("NLH") == "NLH" {
+                nlh_chance_node_equity(solve, combo, metric[1], &node.id)
+            } else {
+                shifted_chance_node_equity(metric[1], &node.id)
+            };
             let (fold_ev, call_ev, raise_ev) =
                 br::action_evs(equity, pot, solve.spot.bet, rake_pct, rake_cap);
             br::cfr_combo_from_action_evs(equity, fold_ev, call_ev, raise_ev, 256)
@@ -3349,7 +3354,74 @@ fn chance_node_pot(solve: &NativeSolve) -> f64 {
     solve.spot.pot + solve.spot.bet * 2.0
 }
 
-fn chance_node_equity(equity: f64, node_id: &str) -> f64 {
+fn nlh_chance_node_equity(solve: &NativeSolve, combo: &str, fallback: f64, node_id: &str) -> f64 {
+    let target = if node_id.starts_with("root/turn-") {
+        4
+    } else if node_id.starts_with("root/river-") {
+        5
+    } else {
+        return fallback;
+    };
+    let Ok(board) = parse_board(solve.spot.board.as_deref().unwrap_or("")) else {
+        return fallback;
+    };
+    if board.len() != target - 1 {
+        return shifted_chance_node_equity(fallback, node_id);
+    }
+    let Some(hero) = parse_combo_label(combo) else {
+        return shifted_chance_node_equity(fallback, node_id);
+    };
+    let dead = hero
+        .into_iter()
+        .chain(board.iter().copied())
+        .collect::<Vec<_>>();
+    let mut equities = (0..52)
+        .filter(|card| !dead.contains(card))
+        .map(|card| {
+            let mut next_board = board.clone();
+            next_board.push(card);
+            let villains =
+                nlh_river_entries_from_range(solve.spot.villain_range.as_deref(), &next_board)
+                    .unwrap_or_else(|_| default_river_entries(&next_board));
+            combo_equity_cached(hero, fallback, &next_board, &villains, &mut HashMap::new())
+        })
+        .collect::<Vec<_>>();
+    if equities.is_empty() {
+        return shifted_chance_node_equity(fallback, node_id);
+    }
+    equities.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    let bucket = if node_id.contains("-low") {
+        0
+    } else if node_id.contains("-high") {
+        2
+    } else {
+        1
+    };
+    let (start, end) = chance_partition(equities.len(), bucket);
+    let slice = &equities[start..end];
+    slice.iter().sum::<f64>() / slice.len().max(1) as f64
+}
+
+fn parse_combo_label(combo: &str) -> Option<[eval::Card; 2]> {
+    let cards = combo
+        .as_bytes()
+        .chunks_exact(2)
+        .map(|chunk| {
+            let rank = "23456789TJQKA".find(chunk[0] as char)? as u8;
+            let suit = "cdhs".find(chunk[1] as char)? as u8;
+            Some(eval::card(rank, suit))
+        })
+        .collect::<Option<Vec<_>>>()?;
+    (cards.len() == 2).then_some([cards[0], cards[1]])
+}
+
+fn chance_partition(total: usize, bucket: usize) -> (usize, usize) {
+    let low = total / 3;
+    let middle = (total - low) / 2;
+    [(0, low), (low, low + middle), (low + middle, total)][bucket]
+}
+
+fn shifted_chance_node_equity(equity: f64, node_id: &str) -> f64 {
     let delta = if node_id.contains("-low") {
         -0.12
     } else if node_id.contains("-high") {
@@ -4253,6 +4325,12 @@ mod tests {
         let turn_low_strategy = super::get_strategy(flop_handle, "turn:root/turn-low").unwrap();
         let flop_root_strategy = super::get_strategy(flop_handle, "root").unwrap();
         assert_ne!(&turn_low_strategy[0..3], &flop_root_strategy[0..3]);
+        let turn_low_metrics = super::get_hand_metrics(flop_handle, "turn:root/turn-low").unwrap();
+        let turn_mid_metrics = super::get_hand_metrics(flop_handle, "turn:root/turn-mid").unwrap();
+        let turn_high_metrics =
+            super::get_hand_metrics(flop_handle, "turn:root/turn-high").unwrap();
+        assert!(turn_low_metrics[1] <= turn_mid_metrics[1]);
+        assert!(turn_mid_metrics[1] <= turn_high_metrics[1]);
         let turn_handle =
             super::solve(r#"{"pot":100.0,"bet":66.0,"stack":250.0,"board":"Ah Kd 7c 2s"}"#)
                 .expect("turn solve starts");

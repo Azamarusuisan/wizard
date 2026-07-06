@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { EXACT_EQUITY_EVAL_THRESHOLD, HAND_CATEGORIES, concreteBets, concretePotLimitBets, deck, estimateEquityEvaluations, formatCard, parseBetTree, parseCard, equity, parseNlhRange, parsePloRange, serializeRange, solveNlhComboSpot, solveRiverSpot, type Game, type SolveNode, type SolveResult, type SolverRow } from "@gto-lab/engine-wasm";
+import { EXACT_EQUITY_EVAL_THRESHOLD, HAND_CATEGORIES, concreteBets, concretePotLimitBets, deck, estimateEquityEvaluations, formatCard, nlhChanceEquity, parseBetTree, parseCard, equity, parseNlhRange, parsePloRange, serializeRange, solveNlhComboSpot, solveRiverSpot, type Game, type SolveNode, type SolveResult, type SolverRow } from "@gto-lab/engine-wasm";
 import { CardView } from "../components/CardView";
 import { Metric } from "../components/Metric";
 import { StrategyTable } from "../components/StrategyTable";
@@ -157,7 +157,7 @@ export function SolverStudio() {
   const memoryEstimate = estimateSolverMemory(game, precision, board);
   const selectedNode = shown?.nodes.find((node) => node.id === selectedNodeId) ?? shown?.nodes[0];
   const selectedInfoSet = selectedNode ? shown?.informationSets.find((infoSet) => infoSet.nodeId === selectedNode.id || infoSet.key === selectedNode.infoSet) : null;
-  const nodeRows = shown && selectedNode ? rowsForNode(shown, selectedNode, { pot, bet, rakePct, rakeCap }) : [];
+  const nodeRows = shown && selectedNode ? rowsForNode(shown, selectedNode, { pot, bet, board, villainRange, rakePct, rakeCap }) : [];
   const handClasses = [...new Set(nodeRows.map((row) => row.handClass))].sort();
   const shownRows = handClassFilter === "all" ? nodeRows : nodeRows.filter((row) => row.handClass === handClassFilter);
   const nodeSummary = summarizeRows(shownRows);
@@ -289,7 +289,7 @@ function parseBoardCards(value: string): number[] {
   }
 }
 
-function rowsForNode(result: SolveResult, node: SolveNode, spot: { pot: number; bet: number; rakePct: number; rakeCap: number }): SolverRow[] {
+function rowsForNode(result: SolveResult, node: SolveNode, spot: { pot: number; bet: number; board: string; villainRange: string; rakePct: number; rakeCap: number }): SolverRow[] {
   if (node.id === "root") return result.rows;
   if (node.id === "root/fold") return result.rows.map((row) => actionRow(row, "fold", row.foldEv));
   if (node.id === "root/call") return result.rows.map((row) => actionRow(row, "call", row.callEv));
@@ -302,8 +302,8 @@ function rowsForNode(result: SolveResult, node: SolveNode, spot: { pot: number; 
   return [];
 }
 
-function chanceRow(row: SolverRow, nodeId: string, spot: { pot: number; bet: number; rakePct: number; rakeCap: number }): SolverRow {
-  const equity = Math.min(0.98, Math.max(0.02, row.equity + (nodeId.includes("-low") ? -0.12 : nodeId.includes("-high") ? 0.12 : 0)));
+function chanceRow(row: SolverRow, nodeId: string, spot: { pot: number; bet: number; board: string; villainRange: string; rakePct: number; rakeCap: number }): SolverRow {
+  const equity = nlhChanceEquity(row.combo, row.equity, spot.board, nodeId, spot.villainRange);
   const nextPot = spot.pot + spot.bet * 2;
   const rake = Math.min((nextPot + spot.bet) * (spot.rakePct / 100), spot.rakeCap);
   const callEv = (equity * (nextPot + spot.bet - rake) - (1 - equity) * spot.bet) / 100;

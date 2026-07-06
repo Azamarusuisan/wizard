@@ -1,4 +1,4 @@
-import { solveRiverSpot, type SolveInfoSet, type SolveNode, type SolveResult, type SolverRow } from "./index.js";
+import { nlhChanceEquity, solveRiverSpot, type SolveInfoSet, type SolveNode, type SolveResult, type SolverRow } from "./index.js";
 
 export type Progress = { iteration: number; exploitabilityPct: number; elapsed: number };
 export type EngineHandle = number;
@@ -383,17 +383,12 @@ function chanceRows(result: SolveResult, spot: LocalSpot, node: SolveNode): Solv
   const pot = node.pot ?? spot.pot + spot.bet * 2;
   const bet = spot.bet;
   return result.rows.map((row) => {
-    const equity = chanceEquity(row.equity, node.id);
+    const equity = nlhChanceEquity(row.combo, row.equity, spot.board ?? "", node.id, spot.villainRange ?? "");
     const { callEv, raiseEv } = localActionEvs(equity, pot, bet, spot.rakePct ?? 0, spot.rakeCap ?? 0);
     const strategy = localCfrStrategy(0, callEv, raiseEv);
     const ev = (strategy.call * callEv + strategy.raise * raiseEv) / 100;
     return { ...row, ...strategy, equity, callEv: callEv / 100, raiseEv: raiseEv / 100, ev, eqr: ev / Math.max(0.0001, equity * pot / 100) };
   });
-}
-
-function chanceEquity(equity: number, nodeId: string): number {
-  const delta = nodeId.includes("-low") ? -0.12 : nodeId.includes("-high") ? 0.12 : 0;
-  return Math.min(0.98, Math.max(0.02, equity + delta));
 }
 
 function localActionEvs(equity: number, pot: number, bet: number, rakePct: number, rakeCap: number): { callEv: number; raiseEv: number } {
