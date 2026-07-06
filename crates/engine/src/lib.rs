@@ -3709,6 +3709,11 @@ mod tests {
         );
         assert!(super::has_node_id(&native, "root"));
         assert!(!super::has_node_id(&native, "turn:blank"));
+        let root_strategy = super::get_strategy(handle, "root").unwrap();
+        assert_eq!(
+            root_strategy.len(),
+            native.combos.len() * native.nodes[0].actions.len()
+        );
         assert!(super::get_strategy(handle, "root/call").unwrap().is_empty());
         assert!(super::get_strategy(handle, "preflop:root/call")
             .unwrap()
@@ -3721,7 +3726,15 @@ mod tests {
         assert!((call_metrics[0] - native.action_evs[1]).abs() < 1e-12);
         assert!(call_metrics[1] > 0.0);
         let bet_strategy = super::get_strategy(handle, "root/bet-33").unwrap();
-        assert_eq!(bet_strategy.len(), native.combos.len() * 2);
+        let bet_node = native
+            .nodes
+            .iter()
+            .find(|node| node.id == "root/bet-33")
+            .unwrap();
+        assert_eq!(
+            bet_strategy.len(),
+            native.combos.len() * bet_node.actions.len()
+        );
         assert!((bet_strategy[0] - 33.0 / 133.0).abs() < 1e-12);
         assert!((bet_strategy[1] - 100.0 / 133.0).abs() < 1e-12);
         let bet_metrics = super::get_hand_metrics(handle, "root/bet-33").unwrap();

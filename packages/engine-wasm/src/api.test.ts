@@ -19,7 +19,9 @@ test("EngineAPI prefers generated wasm package when present", async () => {
   assert.ok(result.rows[0]!.raiseEv >= result.rows[0]!.callEv);
   assert.ok(result.exploitability.length > 0);
   assert.equal(result.metrics.brGapPctPot, result.exploitability.at(-1)?.value);
-  assert.equal((await engine.getStrategy(handle, "root")).combos[0], "AcAd");
+  const rootStrategy = await engine.getStrategy(handle, "root");
+  assert.equal(rootStrategy.combos[0], "AcAd");
+  assert.equal(rootStrategy.actions.length, rootStrategy.combos.length * result.nodes[0]!.actions.length);
   assert.equal((await engine.getStrategy(handle, "root/call")).combos.length, 0);
   assert.equal((await engine.getStrategy(handle, "preflop:root/call")).combos.length, 0);
   const callMetrics = await engine.getHandMetrics(handle, "root/call");
@@ -29,9 +31,11 @@ test("EngineAPI prefers generated wasm package when present", async () => {
   assert.ok(Math.abs(callMetrics.ev[0]! - result.rows[0]!.callEv) < 1e-6);
   assert.ok((callMetrics.equity[0] ?? 0) > 0);
   const betHandle = await engine.solve(JSON.stringify({ pot: 100, bet: 33, betTree: "flop 33" }));
+  const betResult = await engine.result(betHandle);
+  const betNode = betResult.nodes.find((node) => node.id === "root/bet-33")!;
   const betStrategy = await engine.getStrategy(betHandle, "root/bet-33");
   assert.equal(betStrategy.combos[0], "AcAd");
-  assert.equal(betStrategy.actions.length, betStrategy.combos.length * 2);
+  assert.equal(betStrategy.actions.length, betStrategy.combos.length * betNode.actions.length);
   assert.ok(Math.abs(betStrategy.actions[0]! - 33 / 133) < 1e-12);
   const betMetrics = await engine.getHandMetrics(betHandle, "root/bet-33");
   assert.equal(betMetrics.ev.length, betStrategy.combos.length);
