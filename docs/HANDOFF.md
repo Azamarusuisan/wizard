@@ -77,8 +77,8 @@
 - CI workflow exists for Node and Rust.
 - Production code grep for `TODO|FIXME|未実装|placeholder` is clean.
 - `packages/engine-wasm` now exposes an `EngineAPI` facade (`init`, `solve`, `pollProgress`, `getStrategy`, `getHandMetrics`, `cancel`, `serialize`, `result`). It prefers the generated wasm-pack backend when `pkg/gto_lab_engine.js` exists and falls back to `LocalEngine` only when the package is unavailable. The unit test proves the wasm backend is selected after `wasm-pack build`.
-- Engine strategy/metric calls now validate node ids and accept only `root` until real information-set nodes are serialized, avoiding silent fallback for unknown node ids.
-- Solve results now carry a `nodes` array through Rust native serialization, TypeScript fallback, EngineAPI conversion, IndexedDB cache, and Solver Studio display. It currently contains only `root`.
+- Engine strategy/metric calls now validate node ids across `root` and first-level action nodes, avoiding silent fallback for unknown node ids.
+- Solve results now carry a `nodes` array through Rust native serialization, TypeScript fallback, EngineAPI conversion, IndexedDB cache, and Solver Studio display.
 - Root solve node metadata now includes action labels (`fold`, `call`, `raise`) across Rust/TS/cache/UI.
 - Root solve node street now derives from board length (`preflop` / `flop` / `turn` / `river`) in Rust native and TypeScript fallback results.
 - Solve node serialization now includes first-level action nodes (`root/fold`, `root/call`, `root/raise`) in Rust native and TypeScript fallback results. EngineAPI node-id validation accepts these nodes, and IndexedDB round-trip tests prove they persist.
