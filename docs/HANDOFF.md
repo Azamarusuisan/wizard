@@ -46,6 +46,7 @@
 - Solver rows now preserve NLH range weights through TypeScript fallback, Rust native serialization, IndexedDB cache, strategy table display, range aggregate cards, BR gap, and convergence progress.
 - Solver rows now include blocker analysis as blocked villain combo weight and blocked fraction in TypeScript fallback, Rust native serialization, IndexedDB cache, strategy table, and Solver Studio aggregate cards.
 - Solver rows now carry basic NLH hand-class labels (`pair`, `top pair`, `flush draw`, etc.) through TS fallback, Rust native serialization, IndexedDB cache, and Strategy table; Solver Studio has a hand-class filter.
+- Solver Studio now shows a compact action-by-hand-class composition summary from existing row frequencies.
 - Solver spot payload/cache key now carries rake percent and cap. Native WASM and TS fallback river action EVs subtract capped rake from the win pot; tests cover that rake lowers call/raise showdown EV.
 - Solver spot payload/cache key now carries game. PLO4/PLO5 in Solver Studio return Fast sampled BR metrics instead of silently using NLH rows; the real MCCFR path still needs to replace this proxy.
 - PLO4/PLO5 Fast solve rows now use concrete representative combo labels and derive their equity from seeded PLO-vs-random MC before computing pure fold/call/raise strategy from current pot/bet/rake EV. This is still a representative proxy, not full PLO MCCFR.

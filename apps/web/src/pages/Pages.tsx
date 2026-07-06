@@ -159,6 +159,7 @@ export function SolverStudio() {
   const handClasses = [...new Set(nodeRows.map((row) => row.handClass))].sort();
   const shownRows = handClassFilter === "all" ? nodeRows : nodeRows.filter((row) => row.handClass === handClassFilter);
   const nodeSummary = summarizeRows(shownRows);
+  const actionComposition = summarizeActionComposition(shownRows);
   return (
     <div className="split">
       <section className="card grid">
@@ -235,6 +236,7 @@ export function SolverStudio() {
           <Metric label="Range EQR" value={nodeSummary.eqr.toFixed(2)} />
           <Metric label="Blockers" value={`${nodeSummary.blockedCombos.toFixed(1)} (${(nodeSummary.blockerPct * 100).toFixed(0)}%)`} />
           <Metric label="Action mix" value={`F ${(nodeSummary.fold * 100).toFixed(0)} / C ${(nodeSummary.call * 100).toFixed(0)} / R ${(nodeSummary.raise * 100).toFixed(0)}`} />
+          <Metric label="Action composition" value={actionComposition} />
           <div className="card" aria-label="solve nodes"><b>Nodes</b><div className="grid" style={{ gap: 8, marginTop: 12 }}>{shown.nodes.map((node) => <button className="btn" key={node.id} aria-pressed={(selectedNode?.id ?? "root") === node.id} onClick={() => setSelectedNodeId(node.id)}>{node.label} ({node.id}{node.actions.length ? `: ${node.actions.join(", ")}` : ""})</button>)}</div></div>
           <div className="card" style={{ height: 220 }}><Curve data={progress.length ? progress : shown.exploitability} /></div>
         </> : <div className="card"><p className="muted">No valid spot.</p></div>}
@@ -291,6 +293,17 @@ function summarizeRows(rows: SolverRow[]): Pick<SolverRow, "fold" | "call" | "ra
     blockedCombos: total.blockedCombos / totalWeight,
     blockerPct: total.blockerPct / totalWeight
   };
+}
+
+function summarizeActionComposition(rows: SolverRow[]): string {
+  if (!rows.length) return "-";
+  const actions = ["fold", "call", "raise"] as const;
+  return actions.map((action) => {
+    const weights = new Map<string, number>();
+    for (const row of rows) weights.set(row.handClass, (weights.get(row.handClass) ?? 0) + row.weight * row[action]);
+    const top = [...weights.entries()].sort((a, b) => b[1] - a[1])[0];
+    return `${action[0]!.toUpperCase()} ${top?.[0] ?? "-"}`;
+  }).join(" / ");
 }
 
 function flopBetSizes(text: string, pot: number, call: number, stack: number, game: Game): { amount: number; label: string }[] {
