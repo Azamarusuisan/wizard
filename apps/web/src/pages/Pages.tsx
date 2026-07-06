@@ -295,11 +295,21 @@ function rowsForNode(result: SolveResult, node: SolveNode, spot: { game: Game; p
   if (node.id === "root/call") return result.rows.map((row) => actionRow(row, "call", row.callEv));
   if (node.id === "root/raise") return result.rows.map((row) => actionRow(row, "raise", row.raiseEv));
   if (node.id === "root/raise-sizes") return result.rows;
-  if (node.id.startsWith("root/turn-") || node.id.startsWith("root/river-")) return result.rows.map((row) => chanceRow(row, node.id, spot));
-  if (node.amount !== undefined && node.pot !== undefined && node.id.endsWith("/fold")) return result.rows.map((row) => betResponseActionRow(row, "fold", node.pot!));
-  if (node.amount !== undefined && node.pot !== undefined && node.id.endsWith("/call")) return result.rows.map((row) => betResponseActionRow(row, "call", node.pot!, node.amount!));
-  if (node.amount !== undefined && node.pot !== undefined) return result.rows.map((row) => betResponseRow(row, node.pot!, node.amount!));
+  const chanceParent = chanceParentId(node.id);
+  const sourceRows = chanceParent ? result.rows.map((row) => chanceRow(row, chanceParent, spot)) : result.rows;
+  if (node.amount !== undefined && node.pot !== undefined && node.id.endsWith("/fold")) return sourceRows.map((row) => betResponseActionRow(row, "fold", node.pot!));
+  if (node.amount !== undefined && node.pot !== undefined && node.id.endsWith("/call")) return sourceRows.map((row) => betResponseActionRow(row, "call", node.pot!, node.amount!));
+  if (node.amount !== undefined && node.pot !== undefined) return sourceRows.map((row) => betResponseRow(row, node.pot!, node.amount!));
+  if (isChanceBranchId(node.id)) return result.rows.map((row) => chanceRow(row, node.id, spot));
   return [];
+}
+
+function isChanceBranchId(nodeId: string): boolean {
+  return /^root\/(?:turn|river)-(?:low|mid|high)$/.test(nodeId);
+}
+
+function chanceParentId(nodeId: string): string | null {
+  return /^(root\/(?:turn|river)-(?:low|mid|high))\//.exec(nodeId)?.[1] ?? null;
 }
 
 function chanceRow(row: SolverRow, nodeId: string, spot: { game: Game; pot: number; bet: number; stack: number; board: string; villainRange: string; rakePct: number; rakeCap: number; betTree: string }): SolverRow {

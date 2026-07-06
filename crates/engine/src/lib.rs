@@ -3259,6 +3259,24 @@ pub fn get_hand_metrics(handle: u32, node_id: &str) -> Result<Vec<f64>, JsValue>
     with_solve(handle, |solve| {
         let node = node_for_id(solve, node_id)?;
         if let Some(amount) = node.amount {
+            if let Some(parent_id) = chance_parent_id(&node.id) {
+                return if node.actions.is_empty() {
+                    Ok(chance_bet_response_action_metrics(
+                        solve,
+                        parent_id,
+                        node.pot.unwrap_or(solve.spot.pot),
+                        amount,
+                        node.id.ends_with("/call"),
+                    ))
+                } else {
+                    Ok(chance_bet_response_metrics(
+                        solve,
+                        parent_id,
+                        node.pot.unwrap_or(solve.spot.pot),
+                        amount,
+                    ))
+                };
+            }
             if node.actions.is_empty() {
                 return Ok(bet_response_action_metrics(
                     solve,
@@ -3311,7 +3329,32 @@ fn action_node_metrics(solve: &NativeSolve, action_idx: usize) -> Vec<f64> {
 }
 
 fn is_chance_node(node: &NativeNode) -> bool {
-    node.id.starts_with("root/turn-") || node.id.starts_with("root/river-")
+    matches!(
+        node.id.as_str(),
+        "root/turn-low"
+            | "root/turn-mid"
+            | "root/turn-high"
+            | "root/river-low"
+            | "root/river-mid"
+            | "root/river-high"
+    )
+}
+
+fn chance_parent_id(node_id: &str) -> Option<&str> {
+    let (parent, _) = node_id.split_once("/bet-")?;
+    if matches!(
+        parent,
+        "root/turn-low"
+            | "root/turn-mid"
+            | "root/turn-high"
+            | "root/river-low"
+            | "root/river-mid"
+            | "root/river-high"
+    ) {
+        Some(parent)
+    } else {
+        None
+    }
 }
 
 fn chance_node_rows(solve: &NativeSolve, node: &NativeNode) -> Vec<br::RiverCombo> {
@@ -3470,6 +3513,25 @@ fn bet_response_metrics(solve: &NativeSolve, pot: f64, amount: f64) -> Vec<f64> 
         .collect()
 }
 
+fn chance_bet_response_metrics(
+    solve: &NativeSolve,
+    parent_id: &str,
+    pot: f64,
+    amount: f64,
+) -> Vec<f64> {
+    let (fold_freq, call_freq) = bet_response_strategy(pot, amount);
+    let (rake_pct, rake_cap) = spot_rake(&solve.spot);
+    chance_parent_rows(solve, parent_id)
+        .into_iter()
+        .flat_map(|row| {
+            let call_ev = br::action_evs(row.equity, pot, amount, rake_pct, rake_cap).1;
+            let ev = (fold_freq * pot + call_freq * call_ev) / 100.0;
+            let eqr = ev / (row.equity * pot / 100.0).max(0.0001);
+            [ev, row.equity, eqr]
+        })
+        .collect()
+}
+
 fn bet_response_action_metrics(
     solve: &NativeSolve,
     pot: f64,
@@ -3492,6 +3554,45 @@ fn bet_response_action_metrics(
             [ev, equity, eqr]
         })
         .collect()
+}
+
+fn chance_bet_response_action_metrics(
+    solve: &NativeSolve,
+    parent_id: &str,
+    pot: f64,
+    amount: f64,
+    call_branch: bool,
+) -> Vec<f64> {
+    let (rake_pct, rake_cap) = spot_rake(&solve.spot);
+    chance_parent_rows(solve, parent_id)
+        .into_iter()
+        .flat_map(|row| {
+            let ev = if call_branch {
+                br::action_evs(row.equity, pot, amount, rake_pct, rake_cap).1 / 100.0
+            } else {
+                pot / 100.0
+            };
+            let eqr = ev / (row.equity * pot / 100.0).max(0.0001);
+            [ev, row.equity, eqr]
+        })
+        .collect()
+}
+
+fn chance_parent_rows(solve: &NativeSolve, parent_id: &str) -> Vec<br::RiverCombo> {
+    let street = if parent_id.starts_with("root/turn-") {
+        "turn"
+    } else {
+        "river"
+    };
+    let node = native_node(
+        parent_id.to_string(),
+        parent_id.to_string(),
+        street,
+        vec!["fold".to_string(), "call".to_string(), "raise".to_string()],
+        None,
+        None,
+    );
+    chance_node_rows(solve, &node)
 }
 
 #[wasm_bindgen]
@@ -4392,10 +4493,14 @@ mod tests {
         let turn_low_bet_strategy =
             super::get_strategy(flop_handle, &format!("turn:{}", turn_low_bet_node.id)).unwrap();
         assert_eq!(turn_low_bet_strategy.len(), flop_native.combos.len() * 2);
+        let turn_low_bet_call_metrics =
+            super::get_hand_metrics(flop_handle, &format!("turn:{}/call", turn_low_bet_node.id))
+                .unwrap();
         let turn_low_strategy = super::get_strategy(flop_handle, "turn:root/turn-low").unwrap();
         let flop_root_strategy = super::get_strategy(flop_handle, "root").unwrap();
         assert_ne!(&turn_low_strategy[0..3], &flop_root_strategy[0..3]);
         let turn_low_metrics = super::get_hand_metrics(flop_handle, "turn:root/turn-low").unwrap();
+        assert_eq!(turn_low_metrics[1], turn_low_bet_call_metrics[1]);
         let turn_mid_metrics = super::get_hand_metrics(flop_handle, "turn:root/turn-mid").unwrap();
         let turn_high_metrics =
             super::get_hand_metrics(flop_handle, "turn:root/turn-high").unwrap();

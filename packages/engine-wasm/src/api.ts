@@ -75,13 +75,13 @@ class LocalEngine implements EngineAPI {
     const { result, spot } = this.mustGetSolve(handle);
     const node = nodeForId(result, nodeId);
     if (!node.actions.length) return { combos: [], actions: new Float64Array() };
-    if (isChanceNode(node)) {
-      const rows = chanceRows(result, spot, node);
-      return { combos: rows.map((r) => r.combo), actions: Float64Array.from(rows.flatMap((r) => [r.fold, r.call, r.raise])) };
-    }
     if (node.amount !== undefined && node.pot !== undefined) {
       const [fold, call] = betResponseStrategy(node.pot, node.amount);
       return { combos: result.rows.map((r) => r.combo), actions: Float64Array.from(result.rows.flatMap(() => [fold, call])) };
+    }
+    if (isChanceNode(node)) {
+      const rows = chanceRows(result, spot, node);
+      return { combos: rows.map((r) => r.combo), actions: Float64Array.from(rows.flatMap((r) => [r.fold, r.call, r.raise])) };
     }
     if (node.id === "root/raise-sizes") return {
       combos: result.rows.map((r) => r.combo),
@@ -94,10 +94,15 @@ class LocalEngine implements EngineAPI {
   }
 
   async getHandMetrics(handle: EngineHandle, nodeId = "root"): Promise<HandMetrics> {
-    const result = this.mustGet(handle);
+    const { result, spot } = this.mustGetSolve(handle);
     const node = nodeForId(result, nodeId);
+    if (node.amount !== undefined && node.pot !== undefined) {
+      const parent = chanceParentNode(node);
+      const metricResult = parent ? { ...result, rows: chanceRows(result, spot, parent) } : result;
+      if (!node.actions.length) return betResponseActionMetrics(metricResult, node.pot, node.amount, node.id.endsWith("/call"));
+      return betResponseMetrics(metricResult, node.pot, node.amount);
+    }
     if (isChanceNode(node)) {
-      const spot = this.mustGetSolve(handle).spot;
       const rows = chanceRows(result, spot, node);
       return {
         ev: Float32Array.from(rows.map((r) => r.ev)),
@@ -105,8 +110,6 @@ class LocalEngine implements EngineAPI {
         eqr: Float32Array.from(rows.map((r) => r.eqr))
       };
     }
-    if (node.amount !== undefined && node.pot !== undefined && !node.actions.length) return betResponseActionMetrics(result, node.pot, node.amount, node.id.endsWith("/call"));
-    if (node.amount !== undefined && node.pot !== undefined) return betResponseMetrics(result, node.pot, node.amount);
     const action = nodeActionKey(node.id);
     if (action) return actionNodeMetrics(result, action);
     if (!node.actions.length) return { ev: new Float32Array(), equity: new Float32Array(), eqr: new Float32Array() };
@@ -376,7 +379,13 @@ function infoSetRefs(node: SolveNode): Pick<SolveInfoSet, "strategyRef" | "metri
 }
 
 function isChanceNode(node: SolveNode): boolean {
-  return node.id.startsWith("root/turn-") || node.id.startsWith("root/river-");
+  return /^root\/(?:turn|river)-(?:low|mid|high)$/.test(node.id);
+}
+
+function chanceParentNode(node: SolveNode): SolveNode | null {
+  const match = /^(root\/(?:turn|river)-(?:low|mid|high))\//.exec(node.id);
+  if (!match) return null;
+  return { ...node, id: match[1]!, actions: ["fold", "call", "raise"], amount: undefined, pot: undefined };
 }
 
 function chanceRows(result: SolveResult, spot: LocalSpot, node: SolveNode): SolverRow[] {
