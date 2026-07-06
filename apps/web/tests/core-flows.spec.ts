@@ -39,6 +39,11 @@ test("solver runs and displays strategy metrics", async ({ page }) => {
   await expect(page.getByText("BR gap")).toBeVisible();
   await expect(page.getByLabel("solve nodes")).toContainText("root/call");
   await expect(page.getByLabel("solve nodes")).toContainText("root/bet-33");
+  await page.getByRole("button", { name: /CALL \(root\/call/ }).click();
+  await expect(page.getByText("Node: root/call")).toBeVisible();
+  await expect(page.getByRole("table", { name: "strategy table" })).toContainText("100%");
+  await page.getByRole("button", { name: /BET 33 \(root\/bet-33/ }).click();
+  await expect(page.getByText("Node: root/bet-33")).toBeVisible();
   await expect(page.getByText("abstracted")).toBeVisible();
   await expect(page.getByText(/default-combo abstraction/)).toBeVisible();
   await expect(page).toHaveURL(/spot=/);

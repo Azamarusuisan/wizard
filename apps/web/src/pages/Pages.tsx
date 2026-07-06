@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { EXACT_EQUITY_EVAL_THRESHOLD, HAND_CATEGORIES, concreteBets, concretePotLimitBets, deck, estimateEquityEvaluations, formatCard, parseBetTree, parseCard, equity, parseNlhRange, parsePloRange, serializeRange, solveNlhComboSpot, solveRiverSpot, type Game } from "@gto-lab/engine-wasm";
+import { EXACT_EQUITY_EVAL_THRESHOLD, HAND_CATEGORIES, concreteBets, concretePotLimitBets, deck, estimateEquityEvaluations, formatCard, parseBetTree, parseCard, equity, parseNlhRange, parsePloRange, serializeRange, solveNlhComboSpot, solveRiverSpot, type Game, type SolveNode, type SolveResult, type SolverRow } from "@gto-lab/engine-wasm";
 import { CardView } from "../components/CardView";
 import { Metric } from "../components/Metric";
 import { StrategyTable } from "../components/StrategyTable";
@@ -75,6 +75,7 @@ export function SolverStudio() {
   const [cached, setCached] = useState(false);
   const [running, setRunning] = useState(false);
   const [resultKey, setResultKey] = useState("");
+  const [selectedNodeId, setSelectedNodeId] = useState("root");
   const cancelRef = useRef<AbortController | null>(null);
   const result = useAppStore((s) => s.result);
   const setResult = useAppStore((s) => s.setResult);
@@ -89,6 +90,8 @@ export function SolverStudio() {
     }
   }, [game, pot, bet, stack, board, rakePct, rakeCap, betTree]);
   const shown = preview.error ? null : result && resultKey === currentKey ? result : preview.result;
+  const selectedNode = shown?.nodes.find((node) => node.id === selectedNodeId) ?? shown?.nodes[0];
+  const shownRows = shown && selectedNode ? rowsForNode(shown, selectedNode) : [];
   return (
     <div className="split">
       <section className="card grid">
@@ -140,7 +143,8 @@ export function SolverStudio() {
       </section>
       <section className="card">
         <h2 className="title">Strategy</h2>
-        {shown ? <StrategyTable rows={shown.rows} /> : <p className="muted">Fix spot inputs to preview strategy.</p>}
+        {selectedNode ? <p className="muted">Node: <span className="num">{selectedNode.id}</span></p> : null}
+        {shown ? <StrategyTable rows={shownRows} /> : <p className="muted">Fix spot inputs to preview strategy.</p>}
       </section>
       <section className="grid">
         {shown ? <>
@@ -150,12 +154,37 @@ export function SolverStudio() {
           <Metric label="Pot odds" value={`${(shown.metrics.potOdds * 100).toFixed(1)}%`} />
           {shown.metrics.brGapPctPot !== undefined ? <Metric label="BR gap" value={`${shown.metrics.brGapPctPot.toFixed(2)}% pot`} /> : null}
           {shown.metrics.ploFastExploitability !== undefined ? <Metric label="PLO Fast BR" value={`${shown.metrics.ploFastExploitability.toFixed(2)}% pot`} /> : null}
-          <div className="card" aria-label="solve nodes"><b>Nodes</b><ul className="muted">{shown.nodes.map((node) => <li key={node.id}>{node.label} ({node.id}{node.actions.length ? `: ${node.actions.join(", ")}` : ""})</li>)}</ul></div>
+          <div className="card" aria-label="solve nodes"><b>Nodes</b><div className="grid" style={{ gap: 8, marginTop: 12 }}>{shown.nodes.map((node) => <button className="btn" key={node.id} aria-pressed={(selectedNode?.id ?? "root") === node.id} onClick={() => setSelectedNodeId(node.id)}>{node.label} ({node.id}{node.actions.length ? `: ${node.actions.join(", ")}` : ""})</button>)}</div></div>
           <div className="card" style={{ height: 220 }}><Curve data={progress.length ? progress : shown.exploitability} /></div>
         </> : <div className="card"><p className="muted">No valid spot.</p></div>}
       </section>
     </div>
   );
+}
+
+function rowsForNode(result: SolveResult, node: SolveNode): SolverRow[] {
+  if (node.id === "root") return result.rows;
+  if (node.id === "root/fold") return result.rows.map((row) => actionRow(row, "fold", row.foldEv));
+  if (node.id === "root/call") return result.rows.map((row) => actionRow(row, "call", row.callEv));
+  if (node.id === "root/raise") return result.rows.map((row) => actionRow(row, "raise", row.raiseEv));
+  if (node.amount !== undefined && node.pot !== undefined) return result.rows.map((row) => betResponseRow(row, node.pot!, node.amount!));
+  return [];
+}
+
+function actionRow(row: SolverRow, action: "fold" | "call" | "raise", ev: number): SolverRow {
+  return { ...row, fold: action === "fold" ? 1 : 0, call: action === "call" ? 1 : 0, raise: action === "raise" ? 1 : 0, ev, eqr: ev / rowEqrDenominator(row) };
+}
+
+function betResponseRow(row: SolverRow, pot: number, amount: number): SolverRow {
+  const fold = amount / (pot + amount);
+  const call = pot / (pot + amount);
+  const callEv = (row.equity * (pot + amount) - (1 - row.equity) * amount) / 100;
+  const ev = (fold * pot + call * callEv * 100) / 100;
+  return { ...row, fold, call, raise: 0, foldEv: pot / 100, callEv, raiseEv: 0, ev, eqr: ev / Math.max(0.0001, row.equity * pot / 100) };
+}
+
+function rowEqrDenominator(row: SolverRow): number {
+  return Math.max(0.0001, row.eqr === 0 ? row.equity : row.ev / row.eqr);
 }
 
 function flopBetSizes(text: string, pot: number, call: number, stack: number, game: Game): { amount: number; label: string }[] {
