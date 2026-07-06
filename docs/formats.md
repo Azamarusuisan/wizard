@@ -97,11 +97,11 @@ Solve cache records:
     "metrics": {
       "brGapPctPot": "number, measured on current compact abstraction",
       "ploFastExploitability": "number, PLO Fast only, uses active precision iterations",
-      "ploSampleCount": "number, PLO Fast only",
-      "ploWeightCoverage": "number, PLO Fast only",
+      "ploSampleCount": "number, PLO Fast only, remaining representatives after board-card removal",
+      "ploWeightCoverage": "number, PLO Fast only, remaining representative weight after board-card removal",
       "ploIterations": "number, PLO Fast only",
       "ploComboCap": "number, PLO Fast only",
-      "ploEquitySamples": "number, PLO Fast only, MC samples per representative equity"
+      "ploEquitySamples": "number, PLO Fast only, MC samples per board-aware representative equity"
     }
   }
 }

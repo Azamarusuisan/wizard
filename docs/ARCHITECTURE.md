@@ -33,7 +33,7 @@ Target boundary:
 Current boundary:
 - Rust builds natively and through `wasm-pack`.
 - `EngineAPI` uses Rust/WASM when `packages/engine-wasm/pkg` exists and TypeScript otherwise.
-- The current production solve result is compact NLH range rows with exact board-aware equities, range weights, hand classes, blocker metrics, and PLO4/PLO5 Fast sampled rows, not the final full postflop tree/MCCFR implementation.
+- The current production solve result is compact NLH range rows with exact board-aware equities, range weights, hand classes, blocker metrics, and PLO4/PLO5 Fast capped representative rows with board-aware sampled equities, not the final full postflop tree/MCCFR implementation.
 
 ## State
 
