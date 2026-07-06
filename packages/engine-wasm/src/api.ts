@@ -228,7 +228,8 @@ class WasmPreferredEngine implements EngineAPI {
 async function wasmInitInput(): Promise<URL | Uint8Array> {
   const url = new URL("../pkg/gto_lab_engine_bg.wasm", import.meta.url);
   if (url.protocol !== "file:") return url;
-  const { readFile } = await import(/* @vite-ignore */ "node:fs/promises");
+  const nodeImport = new Function("specifier", "return import(specifier)") as (specifier: string) => Promise<{ readFile: (path: URL) => Promise<Uint8Array> }>;
+  const { readFile } = await nodeImport("node:fs/promises");
   return await readFile(url);
 }
 
