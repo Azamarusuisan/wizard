@@ -50,6 +50,7 @@
 - Solver Studio now shows a compact action-by-hand-class composition summary from existing row frequencies.
 - Solver spot payload/cache key now carries rake percent and cap. Native WASM and TS fallback river action EVs subtract capped rake from the win pot; tests cover that rake lowers call/raise showdown EV.
 - Solver spot payload/cache key now carries game. PLO4/PLO5 in Solver Studio return Fast sampled BR metrics instead of silently using NLH rows; the real MCCFR path still needs to replace this proxy.
+- Solver Studio now labels PLO4/PLO5 Fast results as a sampled proxy and states that external-sampling MCCFR is not active for that result. Playwright covers the disclosure.
 - PLO4/PLO5 Fast solve rows now use concrete representative combo labels and derive their equity from seeded PLO-vs-random MC before computing pure fold/call/raise strategy from current pot/bet/rake EV. This is still a representative proxy, not full PLO MCCFR.
 - PLO4/PLO5 Fast representative rows now also use the shared regret-matching average strategy instead of immediate best response. This remains a representative proxy, not external-sampling MCCFR.
 - PLO4/PLO5 Fast solve metrics now expose representative sample count and total sample weight coverage in native/TS payloads and Solver Studio.
@@ -115,7 +116,7 @@
 - IndexedDB solve cache keys are canonical JSON SHA-256 via WebCrypto in the web layer.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `default_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~11.66 ns/eval, default river rows ~501.65 us. The evaluator now exceeds the original 50M eval/s target on this machine.
-- Last verified: `bash scripts/verify.sh` exited 0 after exposing selected information-set refs in Solver Studio. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
+- Last verified: `bash scripts/verify.sh` exited 0 after adding explicit PLO sampled-proxy disclosure in Solver Studio. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
 - Git remote `origin` is set to `https://github.com/Azamarusuisan/wizard.git`; do not push until §6 is actually complete.
 
 ## Important Caveat

@@ -161,6 +161,7 @@ export function SolverStudio() {
   const shownRows = handClassFilter === "all" ? nodeRows : nodeRows.filter((row) => row.handClass === handClassFilter);
   const nodeSummary = summarizeRows(shownRows);
   const actionComposition = summarizeActionComposition(shownRows);
+  const ploSampled = shown?.metrics.ploSampleCount !== undefined;
   return (
     <div className="split">
       <section className="card grid">
@@ -217,7 +218,9 @@ export function SolverStudio() {
         <button className="btn" disabled={!running} onClick={() => cancelRef.current?.abort()}>Cancel</button>
         {cached ? <span className="badge">cached</span> : null}
         <span className="badge">abstracted</span>
+        {ploSampled ? <span className="badge">PLO sampled proxy</span> : null}
         <p className="muted">Exploitability is measured on the current compact range abstraction, not a full postflop tree.</p>
+        {ploSampled ? <p className="muted">PLO Fast uses weighted representative hands and sampled equities; external-sampling MCCFR is not active for this result.</p> : null}
       </section>
       <section className="card">
         <h2 className="title">Strategy</h2>
