@@ -37,6 +37,7 @@
 - PLO4/PLO5 Fast representative rows now also use the shared regret-matching average strategy instead of immediate best response. This remains a representative proxy, not external-sampling MCCFR.
 - Solve metrics now include `brGapPctPot`, computed from the same rows used for the strategy table and convergence graph. UI shows it as `BR gap`.
 - Solver Studio now includes an editable bet-tree preset string and flop-size buttons that apply `% pot` or all-in values to the active bet amount. The bet-tree string is validated, included in share URLs and solve cache payloads, but the production solve still consumes one bet size.
+- Solver payloads now preserve `betTree` through the worker type and Rust native serialized spot so cached/native results retain the original betting-tree text.
 - Solver Studio board input now has Random flop, Monotone, and Paired buttons; Playwright covers category/random board updates.
 - Solver Studio no longer runs board-aware NLH range equity synchronously during preview; board-card validation stays on the main thread and the actual solve runs through the worker path.
 - Solver Studio displays an `abstracted` badge and explicitly says exploitability is measured on the default-combo abstraction. Playwright covers the disclosure.
@@ -68,7 +69,7 @@
 - IndexedDB solve cache keys are canonical JSON SHA-256 via WebCrypto in the web layer.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `default_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~316 ns/eval, default river rows ~2.57 us. The evaluator still needs a faster table/perfect-hash path to reach the original 50M eval/s target.
-- Last verified: `bash scripts/verify.sh` exited 0 after switching PLO Fast representative rows to shared regret-matching average strategies.
+- Last verified: `bash scripts/verify.sh` exited 0 after preserving `betTree` through native solve serialization.
 - Git remote `origin` is set to `https://github.com/Azamarusuisan/wizard.git`; do not push until §6 is actually complete.
 
 ## Important Caveat

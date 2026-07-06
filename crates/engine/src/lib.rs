@@ -1469,6 +1469,8 @@ struct NativeSpot {
     rake_pct: Option<f64>,
     #[serde(rename = "rakeCap")]
     rake_cap: Option<f64>,
+    #[serde(rename = "betTree")]
+    bet_tree: Option<String>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -2122,10 +2124,12 @@ mod tests {
     fn native_solve_uses_shared_river_strategy_rows() {
         super::init(None);
         let handle =
-            super::solve(r#"{"pot":100.0,"bet":66.0,"stack":250.0}"#).expect("solve starts");
+            super::solve(r#"{"pot":100.0,"bet":66.0,"stack":250.0,"betTree":"flop 33,66,all-in"}"#)
+                .expect("solve starts");
         let payload = super::serialize(handle).expect("serializes");
         let native: super::NativeSolve =
             serde_json::from_slice(&payload).expect("native solve json");
+        assert_eq!(native.spot.bet_tree.as_deref(), Some("flop 33,66,all-in"));
         let first = br::cfr_combo(br::DEFAULT_RIVER_SPECS[0].1, 100.0, 66.0, 2_048);
         assert_eq!(native.combos[0], "AcAd");
         assert_eq!(native.combos.len(), 28);
@@ -2213,6 +2217,7 @@ mod tests {
             board: None,
             rake_pct: None,
             rake_cap: None,
+            bet_tree: None,
         })
         .is_err());
         assert!(super::validate_spot(&super::NativeSpot {
@@ -2223,6 +2228,7 @@ mod tests {
             board: None,
             rake_pct: None,
             rake_cap: None,
+            bet_tree: None,
         })
         .is_err());
         assert!(super::validate_spot(&super::NativeSpot {
@@ -2233,6 +2239,7 @@ mod tests {
             board: None,
             rake_pct: None,
             rake_cap: None,
+            bet_tree: None,
         })
         .is_err());
         assert!(super::validate_spot(&super::NativeSpot {
@@ -2243,6 +2250,7 @@ mod tests {
             board: Some("Ah Ah".to_string()),
             rake_pct: None,
             rake_cap: None,
+            bet_tree: None,
         })
         .is_err());
         assert!(super::validate_spot(&super::NativeSpot {
@@ -2253,6 +2261,7 @@ mod tests {
             board: None,
             rake_pct: Some(-1.0),
             rake_cap: None,
+            bet_tree: None,
         })
         .is_err());
     }
