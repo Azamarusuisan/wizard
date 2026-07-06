@@ -139,7 +139,7 @@ export function SolverStudio() {
     try {
       validateSolverInputs(game, pot, bet, stack, board, rakePct, rakeCap, betTree);
       if (game === "NLH" && board.trim()) return { result: null, error: "" };
-      return { result: solveRiverSpot(pot, bet, stack, board, rakePct, rakeCap, game, betTree), error: "" };
+      return { result: solveRiverSpot(pot, bet, stack, board, rakePct, rakeCap, game, betTree, precision), error: "" };
     } catch (err) {
       return { result: null, error: err instanceof Error ? err.message : "invalid spot" };
     }

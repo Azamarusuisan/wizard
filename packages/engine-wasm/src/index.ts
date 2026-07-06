@@ -336,7 +336,7 @@ export const DEFAULT_RIVER_SPECS = [
   ["A5s", 0.32]
 ] as const;
 
-export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2, boardText = "", rakePct = 0, rakeCap = 0, game: Game = "NLH", betTree = ""): SolveResult {
+export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2, boardText = "", rakePct = 0, rakeCap = 0, game: Game = "NLH", betTree = "", precision: "fast" | "balanced" | "precise" = "balanced"): SolveResult {
   if (!Number.isFinite(pot) || pot <= 0) throw new Error("pot must be positive");
   if (!Number.isFinite(bet) || bet < 0) throw new Error("bet must be non-negative");
   if (!Number.isFinite(stack) || stack <= 0) throw new Error("stack must be positive");
@@ -347,14 +347,15 @@ export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2, boar
   const potOdds = bet / (pot + 2 * bet);
   const mdf = pot / (pot + bet);
   const alpha = bet / (pot + bet);
-  if (game === "PLO4" || game === "PLO5") return solvePloFastSpot(game, pot, bet, stack, rakePct, rakeCap, potOdds, mdf, alpha, board.length, betTree);
+  if (game === "PLO4" || game === "PLO5") return solvePloFastSpot(game, pot, bet, stack, rakePct, rakeCap, potOdds, mdf, alpha, board.length, betTree, precision);
   const betAmounts = betAmountsForSpot(game, board.length, pot, bet, stack, betTree);
+  const iterations = precisionIterations(precision);
   const combos = defaultRiverCombos(board);
   const equityCache = new Map<string, number>();
   const rows = combos.map(({ combo, fallback, holes }) => {
     const eq = comboEquity(holes, fallback, board, combos, equityCache);
     const { callEv, raiseEv } = rowActionEvs(eq, pot, bet, betAmounts, rakePct, rakeCap);
-    const { fold, call, raise } = cfrStrategyFromActionEvs(0, callEv, raiseEv, 2_048);
+    const { fold, call, raise } = cfrStrategyFromActionEvs(0, callEv, raiseEv, iterations);
     const ev = (call * callEv + raise * raiseEv) / 100;
     return { combo, fold, call, raise, foldEv: 0, callEv: callEv / 100, raiseEv: raiseEv / 100, equity: eq, ev, eqr: ev / Math.max(0.0001, eq * pot / 100) };
   });
@@ -438,13 +439,14 @@ const PLO5_FAST_SAMPLES = [
   { combo: "Ac9d6s2h2c", weight: 0.13, seed: 53 }
 ] as const;
 
-function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack: number, rakePct: number, rakeCap: number, potOdds: number, mdf: number, alpha: number, boardLen = 0, betTree = ""): SolveResult {
+function solvePloFastSpot(game: "PLO4" | "PLO5", pot: number, bet: number, stack: number, rakePct: number, rakeCap: number, potOdds: number, mdf: number, alpha: number, boardLen = 0, betTree = "", precision: "fast" | "balanced" | "precise" = "balanced"): SolveResult {
   const samples = game === "PLO4" ? PLO4_FAST_SAMPLES : PLO5_FAST_SAMPLES;
   const betAmounts = betAmountsForSpot(game, boardLen, pot, bet, stack, betTree);
+  const iterations = precisionIterations(precision);
   const rows = samples.map((sample) => {
     const eq = ploFastSampleEquity(sample);
     const { callEv, raiseEv } = rowActionEvs(eq, pot, bet, betAmounts, rakePct, rakeCap);
-    const strategy = cfrStrategyFromActionEvs(0, callEv, raiseEv, 2_048);
+    const strategy = cfrStrategyFromActionEvs(0, callEv, raiseEv, iterations);
     const ev = (strategy.call * callEv + strategy.raise * raiseEv) / 100;
     return {
       combo: sample.combo,
@@ -487,6 +489,10 @@ function betAmountsForSpot(game: Game, boardLen: number, pot: number, call: numb
   const sizes = boardLen === 4 ? tree.turn : boardLen === 5 ? tree.river : tree.flop;
   const amounts = game === "NLH" ? concreteBets(sizes, pot, stack) : concretePotLimitBets(sizes, pot, call, stack);
   return amounts.length ? amounts : [call];
+}
+
+function precisionIterations(precision: "fast" | "balanced" | "precise"): number {
+  return precision === "fast" ? 512 : precision === "precise" ? 4_096 : 2_048;
 }
 
 function formatBetNode(amount: number, stack: number): string {

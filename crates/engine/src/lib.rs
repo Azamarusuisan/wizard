@@ -1807,6 +1807,7 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
     let spr = spot.stack.unwrap_or(spot.pot * 4.2) / spot.pot;
     let (rake_pct, rake_cap) = spot_rake(&spot);
     let bet_amounts = bet_amounts_for_spot(&spot, board.len());
+    let iterations = precision_iterations(&spot);
     if matches!(spot.game.as_deref().unwrap_or("NLH"), "PLO4" | "PLO5") {
         return solve_plo_fast(spot, spr, mdf, alpha, pot_odds, rake_pct, rake_cap);
     }
@@ -1832,7 +1833,7 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
             let (fold_ev, call_ev, _) =
                 br::action_evs(equity, spot.pot, spot.bet, rake_pct, rake_cap);
             let raise_ev = best_raise_ev(equity, spot.pot, &bet_amounts, rake_pct, rake_cap);
-            br::cfr_combo_from_action_evs(equity, fold_ev, call_ev, raise_ev, 2_048)
+            br::cfr_combo_from_action_evs(equity, fold_ev, call_ev, raise_ev, iterations)
         })
         .collect::<Vec<_>>();
     for row in &rows {
@@ -1904,6 +1905,7 @@ fn solve_plo_fast(
         br::plo4_fast_exploitability_pct_pot()
     };
     let bet_amounts = bet_amounts_for_spot(&spot, board_len);
+    let iterations = precision_iterations(&spot);
     let combos = samples
         .iter()
         .map(|sample| sample.combo.to_string())
@@ -1914,7 +1916,7 @@ fn solve_plo_fast(
             let equity = sample.equity();
             let (fold_ev, call_ev, raise_ev) =
                 row_action_evs(equity, spot.pot, spot.bet, &bet_amounts, rake_pct, rake_cap);
-            br::cfr_combo_from_action_evs(equity, fold_ev, call_ev, raise_ev, 2_048)
+            br::cfr_combo_from_action_evs(equity, fold_ev, call_ev, raise_ev, iterations)
         })
         .collect::<Vec<_>>();
     let mut strategy = Vec::with_capacity(rows.len() * 3);
@@ -2024,6 +2026,14 @@ fn validate_spot(spot: &NativeSpot) -> Result<(), String> {
 
 fn spot_rake(spot: &NativeSpot) -> (f64, f64) {
     (spot.rake_pct.unwrap_or(0.0), spot.rake_cap.unwrap_or(0.0))
+}
+
+fn precision_iterations(spot: &NativeSpot) -> usize {
+    match spot.precision.as_deref().unwrap_or("balanced") {
+        "fast" => 512,
+        "precise" => 4_096,
+        _ => 2_048,
+    }
 }
 
 fn parse_board(text: &str) -> Result<Vec<eval::Card>, String> {

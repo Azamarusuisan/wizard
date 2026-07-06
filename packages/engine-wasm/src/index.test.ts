@@ -119,6 +119,12 @@ test("TS river solve fallback emits CFR-trained rows", () => {
   assert.equal(result.metrics.brGapPctPot, result.exploitability.at(-1)!.value);
 });
 
+test("TS river solve precision changes CFR iteration depth", () => {
+  const fast = solveRiverSpot(100, 66, 250, "", 0, 0, "NLH", "", "fast");
+  const precise = solveRiverSpot(100, 66, 250, "", 0, 0, "NLH", "", "precise");
+  assert.notEqual(fast.rows[0]!.fold, precise.rows[0]!.fold);
+});
+
 test("TS solve nodes use bet sizes for the current board street", () => {
   const tree = "flop 33; turn 66; river 150";
   const turn = solveRiverSpot(100, 66, 250, "Ah Kd 7c 2s", 0, 0, "NLH", tree);
