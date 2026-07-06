@@ -11,6 +11,7 @@ import { useAppStore } from "../state/store";
 
 const ranks = "AKQJT98765432";
 const DEFAULT_BET_TREE = "flop 33,66,125,all-in; turn 66,125,all-in; river 66,150,all-in";
+const POSITIONS = ["UTG", "HJ", "CO", "BTN", "SB", "BB"] as const;
 
 export function Dashboard() {
   const result = useAppStore((s) => s.result) ?? solveRiverSpot(100, 66);
@@ -112,7 +113,12 @@ function PloRangeViews({ text, setText, rows, error }: { text: string; setText: 
 
 export function SolverStudio() {
   const shared = decodeSpot(new URLSearchParams(window.location.search).get("spot"));
+  const defaultPrecision = useAppStore((s) => s.precision);
   const [game, setGame] = useState<Game>(shared?.game ?? "NLH");
+  const [position, setPosition] = useState(shared?.position ?? "BTN");
+  const [villainPosition, setVillainPosition] = useState(shared?.villainPosition ?? "BB");
+  const [potType, setPotType] = useState(shared?.potType ?? "SRP");
+  const [precision, setPrecision] = useState(shared?.precision ?? defaultPrecision);
   const [pot, setPot] = useState(shared?.pot ?? 100);
   const [bet, setBet] = useState(shared?.bet ?? 66);
   const [stack, setStack] = useState(shared?.stack ?? 420);
@@ -128,12 +134,12 @@ export function SolverStudio() {
   const cancelRef = useRef<AbortController | null>(null);
   const result = useAppStore((s) => s.result);
   const setResult = useAppStore((s) => s.setResult);
-  const currentKey = JSON.stringify({ game, pot, bet, stack, board, rakePct, rakeCap, betTree });
+  const currentKey = JSON.stringify({ game, position, villainPosition, potType, precision, pot, bet, stack, board, rakePct, rakeCap, betTree });
   const preview = useMemo(() => {
     try {
       validateSolverInputs(game, pot, bet, stack, board, rakePct, rakeCap, betTree);
       if (game === "NLH" && board.trim()) return { result: null, error: "" };
-      return { result: solveRiverSpot(pot, bet, stack, board, rakePct, rakeCap, game), error: "" };
+      return { result: solveRiverSpot(pot, bet, stack, board, rakePct, rakeCap, game, betTree), error: "" };
     } catch (err) {
       return { result: null, error: err instanceof Error ? err.message : "invalid spot" };
     }
@@ -147,6 +153,12 @@ export function SolverStudio() {
       <section className="card grid">
         <h1 className="title">Solver Studio</h1>
         <label className="field">Game<select value={game} onChange={(e) => setGame(e.target.value as Game)}><option>NLH</option><option>PLO4</option><option>PLO5</option></select></label>
+        <div className="grid cols-3">
+          <label className="field">Hero position<select value={position} onChange={(e) => setPosition(e.target.value as typeof POSITIONS[number])}>{POSITIONS.map((pos) => <option key={pos}>{pos}</option>)}</select></label>
+          <label className="field">Villain position<select value={villainPosition} onChange={(e) => setVillainPosition(e.target.value as typeof POSITIONS[number])}>{POSITIONS.map((pos) => <option key={pos}>{pos}</option>)}</select></label>
+          <label className="field">Pot type<select value={potType} onChange={(e) => setPotType(e.target.value as "SRP" | "3bet" | "4bet")}><option>SRP</option><option>3bet</option><option>4bet</option></select></label>
+        </div>
+        <label className="field">Precision<select value={precision} onChange={(e) => setPrecision(e.target.value as "fast" | "balanced" | "precise")}><option value="fast">Fast</option><option value="balanced">Balanced</option><option value="precise">Precise</option></select></label>
         <label className="field">Pot<input type="number" min="1" value={pot} onChange={(e) => setPot(Number(e.target.value))} /></label>
         <label className="field">Bet amount<input type="number" min="0" value={bet} onChange={(e) => setBet(Number(e.target.value))} /></label>
         <label className="field">Stack<input type="number" min="1" value={stack} onChange={(e) => setStack(Number(e.target.value))} /></label>
@@ -170,7 +182,7 @@ export function SolverStudio() {
           setRunning(true);
           setProgress([]);
           setCached(false);
-          const payload = { game, pot, bet, stack, board, rakePct, rakeCap, betTree };
+          const payload = { game, position, villainPosition, potType, precision, pot, bet, stack, board, rakePct, rakeCap, betTree };
           const payloadKey = JSON.stringify(payload);
           history.replaceState(null, "", `/solver?spot=${encodeSpot(payload)}`);
           void runSolve(payload, (p) => setProgress((xs) => [...xs, p]), controller.signal).then((run) => {

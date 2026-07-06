@@ -45,6 +45,29 @@ Range JSON import/export:
 
 Spot cache key is `sha256(canonical-json)`.
 
+Spot JSON payload:
+
+```json
+{
+  "version": 1,
+  "kind": "spot",
+  "payload": {
+    "game": "NLH",
+    "position": "BTN",
+    "villainPosition": "BB",
+    "potType": "SRP",
+    "precision": "balanced",
+    "pot": 100,
+    "bet": 66,
+    "stack": 420,
+    "board": "Ah Kd 7c",
+    "rakePct": 0,
+    "rakeCap": 0,
+    "betTree": "flop 33,66,125,all-in; turn 66,125,all-in; river 66,150,all-in"
+  }
+}
+```
+
 Solve cache records:
 
 ```json

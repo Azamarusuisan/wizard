@@ -28,6 +28,10 @@ test("solver runs and displays strategy metrics", async ({ page }) => {
   await expect(page.getByRole("table", { name: "strategy table" })).toContainText("AsAhKsKh");
   await expect(page.getByText("PLO Fast BR")).toBeVisible();
   await page.getByLabel("Game").selectOption("NLH");
+  await page.getByLabel("Hero position").selectOption("CO");
+  await page.getByLabel("Villain position").selectOption("BB");
+  await page.getByLabel("Pot type").selectOption("3bet");
+  await page.getByLabel("Precision").selectOption("precise");
   await page.getByLabel("Rake %").fill("5");
   await page.getByLabel("Rake cap").fill("10");
   await page.getByRole("button", { name: "Start solve" }).click();
@@ -54,6 +58,9 @@ test("solver runs and displays strategy metrics", async ({ page }) => {
   await expect(page.getByText("cached")).toBeVisible();
   await page.reload();
   await expect(page.getByLabel("Bet tree")).toContainText("flop 33,66,125,all-in");
+  await expect(page.getByLabel("Hero position")).toHaveValue("CO");
+  await expect(page.getByLabel("Pot type")).toHaveValue("3bet");
+  await expect(page.getByLabel("Precision")).toHaveValue("precise");
 });
 
 test("equity lab shows AA vs KK", async ({ page }) => {

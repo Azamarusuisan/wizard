@@ -1,6 +1,19 @@
 import { engine } from "@gto-lab/engine-wasm";
 
-type SolvePayload = { game?: "NLH" | "PLO4" | "PLO5"; pot: number; bet: number; stack?: number; board?: string; rakePct?: number; rakeCap?: number; betTree?: string };
+type SolvePayload = {
+  game?: "NLH" | "PLO4" | "PLO5";
+  position?: "UTG" | "HJ" | "CO" | "BTN" | "SB" | "BB";
+  villainPosition?: "UTG" | "HJ" | "CO" | "BTN" | "SB" | "BB";
+  potType?: "SRP" | "3bet" | "4bet";
+  precision?: "fast" | "balanced" | "precise";
+  pot: number;
+  bet: number;
+  stack?: number;
+  board?: string;
+  rakePct?: number;
+  rakeCap?: number;
+  betTree?: string;
+};
 type Req = { id: string; type: "solve"; payload: SolvePayload } | { id: string; type: "cancel" };
 
 const handles = new Map<string, number>();

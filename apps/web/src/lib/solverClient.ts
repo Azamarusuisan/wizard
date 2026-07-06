@@ -2,7 +2,20 @@ import type { SolveResult } from "@gto-lab/engine-wasm";
 import { loadSolve, saveSolve } from "./db";
 
 export type SolveRun = { result: SolveResult; cached: boolean };
-export type SolvePayload = { game?: "NLH" | "PLO4" | "PLO5"; pot: number; bet: number; stack?: number; board?: string; rakePct?: number; rakeCap?: number; betTree?: string };
+export type SolvePayload = {
+  game?: "NLH" | "PLO4" | "PLO5";
+  position?: "UTG" | "HJ" | "CO" | "BTN" | "SB" | "BB";
+  villainPosition?: "UTG" | "HJ" | "CO" | "BTN" | "SB" | "BB";
+  potType?: "SRP" | "3bet" | "4bet";
+  precision?: "fast" | "balanced" | "precise";
+  pot: number;
+  bet: number;
+  stack?: number;
+  board?: string;
+  rakePct?: number;
+  rakeCap?: number;
+  betTree?: string;
+};
 
 export async function runSolve(payload: SolvePayload, onProgress: (p: { iteration: number; value: number }) => void, signal?: AbortSignal): Promise<SolveRun> {
   const cached = await loadSolve(payload);

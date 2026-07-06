@@ -1724,6 +1724,12 @@ pub mod bucket {
 #[derive(Clone, Serialize, Deserialize)]
 struct NativeSpot {
     game: Option<String>,
+    position: Option<String>,
+    #[serde(rename = "villainPosition")]
+    villain_position: Option<String>,
+    #[serde(rename = "potType")]
+    pot_type: Option<String>,
+    precision: Option<String>,
     pot: f64,
     bet: f64,
     stack: Option<f64>,
@@ -1980,6 +1986,27 @@ fn validate_spot(spot: &NativeSpot) -> Result<(), String> {
     match spot.game.as_deref().unwrap_or("NLH") {
         "NLH" | "PLO4" | "PLO5" => {}
         _ => return Err("game must be NLH, PLO4, or PLO5".to_string()),
+    }
+    if !matches!(
+        spot.position.as_deref().unwrap_or("BTN"),
+        "UTG" | "HJ" | "CO" | "BTN" | "SB" | "BB"
+    ) || !matches!(
+        spot.villain_position.as_deref().unwrap_or("BB"),
+        "UTG" | "HJ" | "CO" | "BTN" | "SB" | "BB"
+    ) {
+        return Err("position must be UTG, HJ, CO, BTN, SB, or BB".to_string());
+    }
+    if !matches!(
+        spot.pot_type.as_deref().unwrap_or("SRP"),
+        "SRP" | "3bet" | "4bet"
+    ) {
+        return Err("pot type must be SRP, 3bet, or 4bet".to_string());
+    }
+    if !matches!(
+        spot.precision.as_deref().unwrap_or("balanced"),
+        "fast" | "balanced" | "precise"
+    ) {
+        return Err("precision must be fast, balanced, or precise".to_string());
     }
     let (rake_pct, rake_cap) = spot_rake(spot);
     if !(rake_pct.is_finite() && (0.0..=100.0).contains(&rake_pct)) {
@@ -2822,13 +2849,18 @@ mod tests {
     #[test]
     fn native_solve_uses_shared_river_strategy_rows() {
         super::init(None);
-        let handle =
-            super::solve(r#"{"pot":100.0,"bet":66.0,"stack":250.0,"betTree":"flop 33,66,all-in"}"#)
-                .expect("solve starts");
+        let handle = super::solve(
+            r#"{"position":"BTN","villainPosition":"BB","potType":"SRP","precision":"balanced","pot":100.0,"bet":66.0,"stack":250.0,"betTree":"flop 33,66,all-in"}"#,
+        )
+        .expect("solve starts");
         let payload = super::serialize(handle).expect("serializes");
         let native: super::NativeSolve =
             serde_json::from_slice(&payload).expect("native solve json");
         assert_eq!(native.spot.bet_tree.as_deref(), Some("flop 33,66,all-in"));
+        assert_eq!(native.spot.position.as_deref(), Some("BTN"));
+        assert_eq!(native.spot.villain_position.as_deref(), Some("BB"));
+        assert_eq!(native.spot.pot_type.as_deref(), Some("SRP"));
+        assert_eq!(native.spot.precision.as_deref(), Some("balanced"));
         assert_eq!(native.nodes[0].id, "root");
         assert_eq!(native.nodes[0].street, "preflop");
         assert!(super::has_node_id(&native, "root/call"));
@@ -2960,6 +2992,25 @@ mod tests {
     fn native_solve_rejects_invalid_spots() {
         assert!(super::validate_spot(&super::NativeSpot {
             game: None,
+            position: Some("BAD".to_string()),
+            villain_position: None,
+            pot_type: None,
+            precision: None,
+            pot: 100.0,
+            bet: 66.0,
+            stack: None,
+            board: None,
+            rake_pct: None,
+            rake_cap: None,
+            bet_tree: None,
+        })
+        .is_err());
+        assert!(super::validate_spot(&super::NativeSpot {
+            game: None,
+            position: None,
+            villain_position: None,
+            pot_type: None,
+            precision: None,
             pot: 0.0,
             bet: 66.0,
             stack: None,
@@ -2971,6 +3022,10 @@ mod tests {
         .is_err());
         assert!(super::validate_spot(&super::NativeSpot {
             game: None,
+            position: None,
+            villain_position: None,
+            pot_type: None,
+            precision: None,
             pot: 100.0,
             bet: -1.0,
             stack: None,
@@ -2982,6 +3037,10 @@ mod tests {
         .is_err());
         assert!(super::validate_spot(&super::NativeSpot {
             game: None,
+            position: None,
+            villain_position: None,
+            pot_type: None,
+            precision: None,
             pot: 100.0,
             bet: 66.0,
             stack: Some(0.0),
@@ -2993,6 +3052,10 @@ mod tests {
         .is_err());
         assert!(super::validate_spot(&super::NativeSpot {
             game: None,
+            position: None,
+            villain_position: None,
+            pot_type: None,
+            precision: None,
             pot: 100.0,
             bet: 66.0,
             stack: None,
@@ -3004,6 +3067,10 @@ mod tests {
         .is_err());
         assert!(super::validate_spot(&super::NativeSpot {
             game: None,
+            position: None,
+            villain_position: None,
+            pot_type: None,
+            precision: None,
             pot: 100.0,
             bet: 66.0,
             stack: None,
@@ -3015,6 +3082,10 @@ mod tests {
         .is_err());
         assert!(super::validate_spot(&super::NativeSpot {
             game: None,
+            position: None,
+            villain_position: None,
+            pot_type: None,
+            precision: None,
             pot: 100.0,
             bet: 66.0,
             stack: None,

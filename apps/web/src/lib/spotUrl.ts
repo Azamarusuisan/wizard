@@ -1,4 +1,17 @@
-export type SolverSpot = { game: "NLH" | "PLO4" | "PLO5"; pot: number; bet: number; stack: number; board: string; rakePct: number; rakeCap: number; betTree?: string };
+export type SolverSpot = {
+  game: "NLH" | "PLO4" | "PLO5";
+  position: "UTG" | "HJ" | "CO" | "BTN" | "SB" | "BB";
+  villainPosition: "UTG" | "HJ" | "CO" | "BTN" | "SB" | "BB";
+  potType: "SRP" | "3bet" | "4bet";
+  precision: "fast" | "balanced" | "precise";
+  pot: number;
+  bet: number;
+  stack: number;
+  board: string;
+  rakePct: number;
+  rakeCap: number;
+  betTree?: string;
+};
 
 export function encodeSpot(spot: SolverSpot): string {
   const json = JSON.stringify(spot);
@@ -18,8 +31,13 @@ export function decodeSpot(value: string | null): SolverSpot | null {
     const rakePct = raw.rakePct ?? 0;
     const rakeCap = raw.rakeCap ?? 0;
     const game = raw.game ?? "NLH";
+    const position = raw.position ?? "BTN";
+    const villainPosition = raw.villainPosition ?? "BB";
+    const potType = raw.potType ?? "SRP";
+    const precision = raw.precision ?? "balanced";
     if (!validNumber(rakePct) || !validNumber(rakeCap) || !validGame(game)) return null;
-    return { game, pot: raw.pot, bet: raw.bet, stack: raw.stack, board: raw.board, rakePct, rakeCap, betTree: typeof raw.betTree === "string" ? raw.betTree : undefined };
+    if (!validPosition(position) || !validPosition(villainPosition) || !validPotType(potType) || !validPrecision(precision)) return null;
+    return { game, position, villainPosition, potType, precision, pot: raw.pot, bet: raw.bet, stack: raw.stack, board: raw.board, rakePct, rakeCap, betTree: typeof raw.betTree === "string" ? raw.betTree : undefined };
   } catch {
     return null;
   }
@@ -31,4 +49,16 @@ function validNumber(value: unknown): value is number {
 
 function validGame(value: unknown): value is "NLH" | "PLO4" | "PLO5" {
   return value === "NLH" || value === "PLO4" || value === "PLO5";
+}
+
+function validPosition(value: unknown): value is SolverSpot["position"] {
+  return value === "UTG" || value === "HJ" || value === "CO" || value === "BTN" || value === "SB" || value === "BB";
+}
+
+function validPotType(value: unknown): value is SolverSpot["potType"] {
+  return value === "SRP" || value === "3bet" || value === "4bet";
+}
+
+function validPrecision(value: unknown): value is SolverSpot["precision"] {
+  return value === "fast" || value === "balanced" || value === "precise";
 }
