@@ -1317,7 +1317,7 @@ pub mod br {
                 return Vec::new();
             }
             // ponytail: three chance buckets stand in for turn/river enumeration until the full public tree lands.
-            [(0.10, 0.88), (0.15, 1.0), (0.10, 1.12)]
+            [(0.30, 0.88), (0.40, 1.0), (0.30, 1.12)]
                 .into_iter()
                 .map(|(probability, realization)| {
                     (
@@ -3087,7 +3087,7 @@ mod tests {
         }
         .next_chance_branches();
         assert_eq!(branch_probe.len(), 3);
-        assert!((branch_probe.iter().map(|(p, _)| *p).sum::<f64>() - 0.35).abs() < 1e-12);
+        assert!((branch_probe.iter().map(|(p, _)| *p).sum::<f64>() - 1.0).abs() < 1e-12);
         let flop_one_step =
             br::flop_bucket_exploitability_pct_pot(&br::balanced_flop_buckets(), 100.0, 66.0);
         assert!(flop_tree >= flop_one_step, "{flop_tree} {flop_one_step}");
