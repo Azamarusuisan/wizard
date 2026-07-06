@@ -4,5 +4,5 @@
 
 - `apps/web`: 本体 Next.js アプリ
 - `apps/site-template`: 顧客サイト Astro テンプレート
-- `packages/pipeline`: 生成・決済・通知処理
+- `packages/pipeline`: 生成・通知処理
 - `packages/shared`: 型・定数

@@ -12,34 +12,6 @@ export async function updateOrderStatus(orderId: string, status: string) {
   if (error) throw error;
 }
 
-export async function updateOrderPayment(input: {
-  orderId: string;
-  status?: string;
-  paymentMethod?: string;
-  stripeCheckoutSessionId?: string;
-  stripeSubscriptionId?: string;
-}) {
-  const db = supabase();
-  const update = {
-    ...(input.status ? { status: input.status } : {}),
-    ...(input.paymentMethod ? { payment_method: input.paymentMethod } : {}),
-    ...(input.stripeCheckoutSessionId ? { stripe_checkout_session_id: input.stripeCheckoutSessionId } : {}),
-    ...(input.stripeSubscriptionId ? { stripe_subscription_id: input.stripeSubscriptionId } : {}),
-    updated_at: new Date().toISOString()
-  };
-  if (!db) return console.log(JSON.stringify({ orderId: input.orderId, ...update }));
-  const { error } = await db.from("orders").update(update).eq("id", input.orderId);
-  if (error) throw error;
-}
-
-export async function getOrderPayment(orderId: string) {
-  const db = supabase();
-  if (!db) return { stripeSubscriptionId: undefined };
-  const { data, error } = await db.from("orders").select("stripe_subscription_id").eq("id", orderId).maybeSingle();
-  if (error) throw error;
-  return { stripeSubscriptionId: data?.stripe_subscription_id as string | undefined };
-}
-
 export async function recordEvent(input: {
   leadId?: string;
   orderId?: string;

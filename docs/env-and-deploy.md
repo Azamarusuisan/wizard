@@ -4,9 +4,8 @@
 
 1. `.env.example` の値を Vercel の `craftsite-web` に登録する。
 2. 顧客サイトのプレビュー用に `craftsite-preview` を作り、`SITE_PREVIEW_BASE_URL` を `https://preview.craftsite.jp` にする。
-3. Stripe Webhook は `/api/webhooks/stripe`、Inngest は `/api/inngest` を向ける。
+3. Inngest は `/api/inngest` を向ける。
 4. Supabase SQL Editor で `supabase/schema.sql` を実行する。
-5. Stripe の初期費用・月額価格はどちらもJPYで作成する。銀行振込は `jp_bank_transfer` 前提。
 
 ## AIモデル
 

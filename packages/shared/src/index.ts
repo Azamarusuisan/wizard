@@ -8,17 +8,12 @@ export const SERVICE = {
 
 export const ORDER_STATUS = {
   draft: "draft",
-  waitingPayment: "waiting_payment",
-  paid: "paid",
   generating: "generating",
   previewReady: "preview_ready",
   failed: "failed"
 } as const;
 
 export type OrderStatus = (typeof ORDER_STATUS)[keyof typeof ORDER_STATUS];
-
-export const PAYMENT_METHODS = ["card", "konbini", "bank_transfer"] as const;
-export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
 export type OwnerAlert = {
   subject: string;

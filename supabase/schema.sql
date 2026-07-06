@@ -24,9 +24,6 @@ create table orders (
   customer_email text,
   phone text,
   status text not null default 'draft',
-  payment_method text,
-  stripe_checkout_session_id text,
-  stripe_subscription_id text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -50,16 +47,6 @@ create table revisions (
   request_text text not null,
   config_diff jsonb,
   status text not null default 'requested',
-  created_at timestamptz not null default now()
-);
-
-create table payments (
-  id uuid primary key default gen_random_uuid(),
-  order_id uuid references orders(id),
-  stripe_event_id text unique,
-  status text not null,
-  amount_yen integer,
-  raw jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
 
@@ -99,7 +86,6 @@ create index leads_excluded_idx on leads(excluded);
 create index orders_status_idx on orders(status);
 create index sites_order_id_idx on sites(order_id);
 create index revisions_site_id_idx on revisions(site_id);
-create index payments_order_id_idx on payments(order_id);
 create index events_name_created_at_idx on events(name, created_at);
 create index ai_artifacts_order_id_idx on ai_artifacts(order_id);
 create index generation_logs_order_id_idx on generation_logs(order_id);
