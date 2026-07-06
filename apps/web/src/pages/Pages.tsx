@@ -291,6 +291,8 @@ function rowsForNode(result: SolveResult, node: SolveNode): SolverRow[] {
   if (node.id === "root/fold") return result.rows.map((row) => actionRow(row, "fold", row.foldEv));
   if (node.id === "root/call") return result.rows.map((row) => actionRow(row, "call", row.callEv));
   if (node.id === "root/raise") return result.rows.map((row) => actionRow(row, "raise", row.raiseEv));
+  if (node.amount !== undefined && node.pot !== undefined && node.id.endsWith("/fold")) return result.rows.map((row) => betResponseActionRow(row, "fold", node.pot!));
+  if (node.amount !== undefined && node.pot !== undefined && node.id.endsWith("/call")) return result.rows.map((row) => betResponseActionRow(row, "call", node.pot!, node.amount!));
   if (node.amount !== undefined && node.pot !== undefined) return result.rows.map((row) => betResponseRow(row, node.pot!, node.amount!));
   return [];
 }
@@ -305,6 +307,11 @@ function betResponseRow(row: SolverRow, pot: number, amount: number): SolverRow 
   const callEv = (row.equity * (pot + amount) - (1 - row.equity) * amount) / 100;
   const ev = (fold * pot + call * callEv * 100) / 100;
   return { ...row, fold, call, raise: 0, foldEv: pot / 100, callEv, raiseEv: 0, ev, eqr: ev / Math.max(0.0001, row.equity * pot / 100) };
+}
+
+function betResponseActionRow(row: SolverRow, action: "fold" | "call", pot: number, amount = 0): SolverRow {
+  const ev = action === "fold" ? pot / 100 : (row.equity * (pot + amount) - (1 - row.equity) * amount) / 100;
+  return { ...row, fold: action === "fold" ? 1 : 0, call: action === "call" ? 1 : 0, raise: 0, ev, eqr: ev / Math.max(0.0001, row.equity * pot / 100) };
 }
 
 function rowEqrDenominator(row: SolverRow): number {
