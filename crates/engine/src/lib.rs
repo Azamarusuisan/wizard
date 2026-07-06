@@ -3116,9 +3116,7 @@ fn info_set_refs(node: &NativeNode) -> (String, String) {
         return ("bet-response".to_string(), "bet-response".to_string());
     }
     if node.amount.is_some() {
-        if let Some(action) = node.id.rsplit('/').next() {
-            return ("terminal".to_string(), format!("response:{action}"));
-        }
+        return ("terminal".to_string(), format!("response:{}", node.id));
     }
     if node.id == "root" {
         return ("root".to_string(), "root".to_string());

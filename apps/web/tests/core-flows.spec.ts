@@ -76,7 +76,7 @@ test("solver runs and displays strategy metrics", async ({ page }) => {
   await expect(page.getByText("Node: root/bet-33")).toBeVisible();
   await page.getByRole("button", { name: /CALL \(root\/bet-33\/call/ }).click();
   await expect(page.getByText("Node: root/bet-33/call")).toBeVisible();
-  await expect(page.getByText(/Tables:\s*terminal\s*\/\s*response:call/)).toBeVisible();
+  await expect(page.getByText(/Tables:\s*terminal\s*\/\s*response:root\/bet-33\/call/)).toBeVisible();
   await expect(page.getByText("abstracted")).toBeVisible();
   await expect(page.getByText(/compact range abstraction/)).toBeVisible();
   await expect(page).toHaveURL(/spot=/);
