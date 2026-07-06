@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { evaluateNlh7, evaluatePlo, equity, equityAuto, estimateEquityEvaluations, kuhnCfr, parseCard, parseNlhRange, parsePloRange, plo4FastExploitabilityPctPot, plo5FastExploitabilityPctPot, potLimitMaxRaise, serializeRange, solveRiverSpot } from "./index.js";
+import { evaluateNlh7, evaluatePlo, equity, equityAuto, estimateEquityEvaluations, kuhnCfr, parseBetTree, parseCard, parseNlhRange, parsePloRange, plo4FastExploitabilityPctPot, plo5FastExploitabilityPctPot, potLimitMaxRaise, serializeRange, solveRiverSpot } from "./index.js";
 
 const cs = (s: string) => s.split(/\s+/).map(parseCard);
 
@@ -78,6 +78,13 @@ test("pot limit max raise known formula", () => {
   assert.equal(potLimitMaxRaise(100, 20), 160);
 });
 
+test("bet tree parser validates street sizes", () => {
+  const tree = parseBetTree("flop 33,66,all-in; turn 66,125; river 75,all-in");
+  assert.deepEqual(tree.flop, [{ kind: "percent", value: 33 }, { kind: "percent", value: 66 }, { kind: "all-in" }]);
+  assert.throws(() => parseBetTree("turn 66"), /flop/);
+  assert.throws(() => parseBetTree("flop 0"), /bet size/);
+});
+
 test("Kuhn value converges near -1/18", () => {
   assert.ok(Math.abs(kuhnCfr() + 1 / 18) < 1e-3);
 });
@@ -107,6 +114,7 @@ test("TS river solve fallback rejects invalid spots", () => {
   assert.throws(() => solveRiverSpot(100, 66, 0), /stack/);
   assert.throws(() => solveRiverSpot(100, 66, 250, "Ah Ah"), /duplicate/);
   assert.throws(() => solveRiverSpot(100, 66, 250, "", -1, 0), /rake/);
+  assert.throws(() => solveRiverSpot(100, 66, 250, "", 0, 0, "NLH", "turn 66"), /flop/);
 });
 
 test("TS river solve fallback uses board in concrete combo equities", () => {

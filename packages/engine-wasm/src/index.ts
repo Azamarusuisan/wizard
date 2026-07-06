@@ -278,6 +278,34 @@ export function potLimitMaxRaise(pot: number, betToCall: number): number {
   return pot + 3 * betToCall;
 }
 
+export type BetSize = { kind: "percent"; value: number } | { kind: "all-in" };
+export type BetTree = { flop: BetSize[]; turn: BetSize[]; river: BetSize[] };
+
+export function parseBetTree(text: string): BetTree {
+  const tree: BetTree = { flop: [], turn: [], river: [] };
+  for (const rawPart of text.split(";")) {
+    const part = rawPart.trim();
+    if (!part) continue;
+    const match = /^(flop|turn|river)\s+(.+)$/i.exec(part);
+    if (!match) throw new Error(`bad bet tree segment: ${part}`);
+    tree[match[1]!.toLowerCase() as keyof BetTree] = parseBetSizes(match[2]!);
+  }
+  if (!tree.flop.length) throw new Error("bet tree needs at least one flop size");
+  return tree;
+}
+
+function parseBetSizes(text: string): BetSize[] {
+  const sizes = text.split(",").map((raw) => {
+    const token = raw.trim();
+    if (token.toLowerCase() === "all-in") return { kind: "all-in" } as const;
+    const value = Number(token);
+    if (!Number.isFinite(value) || value <= 0) throw new Error(`bad bet size: ${token}`);
+    return { kind: "percent", value } as const;
+  });
+  if (!sizes.length) throw new Error("bet tree street needs at least one size");
+  return sizes;
+}
+
 export type SolverRow = { combo: string; fold: number; call: number; raise: number; foldEv: number; callEv: number; raiseEv: number; equity: number; ev: number; eqr: number };
 export type SolveResult = { rows: SolverRow[]; exploitability: { iteration: number; value: number }[]; metrics: { spr: number; mdf: number; alpha: number; potOdds: number; brGapPctPot?: number; ploFastExploitability?: number } };
 export const DEFAULT_RIVER_SPECS = [
@@ -289,12 +317,13 @@ export const DEFAULT_RIVER_SPECS = [
   ["A5s", 0.32]
 ] as const;
 
-export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2, boardText = "", rakePct = 0, rakeCap = 0, game: Game = "NLH"): SolveResult {
+export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2, boardText = "", rakePct = 0, rakeCap = 0, game: Game = "NLH", betTree = ""): SolveResult {
   if (!Number.isFinite(pot) || pot <= 0) throw new Error("pot must be positive");
   if (!Number.isFinite(bet) || bet < 0) throw new Error("bet must be non-negative");
   if (!Number.isFinite(stack) || stack <= 0) throw new Error("stack must be positive");
   if (!Number.isFinite(rakePct) || rakePct < 0 || rakePct > 100) throw new Error("rake percent must be 0-100");
   if (!Number.isFinite(rakeCap) || rakeCap < 0) throw new Error("rake cap must be non-negative");
+  if (betTree.trim()) parseBetTree(betTree);
   const board = parseBoardText(boardText);
   const potOdds = bet / (pot + 2 * bet);
   const mdf = pot / (pot + bet);

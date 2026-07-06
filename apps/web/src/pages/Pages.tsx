@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { EXACT_EQUITY_EVAL_THRESHOLD, HAND_CATEGORIES, deck, estimateEquityEvaluations, formatCard, parseCard, equity, parseNlhRange, parsePloRange, serializeRange, solveRiverSpot, type Game } from "@gto-lab/engine-wasm";
+import { EXACT_EQUITY_EVAL_THRESHOLD, HAND_CATEGORIES, deck, estimateEquityEvaluations, formatCard, parseBetTree, parseCard, equity, parseNlhRange, parsePloRange, serializeRange, solveRiverSpot, type Game } from "@gto-lab/engine-wasm";
 import { CardView } from "../components/CardView";
 import { Metric } from "../components/Metric";
 import { StrategyTable } from "../components/StrategyTable";
@@ -158,8 +158,11 @@ export function SolverStudio() {
 }
 
 function flopBetSizes(text: string): string[] {
-  const flop = text.split(";").find((part) => part.trim().toLowerCase().startsWith("flop")) ?? "";
-  return flop.replace(/^flop/i, "").split(",").map((x) => x.trim()).filter((x) => x === "all-in" || (x !== "" && Number.isFinite(Number(x)) && Number(x) > 0));
+  try {
+    return parseBetTree(text).flop.map((size) => size.kind === "all-in" ? "all-in" : String(size.value));
+  } catch {
+    return [];
+  }
 }
 
 function randomFlop(): string {
@@ -172,7 +175,7 @@ function validateSolverInputs(game: Game, pot: number, bet: number, stack: numbe
   if (!Number.isFinite(stack) || stack <= 0) throw new Error("stack must be positive");
   if (!Number.isFinite(rakePct) || rakePct < 0 || rakePct > 100) throw new Error("rake percent must be 0-100");
   if (!Number.isFinite(rakeCap) || rakeCap < 0) throw new Error("rake cap must be non-negative");
-  if (!flopBetSizes(betTree).length) throw new Error("bet tree needs at least one flop size");
+  parseBetTree(betTree);
   const cards = board.trim() ? board.trim().split(/\s+/).map(parseCard) : [];
   if (cards.length > 5) throw new Error("board cannot have more than five cards");
   if (new Set(cards).size !== cards.length) throw new Error("duplicate board cards");
