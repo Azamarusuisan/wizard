@@ -294,6 +294,7 @@ function rowsForNode(result: SolveResult, node: SolveNode): SolverRow[] {
   if (node.id === "root/call") return result.rows.map((row) => actionRow(row, "call", row.callEv));
   if (node.id === "root/raise") return result.rows.map((row) => actionRow(row, "raise", row.raiseEv));
   if (node.id === "root/raise-sizes") return result.rows;
+  if (node.id.startsWith("root/turn-") || node.id.startsWith("root/river-")) return result.rows;
   if (node.amount !== undefined && node.pot !== undefined && node.id.endsWith("/fold")) return result.rows.map((row) => betResponseActionRow(row, "fold", node.pot!));
   if (node.amount !== undefined && node.pot !== undefined && node.id.endsWith("/call")) return result.rows.map((row) => betResponseActionRow(row, "call", node.pot!, node.amount!));
   if (node.amount !== undefined && node.pot !== undefined) return result.rows.map((row) => betResponseRow(row, node.pot!, node.amount!));

@@ -52,6 +52,12 @@ test("EngineAPI prefers generated wasm package when present", async () => {
   assert.ok(Number.isFinite(betCallMetrics.ev[0]));
   const betCallMetricsByInfoSet = await engine.getHandMetrics(betHandle, "preflop:root/bet-33/call");
   assert.deepEqual([...betCallMetricsByInfoSet.ev], [...betCallMetrics.ev]);
+  const flopHandle = await engine.solve(JSON.stringify({ pot: 100, bet: 66, board: "Ah Kd 7c" }));
+  const flopResult = await engine.result(flopHandle);
+  assert.ok(flopResult.nodes.some((node) => node.id === "root/turn-low"));
+  assert.equal(flopResult.informationSets.find((infoSet) => infoSet.nodeId === "root/turn-low")?.strategyRef, "root");
+  const turnBranchStrategy = await engine.getStrategy(flopHandle, "turn:root/turn-low");
+  assert.equal(turnBranchStrategy.actions.length, turnBranchStrategy.combos.length * 3);
   const plo4 = await engine.solve(JSON.stringify({ game: "PLO4", pot: 100, bet: 66 }));
   const plo4Result = await engine.result(plo4);
   assert.equal(plo4Result.rows[0]?.combo, "AsAhKsKh");

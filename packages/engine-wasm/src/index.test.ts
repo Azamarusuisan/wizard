@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { concreteBets, concretePotLimitBets, evaluateNlh7, evaluatePlo, equity, equityAuto, estimateEquityEvaluations, kuhnCfr, parseBetTree, parseCard, parseNlhRange, parsePloRange, plo4FastExploitabilityPctPot, plo5FastExploitabilityPctPot, potLimitMaxRaise, serializeRange, solveNlhComboSpot, solveRiverSpot } from "./index.js";
+import { concreteBets, concretePotLimitBets, evaluateNlh7, evaluatePlo, equity, equityAuto, estimateEquityEvaluations, kuhnCfr, parseBetTree, parseCard, parseNlhRange, parsePloRange, potLimitMaxRaise, serializeRange, solveNlhComboSpot, solveRiverSpot } from "./index.js";
 
 const cs = (s: string) => s.split(/\s+/).map(parseCard);
 
@@ -159,9 +159,14 @@ test("TS river solve fallback uses board in concrete combo equities", () => {
   const empty = solveRiverSpot(100, 66, 250);
   const boarded = solveRiverSpot(100, 66, 250, "Ah Kd 7c");
   assert.equal(boarded.nodes[0]!.street, "flop");
+  assert.ok(boarded.nodes.some((node) => node.id === "root/turn-low" && node.street === "turn"));
+  assert.equal(boarded.informationSets.find((infoSet) => infoSet.nodeId === "root/turn-low")?.strategyRef, "root");
   assert.notEqual(empty.rows[0]!.equity, boarded.rows[0]!.equity);
   assert.equal(boarded.metrics.brGapPctPot, boarded.exploitability.at(-1)!.value);
   assert.ok(!boarded.rows.some((r) => r.combo.includes("Ah")));
+  const turn = solveRiverSpot(100, 66, 250, "Ah Kd 7c 2s");
+  assert.ok(turn.nodes.some((node) => node.id === "root/river-high" && node.street === "river"));
+  assert.ok(!turn.nodes.some((node) => node.id === "root/turn-low"));
 });
 
 test("TS river solve fallback uses custom NLH ranges", () => {

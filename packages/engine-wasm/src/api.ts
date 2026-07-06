@@ -355,6 +355,7 @@ function infoSetRefs(node: SolveNode): Pick<SolveInfoSet, "strategyRef" | "metri
   if (node.amount !== undefined) return { strategyRef: "terminal", metricRef: `response:${node.id}` };
   if (node.id === "root") return { strategyRef: "root", metricRef: "root" };
   if (node.id === "root/raise-sizes") return { strategyRef: "raise-sizes", metricRef: "raise-sizes" };
+  if (node.id.startsWith("root/turn-") || node.id.startsWith("root/river-")) return { strategyRef: "root", metricRef: "root" };
   if (node.id.startsWith("root/")) return { strategyRef: "terminal", metricRef: `action:${node.id.slice("root/".length)}` };
   return { strategyRef: node.id, metricRef: node.id };
 }

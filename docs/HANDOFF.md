@@ -88,6 +88,7 @@
 - Bet-response terminal metric references now include the full node id, e.g. `response:root/bet-33/call`, so multiple bet sizes do not collide in information-set table references.
 - IndexedDB solve-cache fallback information-set reconstruction now classifies bet-response terminal child nodes the same way as EngineAPI, and DB tests cover persisted `root/bet-33/call` metric refs.
 - EngineAPI native-to-result fallback information-set reconstruction also classifies bet-response terminal child nodes with the same `response:<node id>` metric refs.
+- Flop and turn solve payloads now expose public chance branch nodes (`root/turn-low|mid|high`, `root/river-low|mid|high`) with unique information-set keys. They currently reference root strategy/metric tables until the full street tree replaces the compact abstraction. Rust native, TS fallback, EngineAPI, and Playwright cover the nodes.
 - First-level terminal action nodes (`root/fold`, `root/call`, `root/raise`) still return empty strategy payloads but now return their branch EV/equity/EQR hand metrics from the stored action-EV table.
 - Rust native spot validation now parses `flop` / `turn` / `river` bet-tree text with numeric `% pot` sizes and `all-in`, rejecting malformed trees before solve creation.
 - Rust bet-tree utilities now expand `% pot` / `all-in` sizes into concrete bet amounts, applying the spec's 85% stack all-in rounding and de-duplicating equivalent all-ins.
@@ -149,7 +150,7 @@
 - IndexedDB solve cache keys are canonical JSON SHA-256 via WebCrypto in the web layer.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `default_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~11.66 ns/eval, default river rows ~501.65 us. The evaluator now exceeds the original 50M eval/s target on this machine.
-- Last verified: Rust `native_solve_reports_plo_fast_br_metrics`, `wasm-pack build`, and `pnpm --filter @gto-lab/engine-wasm test` exited 0 after making PLO Fast BR use active representative rows. Latest full verify: `bash scripts/verify.sh` exited 0 after adding conditional raise-size mixes. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
+- Last verified: Rust `native_solve_uses_shared_river_strategy_rows`, `wasm-pack build`, `pnpm --filter @gto-lab/engine-wasm test`, `pnpm --filter @gto-lab/web test -- --run apps/web/src/__tests__/db.test.ts`, `pnpm --filter @gto-lab/web typecheck`, `pnpm exec playwright test apps/web/tests/core-flows.spec.ts --grep "solver runs"`, and `cargo clippy -p gto_lab_engine -- -D warnings` exited 0 after adding public chance branch nodes. Latest full verify: `bash scripts/verify.sh` exited 0 after adding conditional raise-size mixes. Latest bench: `cargo bench -p gto_lab_engine --bench engine_bench` exited 0 with `nlh7_eval` ~11.66 ns/eval.
 - Git remote `origin` is set to `https://github.com/Azamarusuisan/wizard.git`; do not push until §6 is actually complete.
 
 ## Important Caveat

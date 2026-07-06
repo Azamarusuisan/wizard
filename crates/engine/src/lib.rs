@@ -3357,7 +3357,35 @@ fn root_nodes(board_len: usize, bet_nodes: &[BetNode]) -> Vec<NativeNode> {
             ));
         }
     }
+    nodes.extend(chance_nodes(board_len, &actions));
     nodes
+}
+
+fn chance_nodes(board_len: usize, actions: &[&str; 3]) -> Vec<NativeNode> {
+    let Some(next_street) = (match board_len {
+        3 => Some("turn"),
+        4 => Some("river"),
+        _ => None,
+    }) else {
+        return Vec::new();
+    };
+    ["low", "mid", "high"]
+        .iter()
+        .map(|bucket| {
+            native_node(
+                format!("root/{next_street}-{bucket}"),
+                format!(
+                    "{} {}",
+                    next_street.to_ascii_uppercase(),
+                    bucket.to_ascii_uppercase()
+                ),
+                next_street,
+                actions.iter().map(|action| action.to_string()).collect(),
+                None,
+                None,
+            )
+        })
+        .collect()
 }
 
 fn native_node(
@@ -3408,6 +3436,9 @@ fn info_set_refs(node: &NativeNode) -> (String, String) {
     }
     if node.id == "root/raise-sizes" {
         return ("raise-sizes".to_string(), "raise-sizes".to_string());
+    }
+    if node.id.starts_with("root/turn-") || node.id.starts_with("root/river-") {
+        return ("root".to_string(), "root".to_string());
     }
     if let Some(action) = node.id.strip_prefix("root/") {
         return ("terminal".to_string(), format!("action:{action}"));
@@ -3935,6 +3966,30 @@ mod tests {
         );
         assert!(super::has_node_id(&native, "root"));
         assert!(!super::has_node_id(&native, "turn:blank"));
+        let flop_handle =
+            super::solve(r#"{"pot":100.0,"bet":66.0,"stack":250.0,"board":"Ah Kd 7c"}"#)
+                .expect("flop solve starts");
+        let flop_payload = super::serialize(flop_handle).expect("flop serializes");
+        let flop_native: super::NativeSolve =
+            serde_json::from_slice(&flop_payload).expect("flop solve json");
+        assert!(super::has_node_id(&flop_native, "root/turn-low"));
+        assert_eq!(
+            flop_native
+                .information_sets
+                .iter()
+                .find(|info_set| info_set.node_id == "root/turn-low")
+                .unwrap()
+                .strategy_ref,
+            "root"
+        );
+        let turn_handle =
+            super::solve(r#"{"pot":100.0,"bet":66.0,"stack":250.0,"board":"Ah Kd 7c 2s"}"#)
+                .expect("turn solve starts");
+        let turn_payload = super::serialize(turn_handle).expect("turn serializes");
+        let turn_native: super::NativeSolve =
+            serde_json::from_slice(&turn_payload).expect("turn solve json");
+        assert!(super::has_node_id(&turn_native, "root/river-high"));
+        assert!(!super::has_node_id(&turn_native, "root/turn-low"));
         let root_strategy = super::get_strategy(handle, "root").unwrap();
         assert_eq!(
             root_strategy.len(),
