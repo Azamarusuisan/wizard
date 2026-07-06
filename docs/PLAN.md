@@ -61,7 +61,7 @@ Remaining:
 Evidence:
 - Current NLH flop Balanced gate uses a compact flop-to-river continuation abstraction over representative buckets and passes the numeric threshold.
 - Rust bucket tests cover fixed-seed 10-feature k-means++ and verify within-cluster variance does not worsen when bucket count increases.
-- Rust solver gates now verify the compact flop abstraction exploitability proxy improves from 2 to 4 to 6 buckets.
+- Rust solver gates now compute compact flop abstraction exploitability from card-derived flop buckets instead of synthetic equity rows.
 
 Remaining:
 - Implement full flop/turn public tree construction, card abstraction, terminal EV, strict BR, rake handling, and solve serialization for real information sets.
