@@ -525,8 +525,71 @@ pub mod equity {
 }
 
 pub mod tree {
+    #[derive(Clone, Debug, PartialEq)]
+    pub enum BetSize {
+        Percent(f64),
+        AllIn,
+    }
+
+    #[derive(Clone, Debug, PartialEq)]
+    pub struct BetTree {
+        pub flop: Vec<BetSize>,
+        pub turn: Vec<BetSize>,
+        pub river: Vec<BetSize>,
+    }
+
     pub fn pot_limit_max_raise(pot: f64, call: f64) -> f64 {
         pot + 3.0 * call
+    }
+
+    pub fn parse_bet_tree(text: &str) -> Result<BetTree, String> {
+        let mut tree = BetTree {
+            flop: Vec::new(),
+            turn: Vec::new(),
+            river: Vec::new(),
+        };
+        for raw_part in text.split(';') {
+            let part = raw_part.trim();
+            if part.is_empty() {
+                continue;
+            }
+            let (street, rest) = part
+                .split_once(char::is_whitespace)
+                .ok_or_else(|| format!("bad bet tree segment: {part}"))?;
+            let sizes = parse_sizes(rest)?;
+            match street.to_ascii_lowercase().as_str() {
+                "flop" => tree.flop = sizes,
+                "turn" => tree.turn = sizes,
+                "river" => tree.river = sizes,
+                _ => return Err(format!("unknown bet tree street: {street}")),
+            }
+        }
+        if tree.flop.is_empty() {
+            return Err("bet tree needs at least one flop size".to_string());
+        }
+        Ok(tree)
+    }
+
+    fn parse_sizes(text: &str) -> Result<Vec<BetSize>, String> {
+        let mut sizes = Vec::new();
+        for raw in text.split(',') {
+            let token = raw.trim();
+            if token.eq_ignore_ascii_case("all-in") {
+                sizes.push(BetSize::AllIn);
+                continue;
+            }
+            let percent = token
+                .parse::<f64>()
+                .map_err(|_| format!("bad bet size: {token}"))?;
+            if !percent.is_finite() || percent <= 0.0 {
+                return Err(format!("bad bet size: {token}"));
+            }
+            sizes.push(BetSize::Percent(percent));
+        }
+        if sizes.is_empty() {
+            return Err("bet tree street needs at least one size".to_string());
+        }
+        Ok(sizes)
     }
 }
 
@@ -1864,6 +1927,9 @@ fn validate_spot(spot: &NativeSpot) -> Result<(), String> {
         return Err("rake cap must be non-negative".to_string());
     }
     parse_board(spot.board.as_deref().unwrap_or(""))?;
+    if let Some(bet_tree) = spot.bet_tree.as_deref() {
+        tree::parse_bet_tree(bet_tree)?;
+    }
     Ok(())
 }
 
@@ -2316,6 +2382,18 @@ mod tests {
     #[test]
     fn pot_limit_and_bucket_smoke() {
         assert_eq!(tree::pot_limit_max_raise(100.0, 20.0), 160.0);
+        let bet_tree =
+            tree::parse_bet_tree("flop 33,66,all-in; turn 66,125; river 75,all-in").unwrap();
+        assert_eq!(
+            bet_tree.flop,
+            vec![
+                tree::BetSize::Percent(33.0),
+                tree::BetSize::Percent(66.0),
+                tree::BetSize::AllIn
+            ]
+        );
+        assert!(tree::parse_bet_tree("turn 66; river all-in").is_err());
+        assert!(tree::parse_bet_tree("flop 0").is_err());
         assert_eq!(bucket::kmeans_1d(&[0.1, 0.9], 2), vec![0, 1]);
     }
 
@@ -2497,6 +2575,17 @@ mod tests {
             rake_pct: Some(-1.0),
             rake_cap: None,
             bet_tree: None,
+        })
+        .is_err());
+        assert!(super::validate_spot(&super::NativeSpot {
+            game: None,
+            pot: 100.0,
+            bet: 66.0,
+            stack: None,
+            board: None,
+            rake_pct: None,
+            rake_cap: None,
+            bet_tree: Some("turn 66".to_string()),
         })
         .is_err());
     }
