@@ -67,6 +67,14 @@ test("EngineAPI prefers generated wasm package when present", async () => {
   assert.equal(turnBranchStrategy.actions.length, turnBranchStrategy.combos.length * 3);
   const flopRootStrategy = await engine.getStrategy(flopHandle, "root");
   assert.notDeepEqual([...turnBranchStrategy.actions.slice(0, 3)], [...flopRootStrategy.actions.slice(0, 3)]);
+  const qqFlopHandle = await engine.solve(JSON.stringify({ pot: 100, bet: 66, board: "Ah Kd 7c", heroRange: "QQ" }));
+  const turnQsStrategy = await engine.getStrategy(qqFlopHandle, "turn:root/turn-Qs");
+  const blockedIndex = turnQsStrategy.combos.findIndex((combo) => combo.includes("Qs"));
+  assert.ok(blockedIndex >= 0);
+  assert.deepEqual([...turnQsStrategy.actions.slice(blockedIndex * 3, blockedIndex * 3 + 3)], [0, 0, 0]);
+  const turnQsMetrics = await engine.getHandMetrics(qqFlopHandle, "turn:root/turn-Qs");
+  assert.equal(turnQsMetrics.equity[blockedIndex], 0);
+  assert.equal(turnQsMetrics.ev[blockedIndex], 0);
   const plo4 = await engine.solve(JSON.stringify({ game: "PLO4", pot: 100, bet: 66 }));
   const plo4Result = await engine.result(plo4);
   assert.equal(plo4Result.rows[0]?.combo, "AsAhKsKh");

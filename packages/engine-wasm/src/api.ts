@@ -415,6 +415,7 @@ function chanceRows(result: SolveResult, spot: LocalSpot, node: SolveNode): Solv
   const bet = betAmounts[0] ?? spot.bet;
   return result.rows.map((row) => {
     const equity = nlhChanceEquity(row.combo, row.equity, spot.board ?? "", node.id, spot.villainRange ?? "");
+    if (Number.isNaN(equity)) return { ...row, weight: 0, fold: 0, call: 0, raise: 0, equity: 0, callEv: 0, raiseEv: 0, ev: 0, eqr: 0 };
     const { callEv, raiseEv } = localActionEvs(equity, pot, bet, spot.rakePct ?? 0, spot.rakeCap ?? 0, betAmounts);
     const strategy = localCfrStrategy(0, callEv, raiseEv);
     const ev = (strategy.call * callEv + strategy.raise * raiseEv) / 100;

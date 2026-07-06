@@ -3407,6 +3407,14 @@ fn chance_node_rows(solve: &NativeSolve, node: &NativeNode) -> Vec<br::RiverComb
         .zip(&solve.combos)
         .take(solve.combos.len())
         .map(|(metric, combo)| {
+            if nlh_chance_node_blocks_combo(&node.id, combo) {
+                return br::RiverCombo {
+                    equity: 0.0,
+                    fold: 0.0,
+                    call: 0.0,
+                    raise: 0.0,
+                };
+            }
             let equity = if solve.spot.game.as_deref().unwrap_or("NLH") == "NLH" {
                 nlh_chance_node_equity(solve, combo, metric[1], &node.id)
             } else {
@@ -3506,6 +3514,13 @@ fn nlh_chance_node_equity(solve: &NativeSolve, combo: &str, fallback: f64, node_
     let (start, end) = chance_partition(equities.len(), bucket);
     let slice = &equities[start..end];
     slice.iter().sum::<f64>() / slice.len().max(1) as f64
+}
+
+fn nlh_chance_node_blocks_combo(node_id: &str, combo: &str) -> bool {
+    let Some((_, ChanceBranch::Card(card))) = chance_node_kind(node_id) else {
+        return false;
+    };
+    parse_combo_label(combo).is_some_and(|hero| hero.contains(&card))
 }
 
 enum ChanceBranch {
@@ -4604,6 +4619,27 @@ mod tests {
         let flop_root_strategy = super::get_strategy(flop_handle, "root").unwrap();
         assert_ne!(&turn_low_strategy[0..3], &flop_root_strategy[0..3]);
         assert_eq!(turn_qs_strategy.len(), flop_native.combos.len() * 3);
+        let qq_flop_handle = super::solve(
+            r#"{"pot":100.0,"bet":66.0,"stack":250.0,"board":"Ah Kd 7c","heroRange":"QQ"}"#,
+        )
+        .expect("QQ flop solve starts");
+        let qq_flop_payload = super::serialize(qq_flop_handle).expect("QQ serializes");
+        let qq_flop_native: super::NativeSolve =
+            serde_json::from_slice(&qq_flop_payload).expect("QQ solve json");
+        let blocked_index = qq_flop_native
+            .combos
+            .iter()
+            .position(|combo| combo.contains("Qs"))
+            .expect("Qs combo exists");
+        let qq_turn_qs_strategy = super::get_strategy(qq_flop_handle, "turn:root/turn-Qs").unwrap();
+        assert_eq!(
+            &qq_turn_qs_strategy[blocked_index * 3..blocked_index * 3 + 3],
+            &[0.0, 0.0, 0.0]
+        );
+        let qq_turn_qs_metrics =
+            super::get_hand_metrics(qq_flop_handle, "turn:root/turn-Qs").unwrap();
+        assert_eq!(qq_turn_qs_metrics[blocked_index * 3], 0.0);
+        assert_eq!(qq_turn_qs_metrics[blocked_index * 3 + 1], 0.0);
         let turn_low_metrics = super::get_hand_metrics(flop_handle, "turn:root/turn-low").unwrap();
         let turn_qs_metrics = super::get_hand_metrics(flop_handle, "turn:root/turn-Qs").unwrap();
         assert_eq!(turn_low_metrics[1], turn_low_bet_call_metrics[1]);

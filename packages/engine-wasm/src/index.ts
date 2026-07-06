@@ -422,7 +422,7 @@ export function nlhChanceEquity(comboText: string, fallback: number, boardText: 
   if (holes.length !== 2) return shiftedChanceEquity(fallback, nodeId);
   const exact = exactChanceCard(nodeId);
   if (exact !== null) {
-    if ([...board, ...holes].includes(exact)) return shiftedChanceEquity(fallback, nodeId);
+    if ([...board, ...holes].includes(exact)) return Number.NaN;
     const nextBoard = [...board, exact];
     return comboEquity(holes, fallback, nextBoard, nlhRiverCombosFromRange(villainRange, nextBoard));
   }

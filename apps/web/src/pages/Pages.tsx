@@ -314,6 +314,7 @@ function chanceParentId(nodeId: string): string | null {
 
 function chanceRow(row: SolverRow, nodeId: string, spot: { game: Game; pot: number; bet: number; stack: number; board: string; villainRange: string; rakePct: number; rakeCap: number; betTree: string }): SolverRow {
   const equity = nlhChanceEquity(row.combo, row.equity, spot.board, nodeId, spot.villainRange);
+  if (Number.isNaN(equity)) return { ...row, weight: 0, fold: 0, call: 0, raise: 0, equity: 0, callEv: 0, raiseEv: 0, ev: 0, eqr: 0 };
   const nextPot = spot.pot + spot.bet * 2;
   const betAmounts = chanceBetAmounts(spot, nodeId, nextPot);
   const bet = betAmounts[0] ?? spot.bet;

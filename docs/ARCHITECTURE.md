@@ -33,7 +33,7 @@ Target boundary:
 Current boundary:
 - Rust builds natively and through `wasm-pack`.
 - `EngineAPI` uses Rust/WASM when `packages/engine-wasm/pkg` exists and TypeScript otherwise.
-- The current production solve result is compact NLH range rows with exact board-aware equities, range weights, hand classes, blocker metrics, public low/mid/high chance branch nodes plus NLH exact public-card branches for flop/turn navigation, destination-street bet-response child nodes under those chance branches, and PLO4/PLO5 Fast capped representative rows with board-aware sampled equities. NLH bucket nodes derive compact strategy/metric tables from next-street card equity quantiles; exact-card nodes append that public card and recompute equity directly. Child bet-response metrics reuse the parent branch equity rows. This is not the final full postflop tree/MCCFR implementation.
+- The current production solve result is compact NLH range rows with exact board-aware equities, range weights, hand classes, blocker metrics, public low/mid/high chance branch nodes plus NLH exact public-card branches for flop/turn navigation, destination-street bet-response child nodes under those chance branches, and PLO4/PLO5 Fast capped representative rows with board-aware sampled equities. NLH bucket nodes derive compact strategy/metric tables from next-street card equity quantiles; exact-card nodes append that public card, recompute equity directly, and zero hero combos blocked by the public card. Child bet-response metrics reuse the parent branch equity rows. This is not the final full postflop tree/MCCFR implementation.
 
 ## State
 

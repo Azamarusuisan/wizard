@@ -175,6 +175,7 @@ test("TS river solve fallback uses board in concrete combo equities", () => {
   assert.ok(turn.nodes.some((node) => node.id === "root/river-Qs" && node.street === "river"));
   assert.ok(!turn.nodes.some((node) => node.id === "root/turn-low"));
   assert.equal(nlhChanceEquity("AcAd", boarded.rows[0]!.equity, "Ah Kd 7c", "root/turn-Qs"), solveRiverSpot(100, 66, 250, "Ah Kd 7c Qs").rows[0]!.equity);
+  assert.ok(Number.isNaN(nlhChanceEquity("QcQs", 0.5, "Ah Kd 7c", "root/turn-Qs")));
   const low = nlhChanceEquity("AcAd", boarded.rows[0]!.equity, "Ah Kd 7c", "root/turn-low");
   const mid = nlhChanceEquity("AcAd", boarded.rows[0]!.equity, "Ah Kd 7c", "root/turn-mid");
   const high = nlhChanceEquity("AcAd", boarded.rows[0]!.equity, "Ah Kd 7c", "root/turn-high");
