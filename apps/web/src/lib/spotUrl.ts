@@ -11,6 +11,8 @@ export type SolverSpot = {
   rakePct: number;
   rakeCap: number;
   betTree?: string;
+  heroRange?: string;
+  villainRange?: string;
 };
 
 export function encodeSpot(spot: SolverSpot): string {
@@ -37,7 +39,22 @@ export function decodeSpot(value: string | null): SolverSpot | null {
     const precision = raw.precision ?? "balanced";
     if (!validNumber(rakePct) || !validNumber(rakeCap) || !validGame(game)) return null;
     if (!validPosition(position) || !validPosition(villainPosition) || !validPotType(potType) || !validPrecision(precision)) return null;
-    return { game, position, villainPosition, potType, precision, pot: raw.pot, bet: raw.bet, stack: raw.stack, board: raw.board, rakePct, rakeCap, betTree: typeof raw.betTree === "string" ? raw.betTree : undefined };
+    return {
+      game,
+      position,
+      villainPosition,
+      potType,
+      precision,
+      pot: raw.pot,
+      bet: raw.bet,
+      stack: raw.stack,
+      board: raw.board,
+      rakePct,
+      rakeCap,
+      betTree: typeof raw.betTree === "string" ? raw.betTree : undefined,
+      heroRange: typeof raw.heroRange === "string" ? raw.heroRange : undefined,
+      villainRange: typeof raw.villainRange === "string" ? raw.villainRange : undefined
+    };
   } catch {
     return null;
   }

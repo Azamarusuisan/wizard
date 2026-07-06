@@ -15,6 +15,8 @@ export type SolvePayload = {
   rakePct?: number;
   rakeCap?: number;
   betTree?: string;
+  heroRange?: string;
+  villainRange?: string;
 };
 
 export async function runSolve(payload: SolvePayload, onProgress: (p: { iteration: number; value: number }) => void, signal?: AbortSignal): Promise<SolveRun> {

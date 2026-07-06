@@ -63,6 +63,8 @@ Spot JSON payload:
     "board": "Ah Kd 7c",
     "rakePct": 0,
     "rakeCap": 0,
+    "heroRange": "AA, KQs, A5s:0.5",
+    "villainRange": "AA, KQs, QQ, JTs",
     "betTree": "flop 33,66,125,all-in; turn 66,125,all-in; river 66,150,all-in"
   }
 }

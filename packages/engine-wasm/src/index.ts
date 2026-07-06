@@ -336,7 +336,7 @@ export const DEFAULT_RIVER_SPECS = [
   ["A5s", 0.32]
 ] as const;
 
-export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2, boardText = "", rakePct = 0, rakeCap = 0, game: Game = "NLH", betTree = "", precision: "fast" | "balanced" | "precise" = "balanced"): SolveResult {
+export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2, boardText = "", rakePct = 0, rakeCap = 0, game: Game = "NLH", betTree = "", precision: "fast" | "balanced" | "precise" = "balanced", heroRange = "", villainRange = ""): SolveResult {
   if (!Number.isFinite(pot) || pot <= 0) throw new Error("pot must be positive");
   if (!Number.isFinite(bet) || bet < 0) throw new Error("bet must be non-negative");
   if (!Number.isFinite(stack) || stack <= 0) throw new Error("stack must be positive");
@@ -350,10 +350,11 @@ export function solveRiverSpot(pot: number, bet: number, stack = pot * 4.2, boar
   if (game === "PLO4" || game === "PLO5") return solvePloFastSpot(game, pot, bet, stack, rakePct, rakeCap, potOdds, mdf, alpha, board.length, betTree, precision);
   const betAmounts = betAmountsForSpot(game, board.length, pot, bet, stack, betTree);
   const iterations = precisionIterations(precision);
-  const combos = defaultRiverCombos(board);
+  const combos = nlhRiverCombosFromRange(heroRange, board);
+  const villains = nlhRiverCombosFromRange(villainRange, board);
   const equityCache = new Map<string, number>();
   const rows = combos.map(({ combo, fallback, holes }) => {
-    const eq = comboEquity(holes, fallback, board, combos, equityCache);
+    const eq = comboEquity(holes, fallback, board, villains, equityCache);
     const { callEv, raiseEv } = rowActionEvs(eq, pot, bet, betAmounts, rakePct, rakeCap);
     const { fold, call, raise } = cfrStrategyFromActionEvs(0, callEv, raiseEv, iterations);
     const ev = (call * callEv + raise * raiseEv) / 100;
@@ -574,8 +575,20 @@ function parseBoardText(text: string): Card[] {
   return board;
 }
 
-function defaultRiverCombos(board: Card[]): { combo: string; fallback: number; holes: Card[] }[] {
-  return DEFAULT_RIVER_SPECS.flatMap(([label, fallback]) => expandNlhCombo(label, board).map((holes) => ({ combo: holes.map(formatCard).join(""), fallback, holes })));
+type RiverCombo = { combo: string; fallback: number; holes: Card[]; weight: number };
+
+function defaultRiverCombos(board: Card[]): RiverCombo[] {
+  return DEFAULT_RIVER_SPECS.flatMap(([label, fallback]) => expandNlhCombo(label, board).map((holes) => ({ combo: holes.map(formatCard).join(""), fallback, holes, weight: 1 })));
+}
+
+function nlhRiverCombosFromRange(text: string, board: Card[]): RiverCombo[] {
+  if (!text.trim()) return defaultRiverCombos(board);
+  const combos = parseNlhRange(text).flatMap(({ label, weight }) => {
+    const fallback = DEFAULT_RIVER_SPECS.find(([spec]) => spec === label)?.[1] ?? 0.5;
+    return weight <= 0 ? [] : expandNlhCombo(label, board).map((holes) => ({ combo: holes.map(formatCard).join(""), fallback, holes, weight }));
+  });
+  if (!combos.length) throw new Error("range has no available combos");
+  return combos;
 }
 
 function expandNlhCombo(label: string, blocked: Card[]): Card[][] {
@@ -609,15 +622,16 @@ function comboEquity(hero: Card[], fallback: number, board: Card[], villainCombo
   const villains = villainCombos.filter((combo) => !combo.holes.some((card) => blocked.has(card)));
   if (!villains.length) return fallback;
   const heroKey = comboKey(hero);
-  return villains.reduce((sum, villain) => {
+  const weighted = villains.reduce((sum, villain) => {
     const villainKey = comboKey(villain.holes);
     const key = heroKey < villainKey ? `${heroKey}|${villainKey}` : `${villainKey}|${heroKey}`;
     const cached = cache?.get(key);
-    if (cached !== undefined) return sum + (heroKey < villainKey ? cached : 1 - cached);
+    if (cached !== undefined) return { equity: sum.equity + villain.weight * (heroKey < villainKey ? cached : 1 - cached), weight: sum.weight + villain.weight };
     const value = equity([{ cards: hero }, { cards: villain.holes }], board, "NLH", 0, 1)[0]!.equity;
     cache?.set(key, heroKey < villainKey ? value : 1 - value);
-    return sum + value;
-  }, 0) / villains.length;
+    return { equity: sum.equity + villain.weight * value, weight: sum.weight + villain.weight };
+  }, { equity: 0, weight: 0 });
+  return weighted.equity / weighted.weight;
 }
 
 function comboKey(cards: Card[]): string {

@@ -52,9 +52,9 @@ class LocalEngine implements EngineAPI {
   }
 
   async solve(spotJson: string): Promise<EngineHandle> {
-    const spot = JSON.parse(spotJson) as { game?: "NLH" | "PLO4" | "PLO5"; pot: number; bet: number; stack?: number; board?: string; rakePct?: number; rakeCap?: number; betTree?: string; precision?: "fast" | "balanced" | "precise" };
+    const spot = JSON.parse(spotJson) as { game?: "NLH" | "PLO4" | "PLO5"; pot: number; bet: number; stack?: number; board?: string; rakePct?: number; rakeCap?: number; betTree?: string; precision?: "fast" | "balanced" | "precise"; heroRange?: string; villainRange?: string };
     const handle = this.nextHandle++;
-    this.solves.set(handle, solveRiverSpot(spot.pot, spot.bet, spot.stack, spot.board, spot.rakePct, spot.rakeCap, spot.game, spot.betTree, spot.precision));
+    this.solves.set(handle, solveRiverSpot(spot.pot, spot.bet, spot.stack, spot.board, spot.rakePct, spot.rakeCap, spot.game, spot.betTree, spot.precision, spot.heroRange, spot.villainRange));
     return handle;
   }
 

@@ -42,7 +42,7 @@
 - Solver spot payload/cache/share URL now carries hero position, villain position, pot type, and precision. Solver Studio exposes the controls, Rust native validation/serialization preserves them, `docs/formats.md` documents the spot JSON, and Playwright covers URL reload persistence.
 - Precision now changes the current abstract CFR iteration budget (`fast` 512, `balanced` 2,048, `precise` 4,096) in Rust native and TypeScript fallback solve paths; package tests cover that precision changes strategy rows.
 - Solver spot payload now carries optional effective stack, and native/TS fallback/UI compute SPR as `stack / pot` instead of using a fixed display value.
-- Solver spot payload/cache key now carries optional board text from the Solver Studio input. Native and TS fallback river rows parse/validate board cards, expand the default NLH labels to concrete combos, and recompute board-aware combo equities from exact NLH enumeration when board text is present. This is still default-combo river solving, not full range/tree board-aware CFR.
+- Solver spot payload/cache key now carries optional board text from the Solver Studio input. Native and TS fallback river rows parse/validate board cards, expand compact NLH range labels to concrete combos, and recompute board-aware combo equities from exact NLH enumeration when board text is present. This is still compact range row solving, not full range/tree board-aware CFR.
 - Solver spot payload/cache key now carries rake percent and cap. Native WASM and TS fallback river action EVs subtract capped rake from the win pot; tests cover that rake lowers call/raise showdown EV.
 - Solver spot payload/cache key now carries game. PLO4/PLO5 in Solver Studio return Fast sampled BR metrics instead of silently using NLH rows; the real MCCFR path still needs to replace this proxy.
 - PLO4/PLO5 Fast solve rows now use concrete representative combo labels and derive their equity from seeded PLO-vs-random MC before computing pure fold/call/raise strategy from current pot/bet/rake EV. This is still a representative proxy, not full PLO MCCFR.
@@ -63,7 +63,7 @@
 - TypeScript fallback also exposes pot-limit capped concrete sizes, and Solver Studio uses the cap for PLO4/PLO5 bet-size buttons.
 - Solver Studio board input now has Random flop, Monotone, and Paired buttons; Playwright covers category/random board updates.
 - Solver Studio no longer runs board-aware NLH range equity synchronously during preview; board-card validation stays on the main thread and the actual solve runs through the worker path.
-- Solver Studio displays an `abstracted` badge and explicitly says exploitability is measured on the default-combo abstraction. Playwright covers the disclosure.
+- Solver Studio displays an `abstracted` badge and explicitly says exploitability is measured on the compact range abstraction. Playwright covers the disclosure.
 - Solver Studio catches invalid spot inputs before rendering strategy/metrics, displays the validation error, and disables solve. Playwright covers duplicate board-card input.
 - The left navigation can collapse to icon-only mode; Playwright covers the shell toggle.
 - Solver Studio now reads/writes shareable spot configs through `?spot=<base64url-json>`. Unit tests cover the codec and Playwright verifies solve updates the URL.
@@ -99,7 +99,7 @@
 - Solver Studio now shows selected-node range aggregates: range EV, range equity, range EQR, and fold/call/raise action mix. Playwright covers the cards.
 - The TypeScript fallback evaluator test also covers PLO5 exact two-hole usage and board-only hands being unplayable.
 - `crates/engine` now exports wasm-bindgen handle/progress functions matching the EngineAPI shape: `init`, `solve`, `poll_progress`, `get_strategy`, `get_hand_metrics`, `cancel`, and `serialize`. Native serialized solve payloads include combo labels, so TypeScript no longer owns solver row identity for the WASM path.
-- README, architecture, and formats docs now reflect the current Plan A Rust/WASM path, IndexedDB solve cache shape, and remaining default-combo / sampled-PLO limitations.
+- README, architecture, and formats docs now reflect the current Plan A Rust/WASM path, IndexedDB solve cache shape, and remaining compact-range / sampled-PLO limitations.
 - IndexedDB solve cache keys are canonical JSON SHA-256 via WebCrypto in the web layer.
 - PLAN now reflects current Plan A evidence, per-milestone verification commands, and remaining M4/M5/M7 work instead of the earlier cargo-unavailable slice.
 - Criterion benches now exist for `nlh7_eval` and `default_river_solve`. Latest local `cargo bench -p gto_lab_engine --bench engine_bench`: `nlh7_eval` ~11.66 ns/eval, default river rows ~501.65 us. The evaluator now exceeds the original 50M eval/s target on this machine.

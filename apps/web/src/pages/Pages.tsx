@@ -11,6 +11,8 @@ import { useAppStore } from "../state/store";
 
 const ranks = "AKQJT98765432";
 const DEFAULT_BET_TREE = "flop 33,66,125,all-in; turn 66,125,all-in; river 66,150,all-in";
+const DEFAULT_HERO_RANGE = "AA, KQs, A5s:0.5";
+const DEFAULT_VILLAIN_RANGE = "AA, KQs, QQ, JTs";
 const POSITIONS = ["UTG", "HJ", "CO", "BTN", "SB", "BB"] as const;
 
 export function Dashboard() {
@@ -126,6 +128,8 @@ export function SolverStudio() {
   const [rakeCap, setRakeCap] = useState(shared?.rakeCap ?? 0);
   const [board, setBoard] = useState(shared?.board ?? "Ah Kd 7c");
   const [betTree, setBetTree] = useState(shared?.betTree ?? DEFAULT_BET_TREE);
+  const [heroRange, setHeroRange] = useState(shared?.heroRange ?? DEFAULT_HERO_RANGE);
+  const [villainRange, setVillainRange] = useState(shared?.villainRange ?? DEFAULT_VILLAIN_RANGE);
   const [progress, setProgress] = useState<{ iteration: number; value: number }[]>([]);
   const [cached, setCached] = useState(false);
   const [running, setRunning] = useState(false);
@@ -134,16 +138,20 @@ export function SolverStudio() {
   const cancelRef = useRef<AbortController | null>(null);
   const result = useAppStore((s) => s.result);
   const setResult = useAppStore((s) => s.setResult);
-  const currentKey = JSON.stringify({ game, position, villainPosition, potType, precision, pot, bet, stack, board, rakePct, rakeCap, betTree });
+  const currentKey = JSON.stringify({ game, position, villainPosition, potType, precision, pot, bet, stack, board, rakePct, rakeCap, betTree, heroRange, villainRange });
   const preview = useMemo(() => {
     try {
       validateSolverInputs(game, pot, bet, stack, board, rakePct, rakeCap, betTree);
+      if (game === "NLH") {
+        if (heroRange.trim()) parseNlhRange(heroRange);
+        if (villainRange.trim()) parseNlhRange(villainRange);
+      }
       if (game === "NLH" && board.trim()) return { result: null, error: "" };
-      return { result: solveRiverSpot(pot, bet, stack, board, rakePct, rakeCap, game, betTree, precision), error: "" };
+      return { result: solveRiverSpot(pot, bet, stack, board, rakePct, rakeCap, game, betTree, precision, heroRange, villainRange), error: "" };
     } catch (err) {
       return { result: null, error: err instanceof Error ? err.message : "invalid spot" };
     }
-  }, [game, pot, bet, stack, board, rakePct, rakeCap, betTree]);
+  }, [game, pot, bet, stack, board, rakePct, rakeCap, betTree, precision, heroRange, villainRange]);
   const shown = preview.error ? null : result && resultKey === currentKey ? result : preview.result;
   const selectedNode = shown?.nodes.find((node) => node.id === selectedNodeId) ?? shown?.nodes[0];
   const shownRows = shown && selectedNode ? rowsForNode(shown, selectedNode) : [];
@@ -170,6 +178,8 @@ export function SolverStudio() {
           <button className="btn" onClick={() => setBoard("As Ks 7s")}>Monotone</button>
           <button className="btn" onClick={() => setBoard("Ah Ad 7c")}>Paired</button>
         </div>
+        <label className="field">Hero range<textarea rows={2} value={heroRange} onChange={(e) => setHeroRange(e.target.value)} /></label>
+        <label className="field">Villain range<textarea rows={2} value={villainRange} onChange={(e) => setVillainRange(e.target.value)} /></label>
         <label className="field">Bet tree<textarea rows={3} value={betTree} onChange={(e) => setBetTree(e.target.value)} /></label>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {flopBetSizes(betTree, pot, bet, stack, game).map((size) => <button className="btn" key={size.amount} onClick={() => setBet(size.amount)}>{size.label}</button>)}
@@ -182,7 +192,7 @@ export function SolverStudio() {
           setRunning(true);
           setProgress([]);
           setCached(false);
-          const payload = { game, position, villainPosition, potType, precision, pot, bet, stack, board, rakePct, rakeCap, betTree };
+          const payload = { game, position, villainPosition, potType, precision, pot, bet, stack, board, rakePct, rakeCap, betTree, heroRange, villainRange };
           const payloadKey = JSON.stringify(payload);
           history.replaceState(null, "", `/solver?spot=${encodeSpot(payload)}`);
           void runSolve(payload, (p) => setProgress((xs) => [...xs, p]), controller.signal).then((run) => {
@@ -201,7 +211,7 @@ export function SolverStudio() {
         <button className="btn" disabled={!running} onClick={() => cancelRef.current?.abort()}>Cancel</button>
         {cached ? <span className="badge">cached</span> : null}
         <span className="badge">abstracted</span>
-        <p className="muted">Exploitability is measured on the current default-combo abstraction, not a full postflop tree.</p>
+        <p className="muted">Exploitability is measured on the current compact range abstraction, not a full postflop tree.</p>
       </section>
       <section className="card">
         <h2 className="title">Strategy</h2>

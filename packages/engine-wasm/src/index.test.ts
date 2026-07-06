@@ -152,6 +152,15 @@ test("TS river solve fallback uses board in concrete combo equities", () => {
   assert.ok(!boarded.rows.some((r) => r.combo.includes("Ah")));
 });
 
+test("TS river solve fallback uses custom NLH ranges", () => {
+  const custom = solveRiverSpot(100, 66, 250, "Ah Kd 7c", 0, 0, "NLH", "", "balanced", "QQ, JTs", "AA");
+  assert.ok(custom.rows.length > 0);
+  assert.ok(custom.rows.every((row) => row.combo.startsWith("Q") || row.combo.startsWith("J") || row.combo.startsWith("T")));
+  const defaultVillains = solveRiverSpot(100, 66, 250, "Ah Kd 7c", 0, 0, "NLH", "", "balanced", "QQ", "");
+  const aaVillains = solveRiverSpot(100, 66, 250, "Ah Kd 7c", 0, 0, "NLH", "", "balanced", "QQ", "AA");
+  assert.notEqual(defaultVillains.rows[0]!.equity, aaVillains.rows[0]!.equity);
+});
+
 test("TS single NLH combo solve reports one concrete board-aware row", () => {
   const result = solveNlhComboSpot(100, 66, 250, "Ah Kd 7c", "AcAd");
   assert.equal(result.nodes[0]!.street, "flop");

@@ -34,9 +34,11 @@ test("solver runs and displays strategy metrics", async ({ page }) => {
   await page.getByLabel("Precision").selectOption("precise");
   await page.getByLabel("Rake %").fill("5");
   await page.getByLabel("Rake cap").fill("10");
+  await page.getByLabel("Hero range").fill("QQ, JTs");
+  await page.getByLabel("Villain range").fill("AA, KQs");
   await page.getByRole("button", { name: "Start solve" }).click();
   await expect(page.getByRole("button", { name: "Cancel" })).toBeEnabled();
-  await expect(page.getByRole("table", { name: "strategy table" })).toContainText("AcAd");
+  await expect(page.getByRole("table", { name: "strategy table" })).toContainText(/QcQd|JsTs/);
   await expect(page.getByRole("table", { name: "strategy table" })).toContainText("R EV");
   await expect(page.getByText("MDF")).toBeVisible();
   await expect(page.getByText("SPR")).toBeVisible();
@@ -51,7 +53,7 @@ test("solver runs and displays strategy metrics", async ({ page }) => {
   await page.getByRole("button", { name: /BET 33 \(root\/bet-33/ }).click();
   await expect(page.getByText("Node: root/bet-33")).toBeVisible();
   await expect(page.getByText("abstracted")).toBeVisible();
-  await expect(page.getByText(/default-combo abstraction/)).toBeVisible();
+  await expect(page.getByText(/compact range abstraction/)).toBeVisible();
   await expect(page).toHaveURL(/spot=/);
   await expect(page.getByRole("button", { name: "Cancel" })).toBeDisabled();
   await page.getByRole("button", { name: "Start solve" }).click();
@@ -61,6 +63,8 @@ test("solver runs and displays strategy metrics", async ({ page }) => {
   await expect(page.getByLabel("Hero position")).toHaveValue("CO");
   await expect(page.getByLabel("Pot type")).toHaveValue("3bet");
   await expect(page.getByLabel("Precision")).toHaveValue("precise");
+  await expect(page.getByLabel("Hero range")).toHaveValue("QQ, JTs");
+  await expect(page.getByLabel("Villain range")).toHaveValue("AA, KQs");
 });
 
 test("equity lab shows AA vs KK", async ({ page }) => {

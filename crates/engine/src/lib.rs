@@ -1740,6 +1740,10 @@ struct NativeSpot {
     rake_cap: Option<f64>,
     #[serde(rename = "betTree")]
     bet_tree: Option<String>,
+    #[serde(rename = "heroRange")]
+    hero_range: Option<String>,
+    #[serde(rename = "villainRange")]
+    villain_range: Option<String>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -1811,7 +1815,10 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
     if matches!(spot.game.as_deref().unwrap_or("NLH"), "PLO4" | "PLO5") {
         return solve_plo_fast(spot, spr, mdf, alpha, pot_odds, rake_pct, rake_cap);
     }
-    let entries = default_river_entries(&board);
+    let entries = nlh_river_entries_from_range(spot.hero_range.as_deref(), &board)
+        .map_err(|err| JsValue::from_str(&err))?;
+    let villain_entries = nlh_river_entries_from_range(spot.villain_range.as_deref(), &board)
+        .map_err(|err| JsValue::from_str(&err))?;
     let combos = entries
         .iter()
         .map(|entry| entry.label.clone())
@@ -1827,7 +1834,7 @@ pub fn solve(spot_json: &str) -> Result<u32, JsValue> {
                 entry.holes,
                 entry.fallback,
                 &board,
-                &entries,
+                &villain_entries,
                 &mut equity_cache,
             );
             let (fold_ev, call_ev, _) =
@@ -2017,7 +2024,11 @@ fn validate_spot(spot: &NativeSpot) -> Result<(), String> {
     if !(rake_cap.is_finite() && rake_cap >= 0.0) {
         return Err("rake cap must be non-negative".to_string());
     }
-    parse_board(spot.board.as_deref().unwrap_or(""))?;
+    let board = parse_board(spot.board.as_deref().unwrap_or(""))?;
+    if spot.game.as_deref().unwrap_or("NLH") == "NLH" {
+        nlh_river_entries_from_range(spot.hero_range.as_deref(), &board)?;
+        nlh_river_entries_from_range(spot.villain_range.as_deref(), &board)?;
+    }
     if let Some(bet_tree) = spot.bet_tree.as_deref() {
         tree::parse_bet_tree(bet_tree)?;
     }
@@ -2066,6 +2077,7 @@ struct RiverEntry {
     label: String,
     fallback: f64,
     holes: [eval::Card; 2],
+    weight: f64,
 }
 
 fn default_river_entries(board: &[eval::Card]) -> Vec<RiverEntry> {
@@ -2078,9 +2090,159 @@ fn default_river_entries(board: &[eval::Card]) -> Vec<RiverEntry> {
                     label: format!("{}{}", format_card(holes[0]), format_card(holes[1])),
                     fallback: *fallback,
                     holes,
+                    weight: 1.0,
                 })
         })
         .collect()
+}
+
+fn nlh_river_entries_from_range(
+    text: Option<&str>,
+    board: &[eval::Card],
+) -> Result<Vec<RiverEntry>, String> {
+    let Some(text) = text.filter(|value| !value.trim().is_empty()) else {
+        return Ok(default_river_entries(board));
+    };
+    let mut entries = Vec::new();
+    for term in text
+        .split(',')
+        .map(str::trim)
+        .filter(|term| !term.is_empty())
+    {
+        let (shape, weight_text) = term.split_once(':').unwrap_or((term, "1"));
+        let weight = weight_text
+            .parse::<f64>()
+            .map_err(|_| format!("bad range weight: {term}"))?;
+        if !(0.0..=1.0).contains(&weight) {
+            return Err(format!("bad range weight: {term}"));
+        }
+        if weight == 0.0 {
+            continue;
+        }
+        for label in nlh_range_labels(shape)? {
+            let fallback = br::DEFAULT_RIVER_SPECS
+                .iter()
+                .find(|(spec, _)| *spec == label)
+                .map(|(_, equity)| *equity)
+                .unwrap_or(0.5);
+            entries.extend(
+                expand_nlh_combo(&label, board)
+                    .into_iter()
+                    .map(|holes| RiverEntry {
+                        label: format!("{}{}", format_card(holes[0]), format_card(holes[1])),
+                        fallback,
+                        holes,
+                        weight,
+                    }),
+            );
+        }
+    }
+    if entries.is_empty() {
+        return Err("range has no available combos".to_string());
+    }
+    Ok(entries)
+}
+
+fn nlh_range_labels(shape: &str) -> Result<Vec<String>, String> {
+    if let Some(base) = shape.strip_suffix('+') {
+        return nlh_plus_labels(base);
+    }
+    if let Some((start, end)) = shape.split_once('-') {
+        return nlh_span_labels(start, end);
+    }
+    validate_nlh_label(shape)?;
+    Ok(vec![shape.to_string()])
+}
+
+fn nlh_plus_labels(base: &str) -> Result<Vec<String>, String> {
+    validate_nlh_label(base)?;
+    let chars = base.as_bytes();
+    let r0 = nlh_rank_index(chars[0])?;
+    let r1 = nlh_rank_index(chars[1])?;
+    if r0 == r1 {
+        return Ok((r0..=12).map(nlh_pair_label).collect());
+    }
+    if r0 < r1 {
+        return Err(format!("bad NLH range label: {base}+"));
+    }
+    let suffix = base.get(2..).unwrap_or("");
+    Ok((r1..r0)
+        .map(|idx| format!("{}{}{}", nlh_rank_char(r0), nlh_rank_char(idx), suffix))
+        .collect())
+}
+
+fn nlh_span_labels(start: &str, end: &str) -> Result<Vec<String>, String> {
+    validate_nlh_label(start)?;
+    validate_nlh_label(end)?;
+    let start_chars = start.as_bytes();
+    let end_chars = end.as_bytes();
+    let start_a = nlh_rank_index(start_chars[0])?;
+    let start_b = nlh_rank_index(start_chars[1])?;
+    let end_a = nlh_rank_index(end_chars[0])?;
+    let end_b = nlh_rank_index(end_chars[1])?;
+    if start_a == start_b && end_a == end_b {
+        let lo = start_a.min(end_a);
+        let hi = start_a.max(end_a);
+        return Ok((lo..=hi).map(nlh_pair_label).collect());
+    }
+    if start.get(2..) != end.get(2..) {
+        return Err(format!("bad NLH range span: {start}-{end}"));
+    }
+    if start_a.abs_diff(end_a) != start_b.abs_diff(end_b) {
+        return Err(format!("bad NLH range span: {start}-{end}"));
+    }
+    let step_down = start_a > end_a;
+    let count = start_a.abs_diff(end_a);
+    let suffix = start.get(2..).unwrap_or("");
+    let labels = (0..=count)
+        .map(|offset| {
+            let a = if step_down {
+                start_a - offset
+            } else {
+                start_a + offset
+            };
+            let b = if start_b > end_b {
+                start_b - offset
+            } else {
+                start_b + offset
+            };
+            format!("{}{}{}", nlh_rank_char(a), nlh_rank_char(b), suffix)
+        })
+        .collect();
+    Ok(labels)
+}
+
+fn validate_nlh_label(label: &str) -> Result<(), String> {
+    let chars = label.as_bytes();
+    if !(chars.len() == 2 || chars.len() == 3) {
+        return Err(format!("bad NLH range label: {label}"));
+    }
+    let r0 = nlh_rank_index(chars[0])?;
+    let r1 = nlh_rank_index(chars[1])?;
+    if r0 == r1 && chars.len() != 2 {
+        return Err(format!("bad NLH range label: {label}"));
+    }
+    if r0 != r1 {
+        match chars.get(2).map(|c| c.to_ascii_lowercase()) {
+            None | Some(b's') | Some(b'o') => {}
+            _ => return Err(format!("bad NLH range label: {label}")),
+        }
+    }
+    Ok(())
+}
+
+fn nlh_rank_index(rank: u8) -> Result<usize, String> {
+    "23456789TJQKA"
+        .find(rank.to_ascii_uppercase() as char)
+        .ok_or_else(|| format!("bad NLH rank: {}", rank as char))
+}
+
+fn nlh_rank_char(rank: usize) -> char {
+    "23456789TJQKA".as_bytes()[rank] as char
+}
+
+fn nlh_pair_label(rank: usize) -> String {
+    format!("{}{}", nlh_rank_char(rank), nlh_rank_char(rank))
 }
 
 fn expand_nlh_combo(label: &str, blocked: &[eval::Card]) -> Vec<[eval::Card; 2]> {
@@ -2165,35 +2327,42 @@ fn combo_equity_cached(
         return fallback;
     }
     let hero_key = combo_key(hero);
-    villains
-        .iter()
-        .map(|villain| {
-            let villain_key = combo_key(villain.holes);
-            let key = if hero_key < villain_key {
-                format!("{hero_key}|{villain_key}")
-            } else {
-                format!("{villain_key}|{hero_key}")
-            };
-            if let Some(value) = cache.get(&key) {
-                return if hero_key < villain_key {
-                    *value
+    let (equity_sum, weight_sum) =
+        villains
+            .iter()
+            .fold((0.0, 0.0), |(equity_sum, weight_sum), villain| {
+                let villain_key = combo_key(villain.holes);
+                let key = if hero_key < villain_key {
+                    format!("{hero_key}|{villain_key}")
                 } else {
-                    1.0 - *value
+                    format!("{villain_key}|{hero_key}")
                 };
-            }
-            let value = equity::heads_up_nlh_equity_exact(hero, villain.holes, board);
-            cache.insert(
-                key,
-                if hero_key < villain_key {
-                    value
-                } else {
-                    1.0 - value
-                },
-            );
-            value
-        })
-        .sum::<f64>()
-        / villains.len() as f64
+                if let Some(value) = cache.get(&key) {
+                    let equity = if hero_key < villain_key {
+                        *value
+                    } else {
+                        1.0 - *value
+                    };
+                    return (
+                        equity_sum + villain.weight * equity,
+                        weight_sum + villain.weight,
+                    );
+                }
+                let value = equity::heads_up_nlh_equity_exact(hero, villain.holes, board);
+                cache.insert(
+                    key,
+                    if hero_key < villain_key {
+                        value
+                    } else {
+                        1.0 - value
+                    },
+                );
+                (
+                    equity_sum + villain.weight * value,
+                    weight_sum + villain.weight,
+                )
+            });
+    equity_sum / weight_sum
 }
 
 fn combo_key(cards: [eval::Card; 2]) -> String {
@@ -3013,6 +3182,8 @@ mod tests {
             rake_pct: None,
             rake_cap: None,
             bet_tree: None,
+            hero_range: None,
+            villain_range: None,
         })
         .is_err());
         assert!(super::validate_spot(&super::NativeSpot {
@@ -3028,6 +3199,8 @@ mod tests {
             rake_pct: None,
             rake_cap: None,
             bet_tree: None,
+            hero_range: None,
+            villain_range: None,
         })
         .is_err());
         assert!(super::validate_spot(&super::NativeSpot {
@@ -3043,6 +3216,8 @@ mod tests {
             rake_pct: None,
             rake_cap: None,
             bet_tree: None,
+            hero_range: None,
+            villain_range: None,
         })
         .is_err());
         assert!(super::validate_spot(&super::NativeSpot {
@@ -3058,6 +3233,8 @@ mod tests {
             rake_pct: None,
             rake_cap: None,
             bet_tree: None,
+            hero_range: None,
+            villain_range: None,
         })
         .is_err());
         assert!(super::validate_spot(&super::NativeSpot {
@@ -3073,6 +3250,8 @@ mod tests {
             rake_pct: None,
             rake_cap: None,
             bet_tree: None,
+            hero_range: None,
+            villain_range: None,
         })
         .is_err());
         assert!(super::validate_spot(&super::NativeSpot {
@@ -3088,6 +3267,8 @@ mod tests {
             rake_pct: Some(-1.0),
             rake_cap: None,
             bet_tree: None,
+            hero_range: None,
+            villain_range: None,
         })
         .is_err());
         assert!(super::validate_spot(&super::NativeSpot {
@@ -3103,6 +3284,8 @@ mod tests {
             rake_pct: None,
             rake_cap: None,
             bet_tree: Some("turn 66".to_string()),
+            hero_range: None,
+            villain_range: None,
         })
         .is_err());
     }
@@ -3125,6 +3308,40 @@ mod tests {
             .all(|combo| !combo.contains("Ah")));
         super::cancel(empty).unwrap();
         super::cancel(boarded).unwrap();
+    }
+
+    #[test]
+    fn native_solve_uses_custom_nlh_ranges() {
+        super::init(None);
+        let custom = super::solve(
+            r#"{"pot":100.0,"bet":66.0,"stack":250.0,"board":"Ah Kd 7c","heroRange":"QQ,JTs","villainRange":"AA"}"#,
+        )
+        .unwrap();
+        let custom_payload = super::serialize(custom).unwrap();
+        let custom_native: super::NativeSolve = serde_json::from_slice(&custom_payload).unwrap();
+        assert!(!custom_native.combos.is_empty());
+        assert!(custom_native
+            .combos
+            .iter()
+            .all(|combo| combo.starts_with('Q')
+                || combo.starts_with('J')
+                || combo.starts_with('T')));
+        let default_villains = super::solve(
+            r#"{"pot":100.0,"bet":66.0,"stack":250.0,"board":"Ah Kd 7c","heroRange":"QQ"}"#,
+        )
+        .unwrap();
+        let aa_villains = super::solve(
+            r#"{"pot":100.0,"bet":66.0,"stack":250.0,"board":"Ah Kd 7c","heroRange":"QQ","villainRange":"AA"}"#,
+        )
+        .unwrap();
+        let default_payload = super::serialize(default_villains).unwrap();
+        let aa_payload = super::serialize(aa_villains).unwrap();
+        let default_native: super::NativeSolve = serde_json::from_slice(&default_payload).unwrap();
+        let aa_native: super::NativeSolve = serde_json::from_slice(&aa_payload).unwrap();
+        assert_ne!(default_native.metrics[1], aa_native.metrics[1]);
+        super::cancel(custom).unwrap();
+        super::cancel(default_villains).unwrap();
+        super::cancel(aa_villains).unwrap();
     }
 
     #[test]

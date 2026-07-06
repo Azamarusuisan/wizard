@@ -13,6 +13,8 @@ type SolvePayload = {
   rakePct?: number;
   rakeCap?: number;
   betTree?: string;
+  heroRange?: string;
+  villainRange?: string;
 };
 type Req = { id: string; type: "solve"; payload: SolvePayload } | { id: string; type: "cancel" };
 
